@@ -250,35 +250,7 @@ void thread_unblock(struct thread *t)
   old_level = intr_disable();
   ASSERT(t->status == THREAD_BLOCKED);
 
-  if (list_empty(&priority_ready_list))
-  {
-    struct level new_priority_list;
-    new_priority_list.priority = t->priority;
-    list_init(&new_priority_list.thread_list);
-    list_push_back(&priority_ready_list, &new_priority_list.elem);
-  }
-  else
-  {
-    struct list_elem *e;
-    for (e = list_begin(&priority_ready_list); e != list_end(&priority_ready_list); e = list_next(e))
-    {
-      struct level *priority_list = list_entry(e, struct level, elem);
-      if (priority_list->priority < t->priority)
-      {
-        // MAKE STRUCT
-        struct level new_priority_list;
-        new_priority_list.priority = t->priority;
-        list_init(&new_priority_list.thread_list);
-        list_insert(list_prev(e), &new_priority_list.elem);
-        break;
-      }
-      else if (priority_list->priority == t->priority)
-      {
-        list_push_back(&priority_list->thread_list, &t->elem);
-        break;
-      }
-    }
-  }
+  update_priority(t);
 
   t->status = THREAD_READY;
   intr_set_level(old_level);
@@ -612,8 +584,38 @@ schedule(void)
   Move thread to a different priority level list according to its
   current (new) priority (t->priority)
 */
-void donate_priority(struct thread* t) {
-  
+void update_priority(struct thread* t) {
+  if (list_empty(&priority_ready_list))
+  {
+    struct level new_level;
+    new_level.priority = t->priority;
+    list_init(&new_level.thread_list);
+    list_push_back(&new_level.thread_list, &t->elem);
+    list_push_back(&priority_ready_list, &new_level.elem);
+  }
+  else
+  {
+    struct list_elem *e;
+    for (e = list_begin(&priority_ready_list); e != list_end(&priority_ready_list); e = list_next(e))
+    {
+      struct level *curr_level = list_entry(e, struct level, elem);
+      if (curr_level->priority < t->priority)
+      {
+        // MAKE STRUCT
+        struct level new_level;
+        new_level.priority = t->priority;
+        list_init(&new_level.thread_list);
+        list_push_back(&new_level.thread_list, &t->elem);
+        list_insert(list_prev(e), &new_level.elem);
+        break;
+      }
+      else if (curr_level->priority == t->priority)
+      {
+        list_push_back(&curr_level->thread_list, &t->elem);
+        break;
+      }
+    }
+  }
 }
 
 
