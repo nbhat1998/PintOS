@@ -475,6 +475,7 @@ init_thread(struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   list_init (&t->don_list);
+  t->init_priority = priority;
 
   old_level = intr_disable();
   list_push_back(&all_list, &t->allelem);
@@ -608,12 +609,12 @@ void update_priority(struct thread* t) {
         list_init(&new_level.thread_list);
         list_push_back(&new_level.thread_list, &t->elem);
         list_insert(list_prev(e), &new_level.elem);
-        break;
+        return;
       }
       else if (curr_level->priority == t->priority)
       {
         list_push_back(&curr_level->thread_list, &t->elem);
-        break;
+        return;
       }
     }
   }

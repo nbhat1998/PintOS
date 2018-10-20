@@ -189,12 +189,15 @@ void lock_acquire(struct lock *lock)
   ASSERT(!intr_context());
   ASSERT(!lock_held_by_current_thread(lock));
 
-  struct donation d;
-  d.lock = lock;
-  d.priority = thread_get_priority();
-  list_push_front(&lock->holder->don_list, &d.elem);
-  lock->holder->priority = thread_get_priority();
-  update_priority(lock->holder);
+  if (lock->holder)
+  {
+    struct donation d;
+    d.lock = lock;
+    d.priority = thread_get_priority();
+    list_push_front(&lock->holder->don_list, &d.elem);
+    lock->holder->priority = thread_get_priority();
+    update_priority(lock->holder);
+  }
 
   sema_down(&lock->semaphore);
   lock->holder = thread_current();
@@ -222,7 +225,6 @@ bool lock_try_acquire(struct lock *lock)
 /* Removes all list elements that contain the lock
    passed to the function */
 void donation_list_filter(struct list *list, struct lock *lock);
-
 
 /* Releases LOCK, which must be owned by the current thread.
 
