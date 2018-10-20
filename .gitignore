@@ -5,3 +5,5 @@
 cmake-build-debug
 CMakeLists.txt
 *build/
+.idea/
+.vscode/
