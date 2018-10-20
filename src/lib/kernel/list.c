@@ -470,7 +470,9 @@ void list_unique(struct list *list, struct list *duplicates,
         list_push_back(duplicates, next);
     }
     else
+    {
       elem = next;
+    }
 }
 
 /* Returns the element in LIST with the largest value according

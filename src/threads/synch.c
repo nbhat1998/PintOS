@@ -194,6 +194,7 @@ void lock_acquire(struct lock *lock)
   d.priority = thread_get_priority();
   list_push_front(&lock->holder->don_list, &d.elem);
   lock->holder->priority = thread_get_priority();
+  update_priority(lock->holder);
 
   sema_down(&lock->semaphore);
   lock->holder = thread_current();
@@ -218,16 +219,10 @@ bool lock_try_acquire(struct lock *lock)
   return success;
 }
 
-
 /* Removes all list elements that contain the lock
    passed to the function */
-void donation_list_filter (struct list * list, struct lock * lock) {
-  for(struct list_elem curr = list->head; &curr != &list->tail; curr = *curr.next) {
-    if (&list_entry(&curr, struct donation, elem)->lock == lock) {
-      list_remove(&curr);
-    }
-  }
-}
+void donation_list_filter(struct list *list, struct lock *lock);
+
 
 /* Releases LOCK, which must be owned by the current thread.
 
@@ -239,15 +234,19 @@ void lock_release(struct lock *lock)
   ASSERT(lock != NULL);
   ASSERT(lock_held_by_current_thread(lock));
 
-  struct thread* me = thread_current();
+  struct thread *me = thread_current();
 
-  list_filter(&me->don_list, lock);
-  
-  if (list_size(&me->don_list) == 0) {
+  donation_list_filter(&me->don_list, lock);
+
+  if (list_size(&me->don_list) == 0)
+  {
     thread_set_priority(me->init_priority);
-  } else {
+  }
+  else
+  {
     thread_set_priority(list_entry(list_begin(&me->don_list), struct donation, elem)->priority);
   }
+  update_priority(me);
 
   lock->holder = NULL;
   sema_up(&lock->semaphore);
@@ -349,4 +348,15 @@ void cond_broadcast(struct condition *cond, struct lock *lock)
 
   while (!list_empty(&cond->waiters))
     cond_signal(cond, lock);
+}
+
+void donation_list_filter(struct list *list, struct lock *lock)
+{
+  for (struct list_elem curr = list->head; &curr != &list->tail; curr = *curr.next)
+  {
+    if (list_entry(&curr, struct donation, elem)->lock == lock)
+    {
+      list_remove(&curr);
+    }
+  }
 }
