@@ -329,13 +329,6 @@ void list_reverse(struct list *list)
   }
 }
 
-/* Removes all list elements that contain the lock
-   passed to the function */
-void list_filter(struct list *list, struct lock *lock)
-{
-  
-}
-
 /* Returns true only if the list elements A through B (exclusive)
    are in order according to LESS given auxiliary data AUX. */
 static bool

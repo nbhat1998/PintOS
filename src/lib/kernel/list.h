@@ -158,10 +158,6 @@ bool list_empty (struct list *);
 
 /* Miscellaneous. */
 void list_reverse (struct list *);
-
-/* Removes all list elements that contain the lock
-   passed to the function */
-void list_filter (struct list *, struct lock *);
 
 /* Compares the value of two list elements A and B, given
    auxiliary data AUX.  Returns true if A is less than B, or
