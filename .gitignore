@@ -4,3 +4,4 @@
 *.pdf
 cmake-build-debug
 CMakeLists.txt
+*build/
