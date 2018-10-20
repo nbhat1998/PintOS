@@ -2,3 +2,5 @@
 *.o
 *.a
 *.pdf
+cmake-build-debug
+CMakeLists.txt
