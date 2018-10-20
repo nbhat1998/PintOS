@@ -194,6 +194,7 @@ void lock_acquire(struct lock *lock)
   d.priority = thread_get_priority();
   list_push_front(&lock->holder->don_list, &d.elem);
   lock->holder->priority = thread_get_priority();
+  update_priority(lock->holder);
 
   sema_down(&lock->semaphore);
   lock->holder = thread_current();
@@ -245,6 +246,7 @@ void lock_release(struct lock *lock)
   {
     thread_set_priority(list_entry(list_begin(&me->don_list), struct donation, elem)->priority);
   }
+  update_priority(me);
 
   lock->holder = NULL;
   sema_up(&lock->semaphore);
