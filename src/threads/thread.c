@@ -608,6 +608,18 @@ schedule(void)
   thread_schedule_tail(prev);
 }
 
+/*
+  Move thread to a different priority level list according to its
+  current (new) priority (t->priority)
+*/
+void donate_priority(struct thread* t) {
+  
+}
+
+
+
+
+
 /* Returns a tid to use for a new thread. */
 static tid_t
 allocate_tid(void)
