@@ -189,15 +189,14 @@ void lock_acquire(struct lock *lock)
   ASSERT(!intr_context());
   ASSERT(!lock_held_by_current_thread(lock));
 
-  if (lock->holder)
-  {
-    struct donation d;
-    d.lock = lock;
-    d.priority = thread_get_priority();
-    list_push_front(&lock->holder->don_list, &d.elem);
-    lock->holder->priority = thread_get_priority();
-    update_priority(lock->holder);
-  }
+  // if (lock->holder)
+  // {
+  //   struct donation d;
+  //   d.lock = lock;
+  //   d.priority = thread_get_priority();
+  //   list_push_front(&lock->holder->don_list, &d.elem);
+  //   update_priority(lock->holder, thread_get_priority());
+  // }
 
   sema_down(&lock->semaphore);
   lock->holder = thread_current();
@@ -238,17 +237,17 @@ void lock_release(struct lock *lock)
 
   struct thread *me = thread_current();
 
-  donation_list_filter(&me->don_list, lock);
+  // donation_list_filter(&me->don_list, lock);
 
-  if (list_size(&me->don_list) == 0)
-  {
-    thread_set_priority(me->init_priority);
-  }
-  else
-  {
-    thread_set_priority(list_entry(list_begin(&me->don_list), struct donation, elem)->priority);
-  }
-  update_priority(me);
+  // if (list_size(&me->don_list) == 0)
+  // {
+  //   update_priority(me, me->init_priority);
+  // }
+  // else
+  // {
+  //   update_priority(me, list_entry(list_begin(&me->don_list), struct donation, elem)->priority);
+  // }
+
 
   lock->holder = NULL;
   sema_up(&lock->semaphore);
