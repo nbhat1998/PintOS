@@ -445,8 +445,7 @@ running_thread(void)
      down to the start of a page.  Because `struct thread' is
      always at the beginning of a page and the stack pointer is
      somewhere in the middle, this locates the curent thread. */
-  asm("mov %%esp, %0"
-      : "=g"(esp));
+  asm("mov %%esp, %0": "=g"(esp));
   return pg_round_down(esp);
 }
 
@@ -510,7 +509,14 @@ next_thread_to_run(void)
   else
   {
     struct level *level = list_entry(list_begin(&priority_ready_list), struct level, elem);
-    return list_entry(list_pop_front(&level->thread_list), struct thread, elem);
+    if (list_empty(&level->thread_list))
+    {
+      return idle_thread;
+    }
+    else
+    {
+      return list_entry(list_pop_front(&level->thread_list), struct thread, elem);
+    }
   }
 }
 
@@ -608,7 +614,7 @@ void update_priority(struct thread* t) {
         new_level.priority = t->priority;
         list_init(&new_level.thread_list);
         list_push_back(&new_level.thread_list, &t->elem);
-        list_insert(list_prev(e), &new_level.elem);
+        list_insert(e, &new_level.elem);
         return;
       }
       else if (curr_level->priority == t->priority)

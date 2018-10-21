@@ -356,7 +356,7 @@ void donation_list_filter(struct list *list, struct lock *lock)
 {
   for (struct list_elem curr = list->head; &curr != &list->tail; curr = *curr.next)
   {
-    if (list_entry(&curr, struct donation, elem)->lock == lock)
+    if (&list_entry(&curr, struct donation, elem)->lock == &lock)
     {
       list_remove(&curr);
     }
