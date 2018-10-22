@@ -31,6 +31,8 @@
 #include <string.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/malloc.h"
+#include "threads/init.h"
 
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
@@ -189,13 +191,15 @@ void lock_acquire(struct lock *lock)
   ASSERT(!intr_context());
   ASSERT(!lock_held_by_current_thread(lock));
 
-  // if (lock->holder)
-  // {
+  // if(boot_complete) {
   //   struct donation d;
-  //   d.lock = lock;
-  //   d.priority = thread_get_priority();
-  //   list_push_front(&lock->holder->don_list, &d.elem);
-  //   update_priority(lock->holder, thread_get_priority());
+  //   if (lock->holder)
+  //   {
+  //     d.lock = lock;
+  //     d.priority = thread_get_priority();
+  //     list_push_front(&lock->holder->don_list, &d.elem);
+  //     update_priority(lock->holder, thread_get_priority());
+  //   }
   // }
 
   sema_down(&lock->semaphore);
@@ -235,17 +239,19 @@ void lock_release(struct lock *lock)
   ASSERT(lock != NULL);
   ASSERT(lock_held_by_current_thread(lock));
 
-  struct thread *me = thread_current();
+  // if(boot_complete) {
+  //   struct thread *me = thread_current();
 
-  // donation_list_filter(&me->don_list, lock);
+  //   donation_list_filter(&me->don_list, lock);
 
-  // if (list_size(&me->don_list) == 0)
-  // {
-  //   update_priority(me, me->init_priority);
-  // }
-  // else
-  // {
-  //   update_priority(me, list_entry(list_begin(&me->don_list), struct donation, elem)->priority);
+  //   if (list_size(&me->don_list) == 0)
+  //   {
+  //     update_priority(me, me->init_priority);
+  //   }
+  //   else
+  //   {
+  //     update_priority(me, list_entry(list_begin(&me->don_list), struct donation, elem)->priority);
+  //   }
   // }
 
 
@@ -353,11 +359,11 @@ void cond_broadcast(struct condition *cond, struct lock *lock)
 
 void donation_list_filter(struct list *list, struct lock *lock)
 {
-  for (struct list_elem curr = list->head; &curr != &list->tail; curr = *curr.next)
+  for (struct list_elem *e = list_begin (list); e != list_end (list);e = list_next (e))
   {
-    if (&list_entry(&curr, struct donation, elem)->lock == &lock)
+    if (list_entry(e, struct donation, elem)->lock == lock)
     {
-      list_remove(&curr);
+      list_remove(e);
     }
   }
 }
