@@ -111,9 +111,10 @@ void sema_up(struct semaphore *sema)
   ASSERT(sema != NULL);
 
   old_level = intr_disable();
-  if (!list_empty(&sema->waiters))
+  if (!list_empty(&sema->waiters)) {
     thread_unblock(list_entry(list_pop_front(&sema->waiters),
                               struct thread, elem));
+  }
   sema->value++;
   intr_set_level(old_level);
 }
@@ -191,16 +192,16 @@ void lock_acquire(struct lock *lock)
   ASSERT(!intr_context());
   ASSERT(!lock_held_by_current_thread(lock));
 
-  // if(boot_complete) {
-  //   struct donation d;
-  //   if (lock->holder)
-  //   {
-  //     d.lock = lock;
-  //     d.priority = thread_get_priority();
-  //     list_push_front(&lock->holder->don_list, &d.elem);
-  //     update_priority(lock->holder, thread_get_priority());
-  //   }
-  // }
+  struct donation d;
+  if(boot_complete) {
+    if (lock->holder)
+    {
+      d.lock = lock;
+      d.priority = thread_get_priority();
+      list_push_front(&lock->holder->don_list, &d.elem);
+      update_priority(lock->holder, thread_get_priority());
+    }
+  }
 
   sema_down(&lock->semaphore);
   lock->holder = thread_current();
@@ -239,24 +240,24 @@ void lock_release(struct lock *lock)
   ASSERT(lock != NULL);
   ASSERT(lock_held_by_current_thread(lock));
 
-  // if(boot_complete) {
-  //   struct thread *me = thread_current();
+  if(boot_complete) {
+    struct thread *me = thread_current();
 
-  //   donation_list_filter(&me->don_list, lock);
+    donation_list_filter(&me->don_list, lock);
 
-  //   if (list_size(&me->don_list) == 0)
-  //   {
-  //     update_priority(me, me->init_priority);
-  //   }
-  //   else
-  //   {
-  //     update_priority(me, list_entry(list_begin(&me->don_list), struct donation, elem)->priority);
-  //   }
-  // }
-
+    if (list_size(&me->don_list) == 0)
+    {
+      update_priority(me, me->init_priority);
+    }
+    else
+    {
+      update_priority(me, list_entry(list_begin(&me->don_list), struct donation, elem)->priority);
+    }
+  }
 
   lock->holder = NULL;
   sema_up(&lock->semaphore);
+  thread_yield();
 }
 
 /* Returns true if the current thread holds LOCK, false

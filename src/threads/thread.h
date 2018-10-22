@@ -141,5 +141,6 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 void update_priority(struct thread *t, int new_priority);
+void thread_yield_cond(void);
 
 #endif /* threads/thread.h */
