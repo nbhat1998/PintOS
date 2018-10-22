@@ -27,8 +27,15 @@ struct lock
 struct donation
 {
   struct lock* lock;
+  struct thread* donor;
   int priority;
   struct list_elem elem;
+};
+
+struct don_recipient
+{
+  struct thread* t;
+  struct list_elem don_elem;
 };
 
 void lock_init(struct lock *);

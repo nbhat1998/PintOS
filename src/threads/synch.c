@@ -111,7 +111,8 @@ void sema_up(struct semaphore *sema)
   ASSERT(sema != NULL);
 
   old_level = intr_disable();
-  if (!list_empty(&sema->waiters)) {
+  if (!list_empty(&sema->waiters))
+  {
     thread_unblock(list_entry(list_pop_front(&sema->waiters),
                               struct thread, elem));
   }
@@ -193,11 +194,25 @@ void lock_acquire(struct lock *lock)
   ASSERT(!lock_held_by_current_thread(lock));
 
   struct donation d;
-  if(boot_complete) {
+  struct don_recipient r;
+  if (boot_complete)
+  {
     if (lock->holder)
     {
+      for (struct list_elem *e = list_begin(&thread_current()->don_recipients);
+           e != list_end(&thread_current()->don_recipients); e = list_next(e))
+      {
+        if (list_entry(e, struct don_recipient, don_elem)->t == thread_current())
+        {
+          list_entry(e, struct don_recipient, don_elem)->t->don_list;
+        }
+      }
+      update_priority(lock->holder, thread_get_priority());
+      r.t = lock->holder;
+      list_push_back(&thread_current()->don_recipients, &r.don_elem);
       d.lock = lock;
       d.priority = thread_get_priority();
+      d.donor = thread_current();
       list_push_front(&lock->holder->don_list, &d.elem);
       update_priority(lock->holder, thread_get_priority());
     }
@@ -240,7 +255,8 @@ void lock_release(struct lock *lock)
   ASSERT(lock != NULL);
   ASSERT(lock_held_by_current_thread(lock));
 
-  if(boot_complete) {
+  if (boot_complete)
+  {
     struct thread *me = thread_current();
 
     donation_list_filter(&me->don_list, lock);
@@ -360,7 +376,7 @@ void cond_broadcast(struct condition *cond, struct lock *lock)
 
 void donation_list_filter(struct list *list, struct lock *lock)
 {
-  for (struct list_elem *e = list_begin (list); e != list_end (list);e = list_next (e))
+  for (struct list_elem *e = list_begin(list); e != list_end(list); e = list_next(e))
   {
     if (list_entry(e, struct donation, elem)->lock == lock)
     {

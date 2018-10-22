@@ -90,8 +90,9 @@ struct thread
     int priority;                       /* Priority. */
     int init_priority;                  /* Initial priority, before donations */
     struct list don_list;               /* List of donated priorities */
-    struct list_elem allelem;           /* List element for all threads list. */
+    struct list don_recipients;         /* List of threads who received priorities from me*/
 
+    struct list_elem allelem;           /* List element for all threads list. */
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
