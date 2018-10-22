@@ -143,4 +143,6 @@ int thread_get_load_avg (void);
 void update_priority(struct thread *t, int new_priority);
 void thread_yield_cond(void);
 
+bool list_less_priority(const struct list_elem *elem_a, const struct list_elem *elem_b, void *aux);
+
 #endif /* threads/thread.h */
