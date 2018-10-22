@@ -341,7 +341,7 @@ void thread_foreach(thread_action_func *func, void *aux)
 void update_priority(struct thread *cur, int new_priority)
 {
   int max = 0;
-  if (list_size(&cur->don_list) != 0 && max < list_entry(list_begin(&cur->don_list), struct donation, elem)->priority)
+  if (list_size(&cur->don_list) != 0)
   {
     max = list_entry(list_begin(&cur->don_list), struct donation, elem)->priority;
   }

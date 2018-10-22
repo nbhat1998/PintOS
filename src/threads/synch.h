@@ -27,7 +27,7 @@ struct lock
 struct donation
 {
   struct lock* lock;
-  struct thread* donor;
+  struct don_recipient* donor;
   int priority;
   struct list_elem elem;
 };
@@ -35,6 +35,7 @@ struct donation
 struct don_recipient
 {
   struct thread* t;
+  struct donation* don;
   struct list_elem don_elem;
 };
 
