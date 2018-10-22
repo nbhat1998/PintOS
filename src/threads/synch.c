@@ -31,6 +31,8 @@
 #include <string.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/malloc.h"
+#include "threads/init.h"
 
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
@@ -66,7 +68,7 @@ void sema_down(struct semaphore *sema)
   old_level = intr_disable();
   while (sema->value == 0)
   {
-    list_push_back(&sema->waiters, &thread_current()->elem);
+    list_insert_ordered(&sema->waiters, &thread_current()->elem, list_less_priority, NULL);
     thread_block();
   }
   sema->value--;
@@ -109,9 +111,10 @@ void sema_up(struct semaphore *sema)
   ASSERT(sema != NULL);
 
   old_level = intr_disable();
-  if (!list_empty(&sema->waiters))
+  if (!list_empty(&sema->waiters)) {
     thread_unblock(list_entry(list_pop_front(&sema->waiters),
                               struct thread, elem));
+  }
   sema->value++;
   intr_set_level(old_level);
 }
@@ -190,11 +193,15 @@ void lock_acquire(struct lock *lock)
   ASSERT(!lock_held_by_current_thread(lock));
 
   struct donation d;
-  d.lock = lock;
-  d.priority = thread_get_priority();
-  list_push_front(&lock->holder->don_list, &d.elem);
-  lock->holder->priority = thread_get_priority();
-  update_priority(lock->holder);
+  if(boot_complete) {
+    if (lock->holder)
+    {
+      d.lock = lock;
+      d.priority = thread_get_priority();
+      list_push_front(&lock->holder->don_list, &d.elem);
+      update_priority(lock->holder, thread_get_priority());
+    }
+  }
 
   sema_down(&lock->semaphore);
   lock->holder = thread_current();
@@ -223,7 +230,6 @@ bool lock_try_acquire(struct lock *lock)
    passed to the function */
 void donation_list_filter(struct list *list, struct lock *lock);
 
-
 /* Releases LOCK, which must be owned by the current thread.
 
    An interrupt handler cannot acquire a lock, so it does not
@@ -234,22 +240,24 @@ void lock_release(struct lock *lock)
   ASSERT(lock != NULL);
   ASSERT(lock_held_by_current_thread(lock));
 
-  struct thread *me = thread_current();
+  if(boot_complete) {
+    struct thread *me = thread_current();
 
-  donation_list_filter(&me->don_list, lock);
+    donation_list_filter(&me->don_list, lock);
 
-  if (list_size(&me->don_list) == 0)
-  {
-    thread_set_priority(me->init_priority);
+    if (list_size(&me->don_list) == 0)
+    {
+      update_priority(me, me->init_priority);
+    }
+    else
+    {
+      update_priority(me, list_entry(list_begin(&me->don_list), struct donation, elem)->priority);
+    }
   }
-  else
-  {
-    thread_set_priority(list_entry(list_begin(&me->don_list), struct donation, elem)->priority);
-  }
-  update_priority(me);
 
   lock->holder = NULL;
   sema_up(&lock->semaphore);
+  thread_yield();
 }
 
 /* Returns true if the current thread holds LOCK, false
@@ -352,11 +360,11 @@ void cond_broadcast(struct condition *cond, struct lock *lock)
 
 void donation_list_filter(struct list *list, struct lock *lock)
 {
-  for (struct list_elem curr = list->head; &curr != &list->tail; curr = *curr.next)
+  for (struct list_elem *e = list_begin (list); e != list_end (list);e = list_next (e))
   {
-    if (list_entry(&curr, struct donation, elem)->lock == lock)
+    if (list_entry(e, struct donation, elem)->lock == lock)
     {
-      list_remove(&curr);
+      list_remove(e);
     }
   }
 }

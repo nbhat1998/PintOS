@@ -72,10 +72,12 @@ static void locate_block_device (enum block_type, const char *name);
 
 int main (void) NO_RETURN;
 
+bool boot_complete;
 /* Pintos main program. */
 int
 main (void)
 {
+  boot_complete = false;
   char **argv;
 
   /* Clear BSS. */  
@@ -128,7 +130,7 @@ main (void)
 #endif
 
   printf ("Boot complete.\n");
-  
+  boot_complete = true;
   /* Run actions specified on kernel command line. */
   run_actions (argv);
 
