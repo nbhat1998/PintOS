@@ -26,17 +26,17 @@ struct lock
 
 struct donation
 {
-  struct lock* lock;
-  struct don_recipient* donor;
-  int priority;
-  struct list_elem elem;
+  struct lock *lock;                /* Requested Lock */
+  struct don_recipient *donor_bond; /* Pointer to don_recipient in donor */
+  int priority;                     /* Priority donated */
+  struct list_elem elem;            /* List element for donations list */
+  struct thread *donor;             /* Thread that donated to you */
 };
 
 struct don_recipient
 {
-  struct thread* t;
-  struct donation* don;
-  struct list_elem don_elem;
+  struct thread *recipient; /* Pointer to the thread that holds the lock */ 
+  struct list_elem elem;    /* List element for don_recipients list */
 };
 
 void lock_init(struct lock *);

@@ -340,25 +340,34 @@ void thread_foreach(thread_action_func *func, void *aux)
   }
 }
 
-void update_priority(struct thread *cur, int new_priority)
+void update_priority(struct thread *cur, struct thread *caller, int new_priority)
 {
   if (!list_empty(&cur->don_recipients))
   {
     for (struct list_elem *e = list_begin(&cur->don_recipients);
          e != list_end(&cur->don_recipients); e = list_next(e))
     {
-      update_priority(list_entry(e, struct don_recipient, don_elem)->t,
-                      new_priority);
+      update_priority(list_entry(e, struct don_recipient, elem)->recipient,
+                      cur, new_priority);
     }
   }
 
-  // TODO: Update list of donations
+  // Update list of donations
+  for (struct list_elem *e = list_begin(&cur->donations);
+       e != list_end(&cur->donations); e = list_next(e))
+  {
+    struct donation *d = list_entry(e, struct donation, elem);
+    if (d->donor == caller)
+    {
+      d->priority = new_priority;
+    }
+  }
 
   // UPDATE PRIORITY
   int max = 0;
-  if (list_size(&cur->don_list) != 0)
+  if (list_size(&cur->donations) != 0)
   {
-    max = list_entry(list_begin(&cur->don_list),
+    max = list_entry(list_begin(&cur->donations),
                      struct donation, elem)
               ->priority;
   }
@@ -377,12 +386,12 @@ void thread_set_priority(int new_priority)
   cur->init_priority = new_priority;
 
   int max = 0;
-  if (list_size(&cur->don_list) != 0 &&
-      max < list_entry(list_begin(&cur->don_list),
+  if (list_size(&cur->donations) != 0 &&
+      max < list_entry(list_begin(&cur->donations),
                        struct donation, elem)
                 ->priority)
   {
-    max = list_entry(list_begin(&cur->don_list),
+    max = list_entry(list_begin(&cur->donations),
                      struct donation, elem)
               ->priority;
   }
@@ -526,7 +535,7 @@ init_thread(struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *)t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
-  list_init(&t->don_list);
+  list_init(&t->donations);
   t->init_priority = priority;
   list_init(&t->don_recipients);
 
