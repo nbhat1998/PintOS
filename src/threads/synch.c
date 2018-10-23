@@ -68,7 +68,8 @@ void sema_down(struct semaphore *sema)
   old_level = intr_disable();
   while (sema->value == 0)
   {
-    list_insert_ordered(&sema->waiters, &thread_current()->elem, list_less_priority, NULL);
+    list_insert_ordered(&sema->waiters, &thread_current()->elem,
+                        list_less_priority, NULL);
     thread_block();
   }
   sema->value--;
@@ -111,7 +112,8 @@ void sema_up(struct semaphore *sema)
   ASSERT(sema != NULL);
 
   old_level = intr_disable();
-  if (!list_empty(&sema->waiters)) {
+  if (!list_empty(&sema->waiters))
+  {
     thread_unblock(list_entry(list_pop_front(&sema->waiters),
                               struct thread, elem));
   }
@@ -193,13 +195,24 @@ void lock_acquire(struct lock *lock)
   ASSERT(!lock_held_by_current_thread(lock));
 
   struct donation d;
-  if(boot_complete) {
+  struct don_recipient r;
+  if (boot_complete)
+  {
     if (lock->holder)
     {
+      // DON_RECIPIENT
+      r.recipient = lock->holder;
+      list_push_back(&thread_current()->don_recipients, &r.elem);
+
+      // DONATION
+      d.donor_bond = &r;
       d.lock = lock;
+      d.donor = thread_current();
       d.priority = thread_get_priority();
-      list_push_front(&lock->holder->don_list, &d.elem);
-      update_priority(lock->holder, thread_get_priority());
+      list_push_front(&lock->holder->donations, &d.elem);
+
+      // RECURSIVE UPDATE PRIORITY
+      update_priority(lock->holder, thread_current(), thread_get_priority());
     }
   }
 
@@ -240,18 +253,21 @@ void lock_release(struct lock *lock)
   ASSERT(lock != NULL);
   ASSERT(lock_held_by_current_thread(lock));
 
-  if(boot_complete) {
+  if (boot_complete)
+  {
     struct thread *me = thread_current();
 
-    donation_list_filter(&me->don_list, lock);
+    donation_list_filter(&me->donations, lock);
 
-    if (list_size(&me->don_list) == 0)
+    if (list_size(&me->donations) == 0)
     {
-      update_priority(me, me->init_priority);
+      update_priority(me, me, me->init_priority);
     }
     else
     {
-      update_priority(me, list_entry(list_begin(&me->don_list), struct donation, elem)->priority);
+      update_priority(me, me, list_entry(list_begin(&me->donations),
+                                     struct donation, elem)
+                              ->priority);
     }
   }
 
@@ -360,10 +376,12 @@ void cond_broadcast(struct condition *cond, struct lock *lock)
 
 void donation_list_filter(struct list *list, struct lock *lock)
 {
-  for (struct list_elem *e = list_begin (list); e != list_end (list);e = list_next (e))
+  for (struct list_elem *e = list_begin(list); e != list_end(list);
+       e = list_next(e))
   {
     if (list_entry(e, struct donation, elem)->lock == lock)
     {
+      list_remove(&list_entry(e, struct donation, elem)->donor_bond->elem);
       list_remove(e);
     }
   }
