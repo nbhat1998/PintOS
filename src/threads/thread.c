@@ -224,7 +224,8 @@ void thread_block(void)
   schedule();
 }
 
-bool list_less_priority(const struct list_elem *elem_a, const struct list_elem *elem_b, void *aux);
+bool list_less_priority(const struct list_elem *elem_a,
+                        const struct list_elem *elem_b, void *aux);
 
 /* Transitions a blocked thread T to the ready-to-run state.
    This is an error if T is not blocked.  (Use thread_yield() to
@@ -315,9 +316,10 @@ void thread_yield(void)
 void thread_yield_cond(void)
 {
   struct thread *cur = thread_current();
-  if (cur->priority < list_entry(list_begin(&ready_list), struct thread, elem)->priority)
+  if (cur->priority < list_entry(list_begin(&ready_list),
+                                 struct thread, elem)
+                          ->priority)
   {
-    //printf("curr: %d, first: %d\n", cur->priority, list_entry(list_begin(&ready_list), struct thread, elem)->priority);
     thread_yield();
   }
 }
@@ -340,16 +342,30 @@ void thread_foreach(thread_action_func *func, void *aux)
 
 void update_priority(struct thread *cur, int new_priority)
 {
+  if (!list_empty(&cur->don_recipients))
+  {
+    for (struct list_elem *e = list_begin(&cur->don_recipients);
+         e != list_end(&cur->don_recipients); e = list_next(e))
+    {
+      update_priority(list_entry(e, struct don_recipient, don_elem)->t,
+                      new_priority);
+    }
+  }
+
+  // TODO: Update list of donations
+
+  // UPDATE PRIORITY
   int max = 0;
   if (list_size(&cur->don_list) != 0)
   {
-    max = list_entry(list_begin(&cur->don_list), struct donation, elem)->priority;
+    max = list_entry(list_begin(&cur->don_list),
+                     struct donation, elem)
+              ->priority;
   }
   if (max < new_priority)
   {
     max = new_priority;
   }
-
   cur->priority = max;
 }
 
@@ -361,9 +377,14 @@ void thread_set_priority(int new_priority)
   cur->init_priority = new_priority;
 
   int max = 0;
-  if (list_size(&cur->don_list) != 0 && max < list_entry(list_begin(&cur->don_list), struct donation, elem)->priority)
+  if (list_size(&cur->don_list) != 0 &&
+      max < list_entry(list_begin(&cur->don_list),
+                       struct donation, elem)
+                ->priority)
   {
-    max = list_entry(list_begin(&cur->don_list), struct donation, elem)->priority;
+    max = list_entry(list_begin(&cur->don_list),
+                     struct donation, elem)
+              ->priority;
   }
   if (max < new_priority)
   {
@@ -627,7 +648,8 @@ allocate_tid(void)
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof(struct thread, stack);
 
-bool list_less_priority(const struct list_elem *elem_a, const struct list_elem *elem_b, void *aux)
+bool list_less_priority(const struct list_elem *elem_a,
+                        const struct list_elem *elem_b, void *aux)
 {
   (void)aux;
   struct thread *thread_a = list_entry(elem_a, struct thread, elem);

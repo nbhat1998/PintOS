@@ -199,24 +199,18 @@ void lock_acquire(struct lock *lock)
   {
     if (lock->holder)
     {
+      // DON_RECIPIENT
       r.don = &d;
       r.t = lock->holder;
-
-      for (struct list_elem *e = list_begin(&thread_current()->don_recipients);
-           e != list_end(&thread_current()->don_recipients); e = list_next(e))
-      {
-        if (list_entry(e, struct don_recipient, don_elem)->t == thread_current())
-        {
-          update_priority(lock->holder, thread_get_priority());
-        }
-      }
-
-      list_push_back(&thread_current()->don_recipients, &r.don_elem);\
+      list_push_back(&thread_current()->don_recipients, &r.don_elem);
       
+      // DONATION
       d.donor = &r;
       d.lock = lock;
       d.priority = thread_get_priority();
       list_push_front(&lock->holder->don_list, &d.elem);
+
+      // RECURSIVE UPDATE PRIORITY
       update_priority(lock->holder, thread_get_priority());
     }
   }
