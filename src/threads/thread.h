@@ -99,7 +99,7 @@ struct thread
 
   int nice;                   /* Thread's niceness value, used to recalculate thread's priority */
   int priority;               /* Priority. */
-  float recent_cpu;           /* Estimate of the time taken on the CPU recently*/
+  int recent_cpu;           /* Estimate of the time taken on the CPU recently*/
 #ifdef USERPROG
   /* Owned by userprog/process.c. */
   uint32_t *pagedir; /* Page directory. */
@@ -114,7 +114,7 @@ struct thread
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
 
-float load_avg;               /* Average number of threads ready to run over the last minute */
+int load_avg;               /* Average number of threads ready to run over the last minute */
 
 void thread_init(void);
 void thread_start(void);

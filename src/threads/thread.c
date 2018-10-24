@@ -654,17 +654,19 @@ init_thread(struct thread *t, const char *name, int priority)
   list_init(&t->don_recipients);
 
   /* Assigning data members at boot for advanced scheduler */
-
-  if (strcmp(name, "main") == 0)
+  if (thread_mlfqs)
   {
-    t->recent_cpu = 0;
-    t->nice = 0;
-    t->priority = subtract(PRI_MAX, subtract(divide(t->recent_cpu, 4), multiply(t->nice, 2)));
-  }
-  else
-  {
-    t->recent_cpu = thread_current()->recent_cpu;
-    t->nice = thread_current()->nice;
+    if (strcmp(name, "main") == 0)
+    {
+      t->recent_cpu = 0;
+      t->nice = 0;
+      t->priority = subtract(PRI_MAX, subtract(divide(t->recent_cpu, 4), multiply(t->nice, 2)));
+    }
+    else
+    {
+      t->recent_cpu = thread_current()->recent_cpu;
+      t->nice = thread_current()->nice;
+    }
   }
 
   old_level = intr_disable();
