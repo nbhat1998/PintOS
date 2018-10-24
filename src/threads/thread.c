@@ -493,6 +493,7 @@ void thread_set_priority(int new_priority)
   if (thread_mlfqs)
   {
     cur->priority = new_priority;
+    // TODO : yield threads here if <comp> with max
   }
   else
   {
