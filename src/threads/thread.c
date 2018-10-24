@@ -126,6 +126,21 @@ void thread_tick(void)
   struct thread *t = thread_current();
 
   /* Update statistics. */
+
+  /* Calculations for advanced scheduler */
+  if (timer_ticks() % TIMER_FREQ == 0)
+  {
+    load_avg = (59 / 60) * load_avg + (1 / 60) * (list_size(&ready_list) + 1);
+    int temp_load_avg = (int) load_avg; 
+
+    int temp_term = (2*temp_load_avg)/(2*temp_load_avg+1); 
+    t->recent_cpu = temp_term*t->recent_cpu + thread_get_nice(); 
+    
+    t->priority = PRI_MAX - (t->recent_cpu/4) - (thread_get_nice()*2); 
+  }
+
+
+
   if (t == idle_thread)
     idle_ticks++;
 #ifdef USERPROG
@@ -438,17 +453,13 @@ int thread_get_nice(void)
 /* Returns 100 times the system load average. */
 int thread_get_load_avg(void)
 {
-
-  float temp_load_avg = (59/60)*load_avg + (1/60);
-
-  return 0;
+  return (int) (100 * load_avg);
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int thread_get_recent_cpu(void)
 {
-  /* Not yet implemented. */
-  return 0;
+  return (int) (100*thread_current()->recent_cpu); 
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.

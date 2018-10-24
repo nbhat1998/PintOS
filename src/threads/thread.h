@@ -23,7 +23,7 @@ typedef int tid_t;
 #define PRI_MIN 0      /* Lowest priority. */
 #define PRI_DEFAULT 31 /* Default priority. */
 #define PRI_MAX 63     /* Highest priority. */
-
+#define TIMER_FREQ 100 /* Timer frequency   */
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -99,7 +99,7 @@ struct thread
 
   int nice;                   /* Thread's niceness value, used to recalculate thread's priority */
   int priority;               /* Priority. */
-  int recent_cpu;             /* Estimate of the time taken on the CPU recently*/
+  float recent_cpu;           /* Estimate of the time taken on the CPU recently*/
 #ifdef USERPROG
   /* Owned by userprog/process.c. */
   uint32_t *pagedir; /* Page directory. */
@@ -114,7 +114,7 @@ struct thread
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
 
-int load_avg;               /* Average number of threads ready to run over the last minute */
+float load_avg;               /* Average number of threads ready to run over the last minute */
 
 void thread_init(void);
 void thread_start(void);
