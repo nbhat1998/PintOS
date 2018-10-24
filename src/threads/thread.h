@@ -146,7 +146,7 @@ void update_priority(struct thread *cur, struct thread *caller,
                      int new_priority);
 void thread_yield_cond(void);
 
-bool list_less_priority(const struct list_elem *elem_a,
+bool list_more_priority(const struct list_elem *elem_a,
                         const struct list_elem *elem_b, void *aux);
 
 #endif /* threads/thread.h */

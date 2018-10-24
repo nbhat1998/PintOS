@@ -224,7 +224,7 @@ void thread_block(void)
   schedule();
 }
 
-bool list_less_priority(const struct list_elem *elem_a,
+bool list_more_priority(const struct list_elem *elem_a,
                         const struct list_elem *elem_b, void *aux);
 
 /* Transitions a blocked thread T to the ready-to-run state.
@@ -239,7 +239,7 @@ void thread_unblock(struct thread *t)
 {
   ASSERT(is_thread(t));
   t->status = THREAD_READY;
-  list_insert_ordered(&ready_list, &t->elem, list_less_priority, NULL);
+  list_insert_ordered(&ready_list, &t->elem, list_more_priority, NULL);
 }
 
 /* Returns the name of the running thread. */
@@ -306,7 +306,7 @@ void thread_yield(void)
   old_level = intr_disable();
   if (cur != idle_thread)
   {
-    list_insert_ordered(&ready_list, &cur->elem, list_less_priority, NULL);
+    list_insert_ordered(&ready_list, &cur->elem, list_more_priority, NULL);
   }
   cur->status = THREAD_READY;
   schedule();
@@ -342,26 +342,6 @@ void thread_foreach(thread_action_func *func, void *aux)
 
 void update_priority(struct thread *cur, struct thread *caller, int new_priority)
 {
-  if (!list_empty(&cur->don_recipients))
-  {
-    for (struct list_elem *e = list_begin(&cur->don_recipients);
-         e != list_end(&cur->don_recipients); e = list_next(e))
-    {
-      update_priority(list_entry(e, struct don_recipient, elem)->recipient,
-                      cur, new_priority);
-    }
-  }
-
-  // Update list of donations
-  for (struct list_elem *e = list_begin(&cur->donations);
-       e != list_end(&cur->donations); e = list_next(e))
-  {
-    struct donation *d = list_entry(e, struct donation, elem);
-    if (d->donor == caller)
-    {
-      d->priority = new_priority;
-    }
-  }
 
   // UPDATE PRIORITY
   int max = 0;
@@ -376,6 +356,28 @@ void update_priority(struct thread *cur, struct thread *caller, int new_priority
     max = new_priority;
   }
   cur->priority = max;
+
+  // Update List of Don-Recipients recursively
+  if (!list_empty(&cur->don_recipients))
+  {
+    for (struct list_elem *e = list_begin(&cur->don_recipients);
+         e != list_end(&cur->don_recipients); e = list_next(e))
+    {
+      update_priority(list_entry(e, struct don_recipient, elem)->recipient,
+                      cur, new_priority);
+    }
+  }
+
+  // Update list of donations and their locks
+  for (struct list_elem *e = list_begin(&cur->donations);
+       e != list_end(&cur->donations); e = list_next(e))
+  {
+    struct donation *d = list_entry(e, struct donation, elem);
+    if (d->donor == caller)
+    {
+      d->priority = new_priority;
+    }
+  }
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
@@ -657,11 +659,11 @@ allocate_tid(void)
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof(struct thread, stack);
 
-bool list_less_priority(const struct list_elem *elem_a,
+bool list_more_priority(const struct list_elem *elem_a,
                         const struct list_elem *elem_b, void *aux)
 {
   (void)aux;
   struct thread *thread_a = list_entry(elem_a, struct thread, elem);
   struct thread *thread_b = list_entry(elem_b, struct thread, elem);
-  return (thread_a->priority >= thread_b->priority);
+  return (thread_a->priority > thread_b->priority);
 }
