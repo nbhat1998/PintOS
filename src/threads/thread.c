@@ -76,65 +76,79 @@ static tid_t allocate_tid(void);
 #define f (1 << 14)
 
 /* Functions for fixed point arithmetic */
-int32_t convert_to_fixed_point(int n) {
+int32_t convert_to_fixed_point(int n)
+{
   return n * f;
 }
 
-int truncate_to_integer(int32_t x) {
+int truncate_to_integer(int32_t x)
+{
   return x / f;
 }
 
-int convert_to_nearest_integer(int n) {
+int convert_to_nearest_integer(int n)
+{
   int32_t x = convert_to_fixed_point(n);
-  if(x >= 0) {
+  if (x >= 0)
+  {
     return (x + (f / 2)) / f;
-  } else {
+  }
+  else
+  {
     return (x - (f / 2)) / f;
   }
 }
 
-int add(int n, int m) {
+int add(int n, int m)
+{
   int32_t x = convert_to_fixed_point(n);
   int32_t y = convert_to_fixed_point(m);
   return convert_to_nearest_integer(x + y);
 }
 
-int subtract(int n, int m) {
+int subtract(int n, int m)
+{
   int32_t x = convert_to_fixed_point(n);
   int32_t y = convert_to_fixed_point(m);
   return convert_to_nearest_integer(x - y);
 }
 
-int add_int_to_fixed(int n, int32_t x) {
+int add_int_to_fixed(int n, int32_t x)
+{
   int32_t y = convert_to_fixed_point(n);
   return convert_to_nearest_integer(x + y);
 }
 
-int subtract_int_from_fixed(int n, int32_t x) {
+int subtract_int_from_fixed(int n, int32_t x)
+{
   int32_t y = convert_to_fixed_point(n);
   return convert_to_nearest_integer(x - y);
 }
 
-int multiply(int n, int m) {
+int multiply(int n, int m)
+{
   int32_t x = convert_to_fixed_point(n);
   int32_t y = convert_to_fixed_point(m);
   return convert_to_nearest_integer((((int64_t)x) * y) / f);
 }
 
-int multiply_fixed_by_int(int32_t x, int m) {
-    int32_t y = convert_to_fixed_point(m);
-    return convert_to_nearest_integer(x * y);
+int multiply_fixed_by_int(int32_t x, int m)
+{
+  int32_t y = convert_to_fixed_point(m);
+  return convert_to_nearest_integer(x * y);
 }
 
-int divide(int n, int m) {
+int divide(int n, int m)
+{
   int32_t x = convert_to_fixed_point(n);
   int32_t y = convert_to_fixed_point(m);
   return truncate_to_integer((((int64_t)x) * f) / y);
 }
 
-int divide_fixed_by_int(int32_t x, int m) {
-    int32_t y = convert_to_fixed_point(m);
-    return convert_to_nearest_integer(x / y);
+int divide_fixed_by_int(int32_t x, int m)
+{
+  int32_t y = convert_to_fixed_point(m);
+  return convert_to_nearest_integer(x / y);
 }
 
 /* Initializes the threading system by transforming the code
@@ -195,25 +209,22 @@ void thread_tick(void)
   t->recent_cpu = thread_get_recent_cpu() + 1;
   /* Calculations for advanced scheduler */
 
-
-
   if (timer_ticks() % TIMER_FREQ == 0)
   {
     //load_avg = (59 / 60) * load_avg + (1 / 60) * (list_size(&ready_list) + 1);
-    load_avg = add(multiply(divide(59,60),load_avg), multiply(divide(1,60),add((int)(list_size(&ready_list)),1))); 
-    //int temp_load_avg = (int) load_avg; 
+    load_avg = add(multiply(divide(59, 60), load_avg), multiply(divide(1, 60), add((int)(list_size(&ready_list)), 1)));
+    //int temp_load_avg = (int) load_avg;
     // multiply(divide(59,60),load_avg)
     // multiply(divide(1,60),add((int)(list_size(&ready_list)),1))
-    
-    int temp_term = divide(multiply(2,load_avg),add(multiply(2,load_avg),1));
 
-    t->recent_cpu =add(t->nice,multiply(temp_term,t->recent_cpu));
-          
+    int temp_term = divide(multiply(2, load_avg), add(multiply(2, load_avg), 1));
+
+    t->recent_cpu = add(t->nice, multiply(temp_term, t->recent_cpu));
   }
 
-  if (timer_ticks() % 4 == 0 )
+  if (timer_ticks() % 4 == 0)
   {
-    t->priority = subtract(PRI_MAX,subtract(divide(t->recent_cpu,4),multiply(t->nice,2)));
+    t->priority = subtract(PRI_MAX, subtract(divide(t->recent_cpu, 4), multiply(t->nice, 2)));
   }
 
   if (t == idle_thread)
@@ -479,31 +490,38 @@ void thread_set_priority(int new_priority)
 {
   struct thread *cur = thread_current();
 
-  cur->init_priority = new_priority;
-
-  int max = 0;
-  if (list_size(&cur->donations) != 0 &&
-      max < list_entry(list_begin(&cur->donations),
-                       struct donation, elem)
-                ->priority)
+  if (thread_mlfqs)
   {
-    max = list_entry(list_begin(&cur->donations),
-                     struct donation, elem)
-              ->priority;
-  }
-  if (max < new_priority)
-  {
-    max = new_priority;
-  }
-
-  if (cur->priority < max)
-  {
-    cur->priority = max;
+    cur->priority = new_priority;
   }
   else
   {
-    cur->priority = max;
-    thread_yield();
+    cur->init_priority = new_priority;
+
+    int max = 0;
+    if (list_size(&cur->donations) != 0 &&
+        max < list_entry(list_begin(&cur->donations),
+                         struct donation, elem)
+                  ->priority)
+    {
+      max = list_entry(list_begin(&cur->donations),
+                       struct donation, elem)
+                ->priority;
+    }
+    if (max < new_priority)
+    {
+      max = new_priority;
+    }
+
+    if (cur->priority < max)
+    {
+      cur->priority = max;
+    }
+    else
+    {
+      cur->priority = max;
+      thread_yield();
+    }
   }
 }
 
@@ -516,28 +534,28 @@ int thread_get_priority(void)
 /* Sets the current thread's nice value to NICE. */
 void thread_set_nice(int nice)
 {
-  struct thread *t = thread_current(); 
-  t->nice = nice; 
-  thread_set_priority(PRI_MAX - (thread_get_recent_cpu()/4) - (thread_get_nice()*2));
-  
+  struct thread *t = thread_current();
+  t->nice = nice;
+  thread_set_priority(subtract(PRI_MAX, subtract(divide(t->recent_cpu, 4), multiply(t->nice, 2))));
+  //PRI_MAX - (thread_get_recent_cpu()/4) - (thread_get_nice()*2)
 }
 
 /* Returns the current thread's nice value. */
 int thread_get_nice(void)
 {
-  return thread_current()->nice; 
+  return thread_current()->nice;
 }
 
 /* Returns 100 times the system load average. */
 int thread_get_load_avg(void)
 {
-  return (int) (100 * load_avg);
+  return (int)(100 * load_avg);
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int thread_get_recent_cpu(void)
 {
-  return (int) (100*thread_current()->recent_cpu); 
+  return (int)(100 * thread_current()->recent_cpu);
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -635,20 +653,18 @@ init_thread(struct thread *t, const char *name, int priority)
   t->init_priority = priority;
   list_init(&t->don_recipients);
 
-
   /* Assigning data members at boot for advanced scheduler */
-  
 
-  if (strcmp(name,"main") == 0)
+  if (strcmp(name, "main") == 0)
   {
-    t->recent_cpu = 0 ;
+    t->recent_cpu = 0;
     t->nice = 0;
-    t->init_priority = subtract(PRI_MAX,subtract(divide(t->recent_cpu,4),multiply(t->nice,2)));
+    t->priority = subtract(PRI_MAX, subtract(divide(t->recent_cpu, 4), multiply(t->nice, 2)));
   }
   else
   {
     t->recent_cpu = thread_current()->recent_cpu;
-    t->nice = thread_current()->nice; 
+    t->nice = thread_current()->nice;
   }
 
   old_level = intr_disable();
