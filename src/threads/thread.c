@@ -71,6 +71,14 @@ static void schedule(void);
 void thread_schedule_tail(struct thread *prev);
 static tid_t allocate_tid(void);
 
+/* Fractional Offset */
+#define f (1 << 14)
+
+int32_t convert_to_fixed_point(int n) {
+  return n * f;
+}
+
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -128,18 +136,22 @@ void thread_tick(void)
   /* Update statistics. */
   t->recent_cpu = thread_get_recent_cpu() + 1;
   /* Calculations for advanced scheduler */
+
+
+
   if (timer_ticks() % TIMER_FREQ == 0)
   {
     load_avg = (59 / 60) * load_avg + (1 / 60) * (list_size(&ready_list) + 1);
     int temp_load_avg = (int) load_avg; 
 
     int temp_term = (2*temp_load_avg)/(2*temp_load_avg+1); 
-    t->recent_cpu = temp_term * (thread_get_recent_cpu()) + thread_get_nice(); 
-    
-    t->priority = PRI_MAX - (thread_get_recent_cpu()/4) - (thread_get_nice()*2); 
+    t->recent_cpu = temp_term * (thread_get_recent_cpu()) + thread_get_nice();      
   }
 
-
+  if (timer_ticks() % 4 == 0 )
+  {
+    t->priority = PRI_MAX - (thread_get_recent_cpu()/4) - (thread_get_nice()*2);
+  }
 
   if (t == idle_thread)
     idle_ticks++;
