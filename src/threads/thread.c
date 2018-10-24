@@ -642,7 +642,7 @@ init_thread(struct thread *t, const char *name, int priority)
   {
     t->recent_cpu = 0 ;
     t->nice = 0;
-    t->init_priority = PRI_MAX - (t->recent_cpu/4) - (t->nice*2); 
+    t->init_priority = subtract(PRI_MAX,subtract(divide(t->recent_cpu,4),multiply(t->nice,2));
   }
   else
   {
