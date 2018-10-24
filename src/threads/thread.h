@@ -100,7 +100,6 @@ struct thread
   int nice;                   /* Thread's niceness value, used to recalculate thread's priority */
   int priority;               /* Priority. */
   int recent_cpu;             /* Estimate of the time taken on the CPU recently*/
-  int load_avg;               /* Average number of threads ready to run over the last minute */
 #ifdef USERPROG
   /* Owned by userprog/process.c. */
   uint32_t *pagedir; /* Page directory. */
@@ -114,6 +113,8 @@ struct thread
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
+
+int load_avg;               /* Average number of threads ready to run over the last minute */
 
 void thread_init(void);
 void thread_start(void);

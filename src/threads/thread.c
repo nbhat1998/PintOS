@@ -96,6 +96,9 @@ void thread_init(void)
   initial_thread = running_thread();
   init_thread(initial_thread, "main", PRI_DEFAULT);
 
+  /* Initialise system wide load_avg variable */
+  load_avg = 0;
+
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid();
 }
@@ -436,7 +439,7 @@ int thread_get_nice(void)
 int thread_get_load_avg(void)
 {
 
-
+  float temp_load_avg = (59/60)*load_avg + (1/60);
 
   return 0;
 }
@@ -545,21 +548,19 @@ init_thread(struct thread *t, const char *name, int priority)
 
 
   /* Assigning data members at boot for advanced scheduler */
-  t->load_avg = 0;
+  
 
   if (strcmp(name,"main") == 0)
   {
     t->recent_cpu = 0 ;
-    t->nice = 0
+    t->nice = 0;
+    t->init_priority = PRI_MAX - (t->recent_cpu/4) - (t->nice*2); 
   }
   else
   {
     t->recent_cpu = thread_current()->recent_cpu;
     t->nice = thread_current()->nice; 
   }
-
-
-
 
   old_level = intr_disable();
   list_push_back(&all_list, &t->allelem);
