@@ -87,16 +87,20 @@ struct thread
   enum thread_status status;  /* Thread state. */
   char name[16];              /* Name (for debugging purposes). */
   uint8_t *stack;             /* Saved stack pointer. */
-  int priority;               /* Priority. */
+
   int init_priority;          /* Initial priority, before donations */
   struct list donations;      /* List of donated priorities */
   struct list don_recipients; /* List of threads who 
                                           received priorities from me*/
 
-  struct list_elem allelem; /* List element for all threads list. */
+  struct list_elem allelem;   /* List element for all threads list. */
   /* Shared between thread.c and synch.c. */
   struct list_elem elem; /* List element. */
 
+  int nice;                   /* Thread's niceness value, used to recalculate thread's priority */
+  int priority;               /* Priority. */
+  int recent_cpu;             /* Estimate of the time taken on the CPU recently*/
+  int load_avg;               /* Average number of threads ready to run over the last minute */
 #ifdef USERPROG
   /* Owned by userprog/process.c. */
   uint32_t *pagedir; /* Page directory. */
