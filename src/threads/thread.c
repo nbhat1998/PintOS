@@ -126,7 +126,7 @@ void thread_tick(void)
   struct thread *t = thread_current();
 
   /* Update statistics. */
-
+  t->recent_cpu = thread_get_recent_cpu() + 1;
   /* Calculations for advanced scheduler */
   if (timer_ticks() % TIMER_FREQ == 0)
   {
@@ -134,9 +134,9 @@ void thread_tick(void)
     int temp_load_avg = (int) load_avg; 
 
     int temp_term = (2*temp_load_avg)/(2*temp_load_avg+1); 
-    t->recent_cpu = temp_term*t->recent_cpu + thread_get_nice(); 
+    t->recent_cpu = temp_term * (thread_get_recent_cpu()) + thread_get_nice(); 
     
-    t->priority = PRI_MAX - (t->recent_cpu/4) - (thread_get_nice()*2); 
+    t->priority = PRI_MAX - (thread_get_recent_cpu()/4) - (thread_get_nice()*2); 
   }
 
 
@@ -439,9 +439,12 @@ int thread_get_priority(void)
 }
 
 /* Sets the current thread's nice value to NICE. */
-void thread_set_nice(int nice UNUSED)
+void thread_set_nice(int nice)
 {
-  /* Not yet implemented. */
+  struct thread *t = thread_current(); 
+  t->nice = nice; 
+  thread_set_priority(PRI_MAX - (thread_get_recent_cpu()/4) - (thread_get_nice()*2));
+  
 }
 
 /* Returns the current thread's nice value. */
