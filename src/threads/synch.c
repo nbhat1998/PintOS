@@ -367,23 +367,24 @@ void cond_signal(struct condition *cond, struct lock *lock UNUSED)
 bool sema_list_more_priority(const struct list_elem *elem_a,
                              const struct list_elem *elem_b, void *aux)
 {
-  struct semaphore sema_a = list_entry(elem_a, struct semaphore_elem, elem)->semaphore;
-  struct semaphore sema_b = list_entry(elem_b, struct semaphore_elem, elem)->semaphore;
+  (void)aux;
+  struct semaphore* sema_a = &list_entry(elem_a, struct semaphore_elem, elem)->semaphore;
+  struct semaphore* sema_b = &list_entry(elem_b, struct semaphore_elem, elem)->semaphore;
 
-  if (list_empty(&sema_a.waiters))
+  if (list_empty(&sema_a->waiters))
   {
     return false;
   }
-  else if (list_empty(&sema_b.waiters))
+  else if (list_empty(&sema_b->waiters))
   {
     return true;
   }
   else
   {
-    struct thread *thread_a = list_entry(list_max(&sema_a.waiters,
+    struct thread *thread_a = list_entry(list_max(&sema_a->waiters,
                                                   list_more_priority, list_more_priority),
                                          struct thread, elem);
-    struct thread *thread_b = list_entry(list_max(&sema_b.waiters,
+    struct thread *thread_b = list_entry(list_max(&sema_b->waiters,
                                                   list_more_priority, list_more_priority),
                                          struct thread, elem);
     return (thread_a->priority > thread_b->priority);
