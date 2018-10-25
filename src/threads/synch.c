@@ -113,7 +113,6 @@ void sema_up(struct semaphore *sema)
   old_level = intr_disable();
   if (!list_empty(&sema->waiters))
   {
-    // BUG on list_sort, needs the list_less_func twice
     list_sort(&sema->waiters, list_more_priority, NULL);
 
     thread_unblock(list_entry(list_pop_front(&sema->waiters),
@@ -357,7 +356,7 @@ void cond_signal(struct condition *cond, struct lock *lock UNUSED)
 
   if (!list_empty(&cond->waiters))
   {
-    list_sort(&cond->waiters, sema_list_more_priority, sema_list_more_priority);
+    list_sort(&cond->waiters, sema_list_more_priority, NULL);
     sema_up(&list_entry(list_pop_front(&cond->waiters),
                         struct semaphore_elem, elem)
                  ->semaphore);
