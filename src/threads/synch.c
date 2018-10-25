@@ -114,7 +114,7 @@ void sema_up(struct semaphore *sema)
   if (!list_empty(&sema->waiters))
   {
     // BUG on list_sort, needs the list_less_func twice
-    list_sort(&sema->waiters, list_more_priority, list_more_priority);
+    list_sort(&sema->waiters, list_more_priority, NULL);
 
     thread_unblock(list_entry(list_pop_front(&sema->waiters),
                               struct thread, elem));
@@ -382,10 +382,10 @@ bool sema_list_more_priority(const struct list_elem *elem_a,
   else
   {
     struct thread *thread_a = list_entry(list_max(&sema_a->waiters,
-                                                  list_more_priority, list_more_priority),
+                                                  list_more_priority, NULL),
                                          struct thread, elem);
     struct thread *thread_b = list_entry(list_max(&sema_b->waiters,
-                                                  list_more_priority, list_more_priority),
+                                                  list_more_priority, NULL),
                                          struct thread, elem);
     return (thread_a->priority > thread_b->priority);
   }
