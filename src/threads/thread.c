@@ -59,6 +59,7 @@ static unsigned thread_ticks; /* # of timer ticks since last yield. */
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
+int32_t load_avg;
 
 static void kernel_thread(thread_func *, void *aux);
 
@@ -86,9 +87,9 @@ int truncate_to_integer(int32_t x)
   return x / f;
 }
 
-int convert_to_nearest_integer(int n)
+int convert_to_nearest_integer(int32_t x)
 {
-  int32_t x = convert_to_fixed_point(n);
+ // int32_t x = convert_to_fixed_point(n);
   if (x >= 0)
   {
     return (x + (f / 2)) / f;
@@ -99,56 +100,56 @@ int convert_to_nearest_integer(int n)
   }
 }
 
-int add(int n, int m)
+int32_t add(int32_t x, int32_t y)
 {
-  int32_t x = convert_to_fixed_point(n);
-  int32_t y = convert_to_fixed_point(m);
-  return convert_to_nearest_integer(x + y);
+  //int32_t x = convert_to_fixed_point(n);
+  //int32_t y = convert_to_fixed_point(m);
+  return x + y;
 }
 
-int subtract(int n, int m)
+int32_t subtract(int32_t x, int32_t y)
 {
-  int32_t x = convert_to_fixed_point(n);
-  int32_t y = convert_to_fixed_point(m);
-  return convert_to_nearest_integer(x - y);
+  //int32_t x = convert_to_fixed_point(n);
+  //int32_t y = convert_to_fixed_point(m);
+  return x - y;
 }
 
-int add_int_to_fixed(int n, int32_t x)
+int32_t add_int_to_fixed(int n, int32_t x)
 {
   int32_t y = convert_to_fixed_point(n);
-  return convert_to_nearest_integer(x + y);
+  return x + y;
 }
 
-int subtract_int_from_fixed(int n, int32_t x)
+int32_t subtract_int_from_fixed(int n, int32_t x)
 {
   int32_t y = convert_to_fixed_point(n);
-  return convert_to_nearest_integer(x - y);
+  return x - y;
 }
 
-int multiply(int n, int m)
+int32_t multiply(int32_t x, int32_t y)
 {
-  int32_t x = convert_to_fixed_point(n);
-  int32_t y = convert_to_fixed_point(m);
-  return convert_to_nearest_integer((((int64_t)x) * y) / f);
+  //int32_t x = convert_to_fixed_point(n);
+  //int32_t y = convert_to_fixed_point(m);
+  return (((int64_t)x) * y) / f;
 }
 
-int multiply_fixed_by_int(int32_t x, int m)
+int32_t multiply_fixed_by_int(int32_t x, int m)
 {
   int32_t y = convert_to_fixed_point(m);
-  return convert_to_nearest_integer(x * y);
+  return (((int64_t)x) * y) / f;
 }
 
-int divide(int n, int m)
+int32_t divide(int32_t x, int32_t y)
 {
-  int32_t x = convert_to_fixed_point(n);
-  int32_t y = convert_to_fixed_point(m);
-  return truncate_to_integer((((int64_t)x) * f) / y);
+  //int32_t x = convert_to_fixed_point(n);
+  //int32_t y = convert_to_fixed_point(m);
+  return (((int64_t)x) * f) / y;
 }
 
-int divide_fixed_by_int(int32_t x, int m)
+int32_t divide_fixed_by_int(int32_t x, int m)
 {
   int32_t y = convert_to_fixed_point(m);
-  return convert_to_nearest_integer(x / y);
+  return (((int64_t)x) * f) / y;
 }
 
 /* Initializes the threading system by transforming the code
@@ -205,26 +206,51 @@ void thread_tick(void)
 {
   struct thread *t = thread_current();
 
-  /* Update statistics. */
-  t->recent_cpu = thread_get_recent_cpu() + 1;
-  /* Calculations for advanced scheduler */
-
-  if (timer_ticks() % TIMER_FREQ == 0)
+  if (thread_mlfqs)
   {
-    //load_avg = (59 / 60) * load_avg + (1 / 60) * (list_size(&ready_list) + 1);
-    load_avg = add(multiply(divide(59, 60), load_avg), multiply(divide(1, 60), add((int)(list_size(&ready_list)), 1)));
-    //int temp_load_avg = (int) load_avg;
-    // multiply(divide(59,60),load_avg)
-    // multiply(divide(1,60),add((int)(list_size(&ready_list)),1))
+    /* Update statistics. */
+    t->recent_cpu = thread_get_recent_cpu() + 1;
+    /* Calculations for advanced scheduler */
 
-    int temp_term = divide(multiply(2, load_avg), add(multiply(2, load_avg), 1));
+    if (timer_ticks() % TIMER_FREQ == 0)
+    {
+      //load_avg = (59 / 60) * load_avg + (1 / 60) * (list_size(&ready_list) + 1);
+      //int temp_load_avg = (int) load_avg;
+      // multiply(divide(59,60),load_avg)
+      // multiply(divide(1,60),add((int)(list_size(&ready_list)),1))
 
-    t->recent_cpu = add(t->nice, multiply(temp_term, t->recent_cpu));
-  }
+      int32_t a1 = divide(convert_to_fixed_point(59), convert_to_fixed_point(60));
+      int32_t a2 = multiply(a1, load_avg);
+      int32_t a3 = divide(convert_to_fixed_point(1), convert_to_fixed_point(60));
+      int32_t a4 = add(convert_to_fixed_point(1), (int)list_size(&ready_list));
+      int32_t a5 = multiply(a3, a4);
+      load_avg = add(a2, a5);
 
-  if (timer_ticks() % 4 == 0)
-  {
-    t->priority = subtract(PRI_MAX, subtract(divide(t->recent_cpu, 4), multiply(t->nice, 2)));
+      //load_avg = add(multiply(divide(59, 60), load_avg), multiply(divide(1, 60), add((int)(list_size(&ready_list)), 1)));
+
+      int32_t a6 = multiply(convert_to_fixed_point(2), load_avg);
+      int32_t a7 = add_int_to_fixed(1, a6);
+      int32_t a8 = divide(a6, a7);
+
+      int temp_term = convert_to_nearest_integer(a8);
+
+      //int temp_term = divide(multiply(2, load_avg), add(multiply(2, load_avg), 1));
+      int32_t a10 = convert_to_fixed_point(temp_term);
+      int32_t a11 = convert_to_fixed_point(t->recent_cpu);
+      int32_t a12 = add_int_to_fixed(t->nice, multiply(a10, a11));
+      t->recent_cpu = convert_to_nearest_integer(a12);
+    }
+
+    if (timer_ticks() % 4 == 0)
+    {
+      int32_t a1 = multiply_fixed_by_int(convert_to_fixed_point(t->nice), 2);
+      int32_t a2 = divide_fixed_by_int(convert_to_fixed_point(t->recent_cpu), 4);
+      int32_t a3 = subtract(a2, a1);
+      int32_t a4 = subtract(convert_to_fixed_point(PRI_MAX), a3);
+      
+      t->priority = convert_to_nearest_integer(a4);
+      //t->priority = subtract(PRI_MAX, subtract(divide(t->recent_cpu, 4), multiply(t->nice, 2)));
+    }
   }
 
   if (t == idle_thread)
@@ -494,6 +520,13 @@ void thread_set_priority(int new_priority)
   {
     cur->priority = new_priority;
     // TODO : yield threads here if <comp> with max
+    if (list_size(&ready_list) != 0 &&
+        new_priority < list_entry(list_begin(&ready_list),
+                                  struct thread, elem)
+                           ->priority)
+    {
+      thread_yield();
+    }
   }
   else
   {
@@ -537,7 +570,13 @@ void thread_set_nice(int nice)
 {
   struct thread *t = thread_current();
   t->nice = nice;
-  thread_set_priority(subtract(PRI_MAX, subtract(divide(t->recent_cpu, 4), multiply(t->nice, 2))));
+
+  int32_t a1 = multiply_fixed_by_int(convert_to_fixed_point(t->nice), 2);
+  int32_t a2 = divide_fixed_by_int(convert_to_fixed_point(t->recent_cpu), 4);
+  int32_t a3 = subtract(a2, a1);
+  int32_t a4 = subtract(convert_to_fixed_point(PRI_MAX), a3);
+
+  thread_set_priority(convert_to_nearest_integer(a4));
   //PRI_MAX - (thread_get_recent_cpu()/4) - (thread_get_nice()*2)
 }
 
@@ -550,7 +589,7 @@ int thread_get_nice(void)
 /* Returns 100 times the system load average. */
 int thread_get_load_avg(void)
 {
-  return (int)(100 * load_avg);
+  return convert_to_nearest_integer(multiply_fixed_by_int(load_avg, 100));
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */

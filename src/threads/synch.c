@@ -121,7 +121,12 @@ void sema_up(struct semaphore *sema)
   }
   sema->value++;
   intr_set_level(old_level);
-  thread_yield();
+
+  if(intr_context()) {
+    intr_yield_on_return();
+  } else {
+    thread_yield();
+  }
 }
 
 static void sema_test_helper(void *sema_);
@@ -197,25 +202,28 @@ void lock_acquire(struct lock *lock)
   ASSERT(!intr_context());
   ASSERT(!lock_held_by_current_thread(lock));
 
-  struct donation d;
-  struct don_recipient r;
-  if (boot_complete)
+  if (!thread_mlfqs)
   {
-    if (lock->holder)
+    struct donation d;
+    struct don_recipient r;
+    if (boot_complete)
     {
-      // DON_RECIPIENT
-      r.recipient = lock->holder;
-      list_push_back(&thread_current()->don_recipients, &r.elem);
+      if (lock->holder)
+      {
+        // DON_RECIPIENT
+        r.recipient = lock->holder;
+        list_push_back(&thread_current()->don_recipients, &r.elem);
 
-      // DONATION
-      d.donor_bond = &r;
-      d.lock = lock;
-      d.donor = thread_current();
-      d.priority = thread_get_priority();
-      list_push_front(&lock->holder->donations, &d.elem);
+        // DONATION
+        d.donor_bond = &r;
+        d.lock = lock;
+        d.donor = thread_current();
+        d.priority = thread_get_priority();
+        list_push_front(&lock->holder->donations, &d.elem);
 
-      // RECURSIVE UPDATE PRIORITY
-      update_priority(lock->holder, thread_current(), thread_get_priority());
+        // RECURSIVE UPDATE PRIORITY
+        update_priority(lock->holder, thread_current(), thread_get_priority());
+      }
     }
   }
 
@@ -256,19 +264,22 @@ void lock_release(struct lock *lock)
   ASSERT(lock != NULL);
   ASSERT(lock_held_by_current_thread(lock));
 
-  if (boot_complete)
+  if (!thread_mlfqs)
   {
-    struct thread *me = thread_current();
-
-    donation_list_filter(&me->donations, lock);
-
-    if (list_size(&me->donations) == 0)
+    if (boot_complete)
     {
-      update_priority(me, me, me->init_priority);
-    }
-    else
-    {
-      update_priority(me, me, list_entry(list_begin(&me->donations), struct donation, elem)->priority);
+      struct thread *me = thread_current();
+
+      donation_list_filter(&me->donations, lock);
+
+      if (list_size(&me->donations) == 0)
+      {
+        update_priority(me, me, me->init_priority);
+      }
+      else
+      {
+        update_priority(me, me, list_entry(list_begin(&me->donations), struct donation, elem)->priority);
+      }
     }
   }
 
@@ -368,8 +379,8 @@ bool sema_list_more_priority(const struct list_elem *elem_a,
                              const struct list_elem *elem_b, void *aux)
 {
   (void)aux;
-  struct semaphore* sema_a = &list_entry(elem_a, struct semaphore_elem, elem)->semaphore;
-  struct semaphore* sema_b = &list_entry(elem_b, struct semaphore_elem, elem)->semaphore;
+  struct semaphore *sema_a = &list_entry(elem_a, struct semaphore_elem, elem)->semaphore;
+  struct semaphore *sema_b = &list_entry(elem_b, struct semaphore_elem, elem)->semaphore;
 
   if (list_empty(&sema_a->waiters))
   {
