@@ -220,7 +220,7 @@ void thread_tick(void)
       // multiply(divide(1,60),add((int)(list_size(&ready_list)),1))
 
       int32_t a1 = divide(convert_to_fixed_point(59), convert_to_fixed_point(60));
-      int32_t a2 = multiply(a1, get_load_average());
+      int32_t a2 = multiply(a1, thread_get_load_avg());
       int32_t a3 = divide(convert_to_fixed_point(1), convert_to_fixed_point(60));
       int32_t a4 = add(convert_to_fixed_point(1), (int)list_size(&ready_list));
       int32_t a5 = multiply(a3, a4);
