@@ -89,7 +89,7 @@ int truncate_to_integer(int32_t x)
 
 int convert_to_nearest_integer(int32_t x)
 {
- // int32_t x = convert_to_fixed_point(n);
+  // int32_t x = convert_to_fixed_point(n);
   if (x >= 0)
   {
     return (int)(x + (int32_t)(f / (int32_t)2)) / f;
@@ -241,15 +241,15 @@ void thread_tick(void)
       t->recent_cpu = convert_to_nearest_integer(a12);
     }
 
-  //  if (timer_ticks() % 4 == 0)
-   // {
-      int32_t a1 = multiply_fixed_by_int(convert_to_fixed_point(t->nice), 2);
-      int32_t a2 = divide_fixed_by_int(convert_to_fixed_point(thread_get_recent_cpu()), 4);
-      int32_t a3 = subtract(a2, a1);
-      int32_t a4 = subtract(convert_to_fixed_point(PRI_MAX), a3);
-      
-      thread_set_priority(convert_to_nearest_integer(a4));
-      //t->priority = subtract(PRI_MAX, subtract(divide(t->recent_cpu, 4), multiply(t->nice, 2)));
+    //  if (timer_ticks() % 4 == 0)
+    // {
+    int32_t a1 = multiply_fixed_by_int(convert_to_fixed_point(t->nice), 2);
+    int32_t a2 = divide_fixed_by_int(convert_to_fixed_point(thread_get_recent_cpu()), 4);
+    int32_t a3 = subtract(a2, a1);
+    int32_t a4 = subtract(convert_to_fixed_point(PRI_MAX), a3);
+
+    thread_set_priority(convert_to_nearest_integer(a4));
+    //t->priority = subtract(PRI_MAX, subtract(divide(t->recent_cpu, 4), multiply(t->nice, 2)));
     //}
   }
 
@@ -515,11 +515,13 @@ void update_priority(struct thread *cur, struct thread *caller, int new_priority
 void thread_set_priority(int new_priority)
 {
   struct thread *cur = thread_current();
-  if(new_priority > PRI_MAX) {
+  if (new_priority > PRI_MAX)
+  {
     new_priority = PRI_MAX;
   }
 
-  if(new_priority< PRI_MIN) {
+  if (new_priority < PRI_MIN)
+  {
     new_priority = PRI_MIN;
   }
 
