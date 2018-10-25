@@ -74,17 +74,17 @@ void thread_schedule_tail(struct thread *prev);
 static tid_t allocate_tid(void);
 
 /* Fractional Offset */
-#define f (1 << 14)
+#define f (int32_t)(1 << 14)
 
 /* Functions for fixed point arithmetic */
 int32_t convert_to_fixed_point(int n)
 {
-  return n * f;
+  return ((int32_t)n) * f;
 }
 
 int truncate_to_integer(int32_t x)
 {
-  return x / f;
+  return (int)(x / f);
 }
 
 int convert_to_nearest_integer(int32_t x)
@@ -92,11 +92,11 @@ int convert_to_nearest_integer(int32_t x)
  // int32_t x = convert_to_fixed_point(n);
   if (x >= 0)
   {
-    return (x + (f / 2)) / f;
+    return (int)(x + (int32_t)(f / (int32_t)2)) / f;
   }
   else
   {
-    return (x - (f / 2)) / f;
+    return (int)(x - (int32_t)(f / (int32_t)2)) / f;
   }
 }
 
