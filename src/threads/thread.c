@@ -231,19 +231,19 @@ void thread_tick(void)
 
     if (timer_ticks() % 4 == 0)
     {
-      int32_t a1 = convert_to_fixed_point(t->nice * 2);
-      int32_t a2 = divide_fixed_by_int(t->recent_cpu, 4);
-      int32_t a4 = convert_to_fixed_point(PRI_MAX) - (a2 - a1);
-      int new_priority = truncate_to_integer(a4);
-      thread_set_priority(new_priority);
+      //int32_t a1 = convert_to_fixed_point(t->nice * 2);
+      //int32_t a2 = divide_fixed_by_int(t->recent_cpu, 4);
+      //int32_t a4 = convert_to_fixed_point(PRI_MAX) - a2 - a1;
+      //int new_priority = truncate_to_integer(a4);
+      //thread_set_priority(new_priority);
 
-      for (struct list_elem *e = list_begin(&ready_list);
-           e != list_end(&ready_list); e = list_next(e))
+      for (struct list_elem *e = list_begin(&all_list);
+           e != list_end(&all_list); e = list_next(e))
       {
-        struct thread *curr = list_entry(e, struct thread, elem);
+        struct thread *curr = list_entry(e, struct thread, allelem);
         int32_t a1 = convert_to_fixed_point(curr->nice * 2);
         int32_t a2 = divide_fixed_by_int(curr->recent_cpu, 4);
-        int32_t a4 = convert_to_fixed_point(PRI_MAX) - (a2 - a1);
+        int32_t a4 = convert_to_fixed_point(PRI_MAX) - a2 - a1;
         int new_priority = truncate_to_integer(a4);
 
         if (new_priority > PRI_MAX)
@@ -254,10 +254,7 @@ void thread_tick(void)
         {
           new_priority = PRI_MIN;
         }
-        else
-        {
           curr->priority = new_priority;
-        }
       }
 
       if (intr_context())
@@ -613,7 +610,7 @@ void thread_set_nice(int nice)
   t->nice = nice;
   int32_t a1 = convert_to_fixed_point(t->nice * 2);
   int32_t a2 = divide_fixed_by_int(t->recent_cpu, 4);
-  int32_t a4 = convert_to_fixed_point(PRI_MAX) - (a2 - a1);
+  int32_t a4 = convert_to_fixed_point(PRI_MAX) - a2 - a1;
   int new_priority = truncate_to_integer(a4);
   thread_set_priority(new_priority);
   //PRI_MAX - (thread_get_recent_cpu()/4) - (thread_get_nice()*2)
