@@ -99,7 +99,7 @@ struct thread
 
   int nice;                   /* Thread's niceness value, used to recalculate thread's priority */
   int priority;               /* Priority. */
-  int recent_cpu;           /* Estimate of the time taken on the CPU recently*/
+  int32_t recent_cpu;           /* Estimate of the time taken on the CPU recently*/
 #ifdef USERPROG
   /* Owned by userprog/process.c. */
   uint32_t *pagedir; /* Page directory. */

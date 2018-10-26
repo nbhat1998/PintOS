@@ -209,7 +209,7 @@ void thread_tick(void)
   if (thread_mlfqs)
   {
     /* Update statistics. */
-    t->recent_cpu = thread_get_recent_cpu() + 1;
+    t->recent_cpu = add_int_to_fixed(1, t->recent_cpu);
     /* Calculations for advanced scheduler */
 
     if (timer_ticks() % TIMER_FREQ == 0)
@@ -219,38 +219,28 @@ void thread_tick(void)
       // multiply(divide(59,60),load_avg)
       // multiply(divide(1,60),add((int)(list_size(&ready_list)),1))
 
-      int32_t a1 = divide(convert_to_fixed_point(59), convert_to_fixed_point(60));
-      int32_t a2 = multiply(a1, thread_get_load_avg());
-      int32_t a3 = divide(convert_to_fixed_point(1), convert_to_fixed_point(60));
-      int32_t a4 = add(convert_to_fixed_point(1), (int)list_size(&ready_list));
-      int32_t a5 = multiply(a3, a4);
-      load_avg = divide_fixed_by_int(add(a2, a5), 100);
+      int32_t a1 = convert_to_fixed_point(59) / convert_to_fixed_point(60);
+      int32_t a3 = convert_to_fixed_point(1) / convert_to_fixed_point(60);
+      int32_t a4 = convert_to_fixed_point((int)list_size(&ready_list) + 1);
+      load_avg = divide_fixed_by_int((a1 * load_avg + a3 * a4), 100);
 
-      //load_avg = add(multiply(divide(59, 60), load_avg), multiply(divide(1, 60), add((int)(list_size(&ready_list)), 1)));
-
-      int32_t a6 = multiply(convert_to_fixed_point(2), load_avg);
+      //load_avg = add(muliply(divide(59, 60), load_avg), multiply(divide(1, 60), add((int)(list_size(&ready_list)), 1)));
+      int32_t a6 = multiply_fixed_by_int(load_avg, 2);
       int32_t a7 = add_int_to_fixed(1, a6);
-      int32_t a8 = divide(a6, a7);
-
-      int temp_term = convert_to_nearest_integer(a8);
 
       //int temp_term = divide(multiply(2, load_avg), add(multiply(2, load_avg), 1));
-      int32_t a10 = convert_to_fixed_point(temp_term);
-      int32_t a11 = convert_to_fixed_point(thread_get_recent_cpu());
-      int32_t a12 = add_int_to_fixed(t->nice, multiply(a10, a11));
-      t->recent_cpu = convert_to_nearest_integer(a12);
+      t->recent_cpu = add_int_to_fixed(t->nice, ((a6 / a7) * t->recent_cpu));
     }
 
-    //  if (timer_ticks() % 4 == 0)
-    // {
-    int32_t a1 = multiply_fixed_by_int(convert_to_fixed_point(t->nice), 2);
-    int32_t a2 = divide_fixed_by_int(convert_to_fixed_point(thread_get_recent_cpu()), 4);
-    int32_t a3 = subtract(a2, a1);
-    int32_t a4 = subtract(convert_to_fixed_point(PRI_MAX), a3);
+    if (timer_ticks() % 4 == 0)
+    {
+      int32_t a1 = convert_to_fixed_point(t->nice *2);
+      int32_t a2 = divide_fixed_by_int(t->recent_cpu, 4);
+      int32_t a4 = convert_to_fixed_point(PRI_MAX) - (a2 - a1);
 
-    thread_set_priority(convert_to_nearest_integer(a4));
-    //t->priority = subtract(PRI_MAX, subtract(divide(t->recent_cpu, 4), multiply(t->nice, 2)));
-    //}
+      thread_set_priority(convert_to_nearest_integer(a4));
+      //t->priority = subtract(PRI_MAX, subtract(divide(t->recent_cpu, 4), multiply(t->nice, 2)));
+    }
   }
 
   if (t == idle_thread)
@@ -515,18 +505,18 @@ void update_priority(struct thread *cur, struct thread *caller, int new_priority
 void thread_set_priority(int new_priority)
 {
   struct thread *cur = thread_current();
-  if (new_priority > PRI_MAX)
-  {
-    new_priority = PRI_MAX;
-  }
-
-  if (new_priority < PRI_MIN)
-  {
-    new_priority = PRI_MIN;
-  }
 
   if (thread_mlfqs)
   {
+    if (new_priority > PRI_MAX)
+    {
+      new_priority = PRI_MAX;
+    }
+
+    if (new_priority < PRI_MIN)
+    {
+      new_priority = PRI_MIN;
+    }
     cur->priority = new_priority;
     // TODO : yield threads here if <comp> with max
     if (list_size(&ready_list) != 0 &&
@@ -580,8 +570,8 @@ void thread_set_nice(int nice)
   struct thread *t = thread_current();
   t->nice = nice;
 
-  int32_t a1 = multiply_fixed_by_int(convert_to_fixed_point(t->nice), 2);
-  int32_t a2 = divide_fixed_by_int(convert_to_fixed_point(t->recent_cpu), 4);
+  int32_t a1 = convert_to_fixed_point(t->nice * 2);
+  int32_t a2 = divide_fixed_by_int(t->recent_cpu, 4);
   int32_t a3 = subtract(a2, a1);
   int32_t a4 = subtract(convert_to_fixed_point(PRI_MAX), a3);
 
@@ -604,7 +594,7 @@ int thread_get_load_avg(void)
 /* Returns 100 times the current thread's recent_cpu value. */
 int thread_get_recent_cpu(void)
 {
-  return (int)(100 * thread_current()->recent_cpu);
+  return convert_to_nearest_integer(multiply_fixed_by_int(thread_current()->recent_cpu, 100));
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
