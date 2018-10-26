@@ -210,17 +210,25 @@ void thread_tick(void)
   if (thread_mlfqs && boot_complete)
   {
     /* Update statistics. */
-    //if (t->name != "idle")
-    //{
-    t->recent_cpu = add_int_to_fixed(1, t->recent_cpu);
-    //}
+    if (t != idle_thread)
+    {
+      t->recent_cpu = add_int_to_fixed(1, t->recent_cpu);
+    }
     /* Calculations for advanced scheduler */
 
     if (timer_ticks() % TIMER_FREQ == 0)
     {
       int32_t a1 = divide(convert_to_fixed_point(59), convert_to_fixed_point(60));
       int32_t a3 = divide(convert_to_fixed_point(1), convert_to_fixed_point(60));
-      int32_t a4 = convert_to_fixed_point((int)list_size(&ready_list) + 1);
+      int32_t a4;
+      if (t == idle_thread)
+      {
+        a4 = convert_to_fixed_point((int)list_size(&ready_list));
+      }
+      else
+      {
+        a4 = convert_to_fixed_point((int)list_size(&ready_list) + 1);
+      }
       load_avg = multiply(a1, load_avg) + multiply(a3, a4);
 
       int32_t a6 = multiply_fixed_by_int(load_avg, 2);
@@ -231,12 +239,6 @@ void thread_tick(void)
 
     if (timer_ticks() % 4 == 0)
     {
-      //int32_t a1 = convert_to_fixed_point(t->nice * 2);
-      //int32_t a2 = divide_fixed_by_int(t->recent_cpu, 4);
-      //int32_t a4 = convert_to_fixed_point(PRI_MAX) - a2 - a1;
-      //int new_priority = truncate_to_integer(a4);
-      //thread_set_priority(new_priority);
-
       for (struct list_elem *e = list_begin(&all_list);
            e != list_end(&all_list); e = list_next(e))
       {
@@ -254,7 +256,8 @@ void thread_tick(void)
         {
           new_priority = PRI_MIN;
         }
-          curr->priority = new_priority;
+
+        curr->priority = new_priority;
       }
 
       if (intr_context())
