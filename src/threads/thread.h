@@ -114,7 +114,7 @@ struct thread
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
 
-extern int32_t load_avg;               /* Average number of threads ready to run over the last minute */
+//extern int32_t load_avg;               /* Average number of threads ready to run over the last minute */
 
 void thread_init(void);
 void thread_start(void);

@@ -59,7 +59,7 @@ static unsigned thread_ticks; /* # of timer ticks since last yield. */
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
-int32_t load_avg;
+static int32_t load_avg;
 
 static void kernel_thread(thread_func *, void *aux);
 
@@ -219,22 +219,22 @@ void thread_tick(void)
       // multiply(divide(59,60),load_avg)
       // multiply(divide(1,60),add((int)(list_size(&ready_list)),1))
 
-      int32_t a1 = convert_to_fixed_point(59) / convert_to_fixed_point(60);
-      int32_t a3 = convert_to_fixed_point(1) / convert_to_fixed_point(60);
+      int32_t a1 = divide(convert_to_fixed_point(59), convert_to_fixed_point(60));
+      int32_t a3 = divide(convert_to_fixed_point(1), convert_to_fixed_point(60));
       int32_t a4 = convert_to_fixed_point((int)list_size(&ready_list) + 1);
-      load_avg = divide_fixed_by_int((a1 * load_avg + a3 * a4), 100);
+      load_avg = multiply(a1, load_avg) + multiply(a3, a4);
 
       //load_avg = add(muliply(divide(59, 60), load_avg), multiply(divide(1, 60), add((int)(list_size(&ready_list)), 1)));
       int32_t a6 = multiply_fixed_by_int(load_avg, 2);
       int32_t a7 = add_int_to_fixed(1, a6);
 
       //int temp_term = divide(multiply(2, load_avg), add(multiply(2, load_avg), 1));
-      t->recent_cpu = add_int_to_fixed(t->nice, ((a6 / a7) * t->recent_cpu));
+      t->recent_cpu = add_int_to_fixed(t->nice, multiply(divide(a6, a7), t->recent_cpu));
     }
 
     if (timer_ticks() % 4 == 0)
     {
-      int32_t a1 = convert_to_fixed_point(t->nice *2);
+      int32_t a1 = convert_to_fixed_point(t->nice * 2);
       int32_t a2 = divide_fixed_by_int(t->recent_cpu, 4);
       int32_t a4 = convert_to_fixed_point(PRI_MAX) - (a2 - a1);
 
@@ -524,7 +524,14 @@ void thread_set_priority(int new_priority)
                                   struct thread, elem)
                            ->priority)
     {
-      thread_yield();
+      if (intr_context())
+      {
+        intr_yield_on_return();
+      }
+      else
+      {
+        thread_yield();
+      }
     }
   }
   else
@@ -553,7 +560,14 @@ void thread_set_priority(int new_priority)
     else
     {
       cur->priority = max;
-      thread_yield();
+      if (intr_context())
+      {
+        intr_yield_on_return();
+      }
+      else
+      {
+        thread_yield();
+      }
     }
   }
 }
