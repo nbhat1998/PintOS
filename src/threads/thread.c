@@ -409,7 +409,14 @@ void thread_set_priority(int new_priority)
   else
   {
     cur->priority = max;
-    thread_yield();
+    if (intr_context())
+    {
+      intr_yield_on_return();
+    }
+    else
+    {
+      thread_yield();
+    }
   }
 }
 

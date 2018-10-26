@@ -120,7 +120,14 @@ void sema_up(struct semaphore *sema)
   }
   sema->value++;
   intr_set_level(old_level);
-  thread_yield();
+  if (intr_context())
+  {
+    intr_yield_on_return();
+  }
+  else
+  {
+    thread_yield();
+  }
 }
 
 static void sema_test_helper(void *sema_);
@@ -367,8 +374,8 @@ bool sema_list_more_priority(const struct list_elem *elem_a,
                              const struct list_elem *elem_b, void *aux)
 {
   (void)aux;
-  struct semaphore* sema_a = &list_entry(elem_a, struct semaphore_elem, elem)->semaphore;
-  struct semaphore* sema_b = &list_entry(elem_b, struct semaphore_elem, elem)->semaphore;
+  struct semaphore *sema_a = &list_entry(elem_a, struct semaphore_elem, elem)->semaphore;
+  struct semaphore *sema_b = &list_entry(elem_b, struct semaphore_elem, elem)->semaphore;
 
   if (list_empty(&sema_a->waiters))
   {
