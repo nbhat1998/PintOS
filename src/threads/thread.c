@@ -75,6 +75,12 @@ static void schedule(void);
 void thread_schedule_tail(struct thread *prev);
 static tid_t allocate_tid(void);
 
+/* Advanced Scheduler functions */
+static int get_new_priority(struct thread *thread);
+static void update_recent_cpu(struct thread *thread);
+static void update_load_avg(void);
+static void update_all_priorities(void);
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -123,10 +129,6 @@ void thread_start(void)
   sema_down(&idle_started);
 }
 
-int get_new_priority(struct thread *thread);
-void update_load_avg();
-void update_all_priorities();
-
 /* Called by the timer interrupt handler at each timer tick.
    Thus, this function runs in an external interrupt context. */
 void thread_tick(void)
@@ -141,14 +143,16 @@ void thread_tick(void)
       t->recent_cpu = add_int_to_fixed(1, t->recent_cpu);
     }
 
-    /* Every multiple of a second, recalculate load average */
+    /* Every multiple of a second, recalculate(update) load average. Then the 
+    recent cpu is also updated */
     if (timer_ticks() % TIMER_FREQ == 0)
     {
-      update_load_avg(t);
+      update_load_avg();
+      update_recent_cpu(t);
     }
 
-    /* Every time slice, update priorities off all running/ready threads
-    except for the idle thread, then yield*/
+    /* Every time slice, update priorities off all running/ready/blocked threads
+    then yield */
     if (timer_ticks() % 4 == 0)
     {
       update_all_priorities();
@@ -524,7 +528,8 @@ int thread_get_load_avg(void)
 /* Returns 100 times the current thread's recent_cpu value. */
 int thread_get_recent_cpu(void)
 {
-  return convert_to_nearest_integer(multiply_fixed_by_int(thread_current()->recent_cpu, 100));
+  return convert_to_nearest_integer(
+      multiply_fixed_by_int(thread_current()->recent_cpu, 100));
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -765,6 +770,7 @@ bool list_more_priority(const struct list_elem *elem_a,
   return (thread_a->priority > thread_b->priority);
 }
 
+/* updates the priorities of all running, ready or blecked threads */
 void update_all_priorities()
 {
   for (struct list_elem *e = list_begin(&all_list);
@@ -774,7 +780,7 @@ void update_all_priorities()
 
     int new_priority = get_new_priority(curr);
 
-    //checking that the new priority is in the acceptable range
+    /* checking that the new priority is in the acceptable range */
     if (new_priority > PRI_MAX)
     {
       new_priority = PRI_MAX;
@@ -788,8 +794,10 @@ void update_all_priorities()
   }
 }
 
-void update_load_avg(struct thread *t)
+/* Updates load average when thread t is currently running.*/
+void update_load_avg()
 {
+  struct thread* t = thread_current();
   int32_t decay_coef1 = divide(convert_to_fixed_point(59),
                                convert_to_fixed_point(60));
   int32_t decay_coef2 = divide(convert_to_fixed_point(1),
@@ -806,7 +814,10 @@ void update_load_avg(struct thread *t)
   }
 
   load_avg = multiply(decay_coef1, load_avg) + multiply(decay_coef2, ready_threads);
+}
 
+/* Updates the recent cpu of threat t */
+void update_recent_cpu(struct thread *t) {
   int32_t numerator = multiply_fixed_by_int(load_avg, 2);
   int32_t denominator = add_int_to_fixed(1, numerator);
 
@@ -814,6 +825,7 @@ void update_load_avg(struct thread *t)
                                    multiply(divide(numerator, denominator), t->recent_cpu));
 }
 
+/* Calculates the new priority of a thread in terms of recent cpu and niceness */
 int get_new_priority(struct thread *thread)
 {
   int32_t term2 = divide_fixed_by_int(thread->recent_cpu, 4);
