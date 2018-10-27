@@ -817,6 +817,7 @@ void update_load_avg()
 }
 
 /* Updates the recent cpu of threat t */
+// Change this to change all recent CPUs 
 void update_recent_cpu(struct thread *t) {
   int32_t numerator = multiply_fixed_by_int(load_avg, 2);
   int32_t denominator = add_int_to_fixed(1, numerator);
