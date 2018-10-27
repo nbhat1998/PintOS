@@ -66,21 +66,29 @@ struct donation
         // A pointer to the donor thread
 };      
 
-struct don_recipient
+struct don_recipient // TODO : Rethink this, might change implementation. Why is list don_recepients a list considering that it will never be more than one size long. Each thread can only donate to one other thread and after donating it will block itself. 
+        // An element that is held the list of don_recepients of the donor thread to keep track of the threads that this particular thread donated to. This element is used in case of recursive donations. 
 {
   struct thread *recipient; /* Pointer to the thread that holds the lock */ 
+        // A pointer to the thread it donated to
   struct list_elem elem;    /* List element for don_recipients list */
+        // 
 };
+
 
 <<<<<< thread.h >>>>>>>>
 struct thread
 {
     .... << same as before >>
     int init_priority;          /* Initial priority, before donations */
+        // When all donations are satisfied, this is the priority that the thread should fall back to (this is the native priority)
     struct list donations;      /* List of donated priorities */
+        // A list of donation structs to keep track of threads that donated to this thread
     struct list don_recipients; /* List of threads who received priorities from me*/
+        // A list of recipients // TODO 
    
     int nice;                   /* Thread's niceness value, used to recalculate thread's priority */
+        
     int priority;               /* Priority. */
     int32_t recent_cpu;           /* Estimate of the time taken on the CPU recently*/
 }
