@@ -13,6 +13,7 @@
 #include "threads/vaddr.h"
 #include "devices/timer.h"
 #include "threads/init.h"
+#include "threads/fixed_point.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -74,85 +75,6 @@ static void schedule(void);
 void thread_schedule_tail(struct thread *prev);
 static tid_t allocate_tid(void);
 
-/* Fractional Offset */
-#define f (int32_t)(1 << 14)
-
-/* Functions for fixed point arithmetic */
-int32_t convert_to_fixed_point(int n)
-{
-  return ((int32_t)n) * f;
-}
-
-int truncate_to_integer(int32_t x)
-{
-  return (int)(x / f);
-}
-
-int convert_to_nearest_integer(int32_t x)
-{
-  // int32_t x = convert_to_fixed_point(n);
-  if (x >= 0)
-  {
-    return (int)(x + (int32_t)(f / (int32_t)2)) / f;
-  }
-  else
-  {
-    return (int)(x - (int32_t)(f / (int32_t)2)) / f;
-  }
-}
-
-int32_t add(int32_t x, int32_t y)
-{
-  //int32_t x = convert_to_fixed_point(n);
-  //int32_t y = convert_to_fixed_point(m);
-  return x + y;
-}
-
-int32_t subtract(int32_t x, int32_t y)
-{
-  //int32_t x = convert_to_fixed_point(n);
-  //int32_t y = convert_to_fixed_point(m);
-  return x - y;
-}
-
-int32_t add_int_to_fixed(int n, int32_t x)
-{
-  int32_t y = convert_to_fixed_point(n);
-  return x + y;
-}
-
-int32_t subtract_int_from_fixed(int n, int32_t x)
-{
-  int32_t y = convert_to_fixed_point(n);
-  return x - y;
-}
-
-int32_t multiply(int32_t x, int32_t y)
-{
-  //int32_t x = convert_to_fixed_point(n);
-  //int32_t y = convert_to_fixed_point(m);
-  return (((int64_t)x) * y) / f;
-}
-
-int32_t multiply_fixed_by_int(int32_t x, int m)
-{
-  int32_t y = convert_to_fixed_point(m);
-  return (((int64_t)x) * y) / f;
-}
-
-int32_t divide(int32_t x, int32_t y)
-{
-  //int32_t x = convert_to_fixed_point(n);
-  //int32_t y = convert_to_fixed_point(m);
-  return (((int64_t)x) * f) / y;
-}
-
-int32_t divide_fixed_by_int(int32_t x, int m)
-{
-  int32_t y = convert_to_fixed_point(m);
-  return (((int64_t)x) * f) / y;
-}
-
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -201,64 +123,31 @@ void thread_start(void)
   sema_down(&idle_started);
 }
 
+int get_new_priority(struct thread *thread);
+void update_load_avg();
+void update_all_priorities();
+
 /* Called by the timer interrupt handler at each timer tick.
    Thus, this function runs in an external interrupt context. */
 void thread_tick(void)
 {
   struct thread *t = thread_current();
 
-  if (thread_mlfqs && boot_complete)
+  if (thread_mlfqs & boot_complete)
   {
     /* Update statistics. */
     if (t != idle_thread)
     {
       t->recent_cpu = add_int_to_fixed(1, t->recent_cpu);
     }
-    /* Calculations for advanced scheduler */
-
-    if (timer_ticks() % TIMER_FREQ == 0)
+    if (timer_ticks() % TIMER_FREQ)
     {
-      int32_t a1 = divide(convert_to_fixed_point(59), convert_to_fixed_point(60));
-      int32_t a3 = divide(convert_to_fixed_point(1), convert_to_fixed_point(60));
-      int32_t a4;
-      if (t == idle_thread)
-      {
-        a4 = convert_to_fixed_point((int)list_size(&ready_list));
-      }
-      else
-      {
-        a4 = convert_to_fixed_point((int)list_size(&ready_list) + 1);
-      }
-      load_avg = multiply(a1, load_avg) + multiply(a3, a4);
-
-      int32_t a6 = multiply_fixed_by_int(load_avg, 2);
-      int32_t a7 = add_int_to_fixed(1, a6);
-
-      t->recent_cpu = add_int_to_fixed(t->nice, multiply(divide(a6, a7), t->recent_cpu));
+      update_load_avg(t);
     }
 
     if (timer_ticks() % 4 == 0)
     {
-      for (struct list_elem *e = list_begin(&all_list);
-           e != list_end(&all_list); e = list_next(e))
-      {
-        struct thread *curr = list_entry(e, struct thread, allelem);
-        int32_t a1 = convert_to_fixed_point(curr->nice * 2);
-        int32_t a2 = divide_fixed_by_int(curr->recent_cpu, 4);
-        int32_t a4 = convert_to_fixed_point(PRI_MAX) - a2 - a1;
-        int new_priority = truncate_to_integer(a4);
-
-        if (new_priority > PRI_MAX)
-        {
-          new_priority = PRI_MAX;
-        }
-        else if (new_priority < PRI_MIN)
-        {
-          new_priority = PRI_MIN;
-        }
-
-        curr->priority = new_priority;
-      }
+      update_all_priorities();
 
       if (intr_context())
       {
@@ -507,6 +396,7 @@ void update_priority(struct thread *cur, struct thread *caller, int new_priority
   cur->priority = max;
 
   // Update List of Don-Recipients recursively
+  //donation_recursive_update
   if (!list_empty(&cur->don_recipients))
   {
     for (struct list_elem *e = list_begin(&cur->don_recipients);
@@ -518,6 +408,7 @@ void update_priority(struct thread *cur, struct thread *caller, int new_priority
   }
 
   // Update list of donations and their locks
+  // also different function
   for (struct list_elem *e = list_begin(&cur->donations);
        e != list_end(&cur->donations); e = list_next(e))
   {
@@ -611,12 +502,7 @@ void thread_set_nice(int nice)
 {
   struct thread *t = thread_current();
   t->nice = nice;
-  int32_t a1 = convert_to_fixed_point(t->nice * 2);
-  int32_t a2 = divide_fixed_by_int(t->recent_cpu, 4);
-  int32_t a4 = convert_to_fixed_point(PRI_MAX) - a2 - a1;
-  int new_priority = truncate_to_integer(a4);
-  thread_set_priority(new_priority);
-  //PRI_MAX - (thread_get_recent_cpu()/4) - (thread_get_nice()*2)
+  thread_set_priority(get_new_priority(t));
 }
 
 /* Returns the current thread's nice value. */
@@ -873,4 +759,61 @@ bool list_more_priority(const struct list_elem *elem_a,
   struct thread *thread_a = list_entry(elem_a, struct thread, elem);
   struct thread *thread_b = list_entry(elem_b, struct thread, elem);
   return (thread_a->priority > thread_b->priority);
+}
+
+void update_all_priorities()
+{
+  for (struct list_elem *e = list_begin(&all_list);
+       e != list_end(&all_list); e = list_next(e))
+  {
+    struct thread *curr = list_entry(e, struct thread, allelem);
+
+    int new_priority = get_new_priority(curr);
+
+    //checking that the new priority is in the acceptable range
+    if (new_priority > PRI_MAX)
+    {
+      new_priority = PRI_MAX;
+    }
+    else if (new_priority < PRI_MIN)
+    {
+      new_priority = PRI_MIN;
+    }
+
+    curr->priority = new_priority;
+  }
+}
+
+void update_load_avg(struct thread *t)
+{
+  int32_t decay_coef1 = divide(convert_to_fixed_point(59),
+                               convert_to_fixed_point(60));
+  int32_t decay_coef2 = divide(convert_to_fixed_point(1),
+                               convert_to_fixed_point(60));
+  int32_t ready_threads;
+
+  if (t == idle_thread)
+  {
+    ready_threads = convert_to_fixed_point((int)list_size(&ready_list));
+  }
+  else
+  {
+    ready_threads = convert_to_fixed_point((int)list_size(&ready_list) + 1);
+  }
+
+  load_avg = multiply(decay_coef1, load_avg) + multiply(decay_coef2, ready_threads);
+
+  int32_t numerator = multiply_fixed_by_int(load_avg, 2);
+  int32_t denominator = add_int_to_fixed(1, numerator);
+
+  t->recent_cpu = add_int_to_fixed(t->nice,
+                                   multiply(divide(numerator, denominator), t->recent_cpu));
+}
+
+int get_new_priority(struct thread *thread)
+{
+  int32_t term2 = divide_fixed_by_int(thread->recent_cpu, 4);
+  int32_t term3 = convert_to_fixed_point(thread->nice * 2);
+  int32_t fixed_new_pri = convert_to_fixed_point(PRI_MAX) - term2 - term3;
+  return truncate_to_integer(fixed_new_pri);
 }
