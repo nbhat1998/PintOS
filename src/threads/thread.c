@@ -135,7 +135,7 @@ void thread_tick(void)
 {
   struct thread *t = thread_current();
 
-  if (thread_mlfqs & boot_complete)
+  if (thread_mlfqs && boot_complete)
   {
     /* Update statistics. */
     if (t != idle_thread)
