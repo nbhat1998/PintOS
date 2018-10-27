@@ -77,7 +77,7 @@ static tid_t allocate_tid(void);
 
 /* Advanced Scheduler functions */
 static int get_new_priority(struct thread *thread);
-static void update_recent_cpu(struct thread *thread);
+static void update_recent_cpu(void);
 static void update_load_avg(void);
 static void update_all_priorities(void);
 
@@ -148,7 +148,8 @@ void thread_tick(void)
     if (timer_ticks() % TIMER_FREQ == 0)
     {
       update_load_avg();
-      update_recent_cpu(t);
+      update_recent_cpu();
+      // remove param here
     }
 
     /* Every time slice, update priorities off all running/ready/blocked threads
@@ -797,7 +798,7 @@ void update_all_priorities()
 /* Updates load average when thread t is currently running.*/
 void update_load_avg()
 {
-  struct thread* t = thread_current();
+  struct thread *t = thread_current();
   int32_t decay_coef1 = divide(convert_to_fixed_point(59),
                                convert_to_fixed_point(60));
   int32_t decay_coef2 = divide(convert_to_fixed_point(1),
@@ -817,13 +818,22 @@ void update_load_avg()
 }
 
 /* Updates the recent cpu of threat t */
-// Change this to change all recent CPUs 
-void update_recent_cpu(struct thread *t) {
+// Change this to change all recent CPUs
+void update_recent_cpu()
+{
+
   int32_t numerator = multiply_fixed_by_int(load_avg, 2);
   int32_t denominator = add_int_to_fixed(1, numerator);
+  int32_t coefficient = divide(numerator, denominator);
 
-  t->recent_cpu = add_int_to_fixed(t->nice,
-                                   multiply(divide(numerator, denominator), t->recent_cpu));
+  for (struct list_elem *e = list_begin(&all_list);
+       e != list_end(&all_list); e = list_next(e))
+  {
+    struct thread *curr = list_entry(e, struct thread, allelem);
+
+    curr->recent_cpu = add_int_to_fixed(
+        curr->nice, multiply(coefficient, curr->recent_cpu));
+  }
 }
 
 /* Calculates the new priority of a thread in terms of recent cpu and niceness */
