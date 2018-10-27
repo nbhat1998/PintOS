@@ -34,6 +34,63 @@ Iulia Ivana     <imi17@ic.ac.uk>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in roughly 25 words.
 
+thread : niceness, priority, recent_cpu 
+load_avg 
+
+
+
+
+<<<<<<< init.h >>>>>>>
+extern bool boot_complete;  
+    Boolean value tha is set to true after PintOS has booted. We use this value to ensure that we start updating load average only after a successful and complete boot. 
+
+
+
+
+
+
+
+<<<<<<< sync.h >>>>>>>>>
+struct donation
+    An element held in each thread's list of donations to keep track of the threads that donated to it. 
+{
+  struct lock *lock;                /* Requested Lock */
+        The lock that the donor is waiting for to be released by the recipient thread (this thread) 
+  struct don_recipient *donor_bond; /* Pointer to don_recipient in donor */
+        A pointer to don_recipient in the donor thread // TODO Expand on this, why do we store this? 
+  int priority;                     /* Priority donated */
+        // An integer that stores the priority that got donated to the thread. We keep track of this to fall back to this priority in case of multiple donations. 
+  struct list_elem elem;            /* List element for donations list */
+        // Element used to the order this struct in the donations list of the thread (struct list donations)
+  struct thread *donor;             /* Thread that donated to you */
+        // A pointer to the donor thread
+};      
+
+struct don_recipient
+{
+  struct thread *recipient; /* Pointer to the thread that holds the lock */ 
+  struct list_elem elem;    /* List element for don_recipients list */
+};
+
+<<<<<< thread.h >>>>>>>>
+struct thread
+{
+    .... << same as before >>
+    int init_priority;          /* Initial priority, before donations */
+    struct list donations;      /* List of donated priorities */
+    struct list don_recipients; /* List of threads who received priorities from me*/
+   
+    int nice;                   /* Thread's niceness value, used to recalculate thread's priority */
+    int priority;               /* Priority. */
+    int32_t recent_cpu;           /* Estimate of the time taken on the CPU recently*/
+}
+extern bool thread_mlfqs;
+
+<<<<<  thread.c >>>>>>>>> 
+static int32_t load_avg;
+
+
+
 >> A2: (4 marks) 
 >> Draw a diagram that illustrates a nested donation in your 
 >> structure and briefly explain how this works.
@@ -111,3 +168,7 @@ ticks   A   B   C   A   B   C   to run
 >> B5: (2 marks)
 >> Briefly critique your design, pointing out advantages and
 >> disadvantages in your design choices.
+
+
+
+
