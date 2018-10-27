@@ -206,17 +206,14 @@ void lock_acquire(struct lock *lock)
   if (!thread_mlfqs)
   {
     struct donation d;
-    struct don_recipient r;
     if (boot_complete)
     {
       if (lock->holder)
       {
         // DON_RECIPIENT
-        r.recipient = lock->holder;
-        list_push_back(&thread_current()->don_recipients, &r.elem);
+        thread_current()->recipient = lock->holder;
 
         // DONATION
-        d.donor_bond = &r;
         d.lock = lock;
         d.donor = thread_current();
         d.priority = thread_get_priority();
@@ -425,7 +422,7 @@ void donation_list_filter(struct list *list, struct lock *lock)
   {
     if (list_entry(e, struct donation, elem)->lock == lock)
     {
-      list_remove(&list_entry(e, struct donation, elem)->donor_bond->elem);
+      list_entry(e, struct donation, elem)->donor->recipient = NULL;
       list_remove(e);
     }
   }
