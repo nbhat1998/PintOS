@@ -818,7 +818,7 @@ void update_load_avg()
 }
 
 /* Updates the recent cpu of threat t */
-// Change this to change all recent CPUs
+
 void update_recent_cpu()
 {
 
