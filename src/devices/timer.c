@@ -112,6 +112,8 @@ void timer_sleep(int64_t ticks)
   sema_init(&sema, 0);
   me.sema = &sema;
 
+  //enum intr_level old_level;
+  //old_level = intr_disable();    
   // Add thread->sleepelem to ordered list all_sleeping_list
   list_insert_ordered(&all_sleeping_list, &me.sleepelem, list_less_sleeptime, NULL);
 
@@ -120,6 +122,7 @@ void timer_sleep(int64_t ticks)
 
   // Remove this from list
   list_remove(&me.sleepelem);
+  //intr_set_level(old_level);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be

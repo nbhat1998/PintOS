@@ -23,7 +23,7 @@ typedef int tid_t;
 #define PRI_MIN 0      /* Lowest priority. */
 #define PRI_DEFAULT 31 /* Default priority. */
 #define PRI_MAX 63     /* Highest priority. */
-
+#define TIMER_FREQ 100 /* Timer frequency   */
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -87,16 +87,19 @@ struct thread
   enum thread_status status;  /* Thread state. */
   char name[16];              /* Name (for debugging purposes). */
   uint8_t *stack;             /* Saved stack pointer. */
-  int priority;               /* Priority. */
+
   int init_priority;          /* Initial priority, before donations */
   struct list donations;      /* List of donated priorities */
   struct list don_recipients; /* List of threads who 
                                           received priorities from me*/
 
-  struct list_elem allelem; /* List element for all threads list. */
+  struct list_elem allelem;   /* List element for all threads list. */
   /* Shared between thread.c and synch.c. */
   struct list_elem elem; /* List element. */
 
+  int nice;                   /* Thread's niceness value, used to recalculate thread's priority */
+  int priority;               /* Priority. */
+  int32_t recent_cpu;           /* Estimate of the time taken on the CPU recently*/
 #ifdef USERPROG
   /* Owned by userprog/process.c. */
   uint32_t *pagedir; /* Page directory. */
@@ -110,6 +113,8 @@ struct thread
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
+
+//extern int32_t load_avg;               /* Average number of threads ready to run over the last minute */
 
 void thread_init(void);
 void thread_start(void);
