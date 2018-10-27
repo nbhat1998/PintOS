@@ -140,11 +140,15 @@ void thread_tick(void)
     {
       t->recent_cpu = add_int_to_fixed(1, t->recent_cpu);
     }
-    if (timer_ticks() % TIMER_FREQ)
+
+    /* Every multiple of a second, recalculate load average */
+    if (timer_ticks() % TIMER_FREQ == 0)
     {
       update_load_avg(t);
     }
 
+    /* Every time slice, update priorities off all running/ready threads
+    except for the idle thread, then yield*/
     if (timer_ticks() % 4 == 0)
     {
       update_all_priorities();
