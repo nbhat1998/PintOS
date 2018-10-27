@@ -11,6 +11,8 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "devices/timer.h"
+#include "threads/init.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -58,6 +60,7 @@ static unsigned thread_ticks; /* # of timer ticks since last yield. */
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
+static int32_t load_avg;
 
 static void kernel_thread(thread_func *, void *aux);
 
@@ -70,6 +73,85 @@ static void *alloc_frame(struct thread *, size_t size);
 static void schedule(void);
 void thread_schedule_tail(struct thread *prev);
 static tid_t allocate_tid(void);
+
+/* Fractional Offset */
+#define f (int32_t)(1 << 14)
+
+/* Functions for fixed point arithmetic */
+int32_t convert_to_fixed_point(int n)
+{
+  return ((int32_t)n) * f;
+}
+
+int truncate_to_integer(int32_t x)
+{
+  return (int)(x / f);
+}
+
+int convert_to_nearest_integer(int32_t x)
+{
+  // int32_t x = convert_to_fixed_point(n);
+  if (x >= 0)
+  {
+    return (int)(x + (int32_t)(f / (int32_t)2)) / f;
+  }
+  else
+  {
+    return (int)(x - (int32_t)(f / (int32_t)2)) / f;
+  }
+}
+
+int32_t add(int32_t x, int32_t y)
+{
+  //int32_t x = convert_to_fixed_point(n);
+  //int32_t y = convert_to_fixed_point(m);
+  return x + y;
+}
+
+int32_t subtract(int32_t x, int32_t y)
+{
+  //int32_t x = convert_to_fixed_point(n);
+  //int32_t y = convert_to_fixed_point(m);
+  return x - y;
+}
+
+int32_t add_int_to_fixed(int n, int32_t x)
+{
+  int32_t y = convert_to_fixed_point(n);
+  return x + y;
+}
+
+int32_t subtract_int_from_fixed(int n, int32_t x)
+{
+  int32_t y = convert_to_fixed_point(n);
+  return x - y;
+}
+
+int32_t multiply(int32_t x, int32_t y)
+{
+  //int32_t x = convert_to_fixed_point(n);
+  //int32_t y = convert_to_fixed_point(m);
+  return (((int64_t)x) * y) / f;
+}
+
+int32_t multiply_fixed_by_int(int32_t x, int m)
+{
+  int32_t y = convert_to_fixed_point(m);
+  return (((int64_t)x) * y) / f;
+}
+
+int32_t divide(int32_t x, int32_t y)
+{
+  //int32_t x = convert_to_fixed_point(n);
+  //int32_t y = convert_to_fixed_point(m);
+  return (((int64_t)x) * f) / y;
+}
+
+int32_t divide_fixed_by_int(int32_t x, int m)
+{
+  int32_t y = convert_to_fixed_point(m);
+  return (((int64_t)x) * f) / y;
+}
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -95,6 +177,10 @@ void thread_init(void)
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread();
   init_thread(initial_thread, "main", PRI_DEFAULT);
+
+  /* Initialise system wide load_avg variable */
+  load_avg = 0;
+
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid();
 }
@@ -121,7 +207,70 @@ void thread_tick(void)
 {
   struct thread *t = thread_current();
 
-  /* Update statistics. */
+  if (thread_mlfqs && boot_complete)
+  {
+    /* Update statistics. */
+    if (t != idle_thread)
+    {
+      t->recent_cpu = add_int_to_fixed(1, t->recent_cpu);
+    }
+    /* Calculations for advanced scheduler */
+
+    if (timer_ticks() % TIMER_FREQ == 0)
+    {
+      int32_t a1 = divide(convert_to_fixed_point(59), convert_to_fixed_point(60));
+      int32_t a3 = divide(convert_to_fixed_point(1), convert_to_fixed_point(60));
+      int32_t a4;
+      if (t == idle_thread)
+      {
+        a4 = convert_to_fixed_point((int)list_size(&ready_list));
+      }
+      else
+      {
+        a4 = convert_to_fixed_point((int)list_size(&ready_list) + 1);
+      }
+      load_avg = multiply(a1, load_avg) + multiply(a3, a4);
+
+      int32_t a6 = multiply_fixed_by_int(load_avg, 2);
+      int32_t a7 = add_int_to_fixed(1, a6);
+
+      t->recent_cpu = add_int_to_fixed(t->nice, multiply(divide(a6, a7), t->recent_cpu));
+    }
+
+    if (timer_ticks() % 4 == 0)
+    {
+      for (struct list_elem *e = list_begin(&all_list);
+           e != list_end(&all_list); e = list_next(e))
+      {
+        struct thread *curr = list_entry(e, struct thread, allelem);
+        int32_t a1 = convert_to_fixed_point(curr->nice * 2);
+        int32_t a2 = divide_fixed_by_int(curr->recent_cpu, 4);
+        int32_t a4 = convert_to_fixed_point(PRI_MAX) - a2 - a1;
+        int new_priority = truncate_to_integer(a4);
+
+        if (new_priority > PRI_MAX)
+        {
+          new_priority = PRI_MAX;
+        }
+        else if (new_priority < PRI_MIN)
+        {
+          new_priority = PRI_MIN;
+        }
+
+        curr->priority = new_priority;
+      }
+
+      if (intr_context())
+      {
+        intr_yield_on_return();
+      }
+      else
+      {
+        thread_yield();
+      }
+    }
+  }
+
   if (t == idle_thread)
     idle_ticks++;
 #ifdef USERPROG
@@ -385,37 +534,68 @@ void thread_set_priority(int new_priority)
 {
   struct thread *cur = thread_current();
 
-  cur->init_priority = new_priority;
+  if (thread_mlfqs)
+  {
+    if (new_priority > PRI_MAX)
+    {
+      new_priority = PRI_MAX;
+    }
 
-  int max = 0;
-  if (list_size(&cur->donations) != 0 &&
-      max < list_entry(list_begin(&cur->donations),
-                       struct donation, elem)
-                ->priority)
-  {
-    max = list_entry(list_begin(&cur->donations),
-                     struct donation, elem)
-              ->priority;
-  }
-  if (max < new_priority)
-  {
-    max = new_priority;
-  }
-
-  if (cur->priority < max)
-  {
-    cur->priority = max;
+    if (new_priority < PRI_MIN)
+    {
+      new_priority = PRI_MIN;
+    }
+    cur->priority = new_priority;
+    // TODO : yield threads here if <comp> with max
+    if (list_size(&ready_list) != 0 &&
+        new_priority < list_entry(list_begin(&ready_list),
+                                  struct thread, elem)
+                           ->priority)
+    {
+      if (intr_context())
+      {
+        intr_yield_on_return();
+      }
+      else
+      {
+        thread_yield();
+      }
+    }
   }
   else
   {
-    cur->priority = max;
-    if (intr_context())
+    cur->init_priority = new_priority;
+
+    int max = 0;
+    if (list_size(&cur->donations) != 0 &&
+        max < list_entry(list_begin(&cur->donations),
+                         struct donation, elem)
+                  ->priority)
     {
-      intr_yield_on_return();
+      max = list_entry(list_begin(&cur->donations),
+                       struct donation, elem)
+                ->priority;
+    }
+    if (max < new_priority)
+    {
+      max = new_priority;
+    }
+
+    if (cur->priority < max)
+    {
+      cur->priority = max;
     }
     else
     {
-      thread_yield();
+      cur->priority = max;
+      if (intr_context())
+      {
+        intr_yield_on_return();
+      }
+      else
+      {
+        thread_yield();
+      }
     }
   }
 }
@@ -427,30 +607,34 @@ int thread_get_priority(void)
 }
 
 /* Sets the current thread's nice value to NICE. */
-void thread_set_nice(int nice UNUSED)
+void thread_set_nice(int nice)
 {
-  /* Not yet implemented. */
+  struct thread *t = thread_current();
+  t->nice = nice;
+  int32_t a1 = convert_to_fixed_point(t->nice * 2);
+  int32_t a2 = divide_fixed_by_int(t->recent_cpu, 4);
+  int32_t a4 = convert_to_fixed_point(PRI_MAX) - a2 - a1;
+  int new_priority = truncate_to_integer(a4);
+  thread_set_priority(new_priority);
+  //PRI_MAX - (thread_get_recent_cpu()/4) - (thread_get_nice()*2)
 }
 
 /* Returns the current thread's nice value. */
 int thread_get_nice(void)
 {
-  /* Not yet implemented. */
-  return 0;
+  return thread_current()->nice;
 }
 
 /* Returns 100 times the system load average. */
 int thread_get_load_avg(void)
 {
-  /* Not yet implemented. */
-  return 0;
+  return convert_to_nearest_integer(multiply_fixed_by_int(load_avg, 100));
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int thread_get_recent_cpu(void)
 {
-  /* Not yet implemented. */
-  return 0;
+  return convert_to_nearest_integer(multiply_fixed_by_int(thread_current()->recent_cpu, 100));
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -547,6 +731,22 @@ init_thread(struct thread *t, const char *name, int priority)
   list_init(&t->donations);
   t->init_priority = priority;
   list_init(&t->don_recipients);
+
+  /* Assigning data members at boot for advanced scheduler */
+  if (thread_mlfqs)
+  {
+    if (strcmp(name, "main") == 0)
+    {
+      t->recent_cpu = 0;
+      t->nice = 0;
+      t->priority = PRI_MAX;
+    }
+    else
+    {
+      t->recent_cpu = thread_current()->recent_cpu;
+      t->nice = thread_current()->nice;
+    }
+  }
 
   old_level = intr_disable();
   list_push_back(&all_list, &t->allelem);
