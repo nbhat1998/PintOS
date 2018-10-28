@@ -63,6 +63,25 @@ PRIORITY SCHEDULING
 > 
 > Draw a diagram that illustrates a nested donation in your structure and briefly explain how this works.
 
+![](nested-donations.png)  
+
+Suppose we have threads A, B and C with priorities in descending order. Assume there are disjoint arbitrary resources which threads B and C have a lock over. 
+
+At any point in time, if thread B wishes to take control of the resources thread C has a lock over, under the standard priority donation procedure, thread B donates its priority to thread C. 
+
+Following this, prior to thread C releasing the lock, if thread A wishes to take control of the resources thread B holds a lock over, it donates its priority to thread B as expected. However, as thread B donated its priority to thread C, and now holds the priority of thread A, it further donates its new priority to thread C.
+
+
+
+
+
+
+
+
+
+
+
+
 ### ALGORITHMS
 
 > A3: (3 marks) 
