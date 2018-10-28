@@ -77,7 +77,7 @@ static tid_t allocate_tid(void);
 
 /* Advanced Scheduler functions */
 static int get_new_priority(struct thread *thread);
-static void update_recent_cpu(void);
+static void update_all_recent_cpu(void);
 static void update_load_avg(void);
 static void update_all_priorities(void);
 
@@ -148,7 +148,7 @@ void thread_tick(void)
     if (timer_ticks() % TIMER_FREQ == 0)
     {
       update_load_avg();
-      update_recent_cpu();
+      update_all_recent_cpu();
       // remove param here
     }
 
@@ -819,7 +819,7 @@ void update_load_avg()
 
 /* Updates the recent cpu of threat t */
 
-void update_recent_cpu()
+void update_all_recent_cpu()
 {
 
   int32_t numerator = multiply_fixed_by_int(load_avg, 2);
