@@ -364,6 +364,9 @@ void cond_signal(struct condition *cond, struct lock *lock UNUSED)
   ASSERT(!intr_context());
   ASSERT(lock_held_by_current_thread(lock));
 
+  enum intr_level old_level;
+  old_level = intr_disable();
+  
   if (!list_empty(&cond->waiters))
   {
     list_sort(&cond->waiters, sema_list_more_priority, NULL);
@@ -371,6 +374,7 @@ void cond_signal(struct condition *cond, struct lock *lock UNUSED)
                         struct semaphore_elem, elem)
                  ->semaphore);
   }
+  intr_set_level(old_level);
 }
 
 bool sema_list_more_priority(const struct list_elem *elem_a,
