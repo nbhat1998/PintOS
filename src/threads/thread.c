@@ -389,7 +389,8 @@ void thread_foreach(thread_action_func *func, void *aux)
 
 void update_priority(struct thread *cur, struct thread *caller, int new_priority)
 {
-
+  enum intr_level old_level;
+  old_level = intr_disable();
   // UPDATE PRIORITY
   int max = 0;
   if (list_size(&cur->donations) != 0)
@@ -422,12 +423,15 @@ void update_priority(struct thread *cur, struct thread *caller, int new_priority
       d->priority = new_priority;
     }
   }
+  intr_set_level(old_level);
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority(int new_priority)
 {
   struct thread *cur = thread_current();
+  enum intr_level old_level;
+  old_level = intr_disable();
 
   if (thread_mlfqs)
   {
@@ -439,7 +443,7 @@ void thread_set_priority(int new_priority)
     if (new_priority < PRI_MIN)
     {
       new_priority = PRI_MIN;
-    }
+    }  
     cur->priority = new_priority;
     // TODO : yield threads here if <comp> with max
     if (list_size(&ready_list) != 0 &&
@@ -493,6 +497,7 @@ void thread_set_priority(int new_priority)
       }
     }
   }
+  intr_set_level(old_level);
 }
 
 /* Returns the current thread's priority. */
