@@ -69,18 +69,9 @@ Suppose we have threads A, B and C with priorities in descending order. Assume t
 
 At any point in time, if thread B wishes to take control of the resources thread C has a lock over, under the standard priority donation procedure, thread B donates its priority to thread C. 
 
-Following this, prior to thread C releasing the lock, if thread A wishes to take control of the resources thread B holds a lock over, it donates its priority to thread B as expected. However, as thread B donated its priority to thread C, and now holds the priority of thread A, it further donates its new priority to thread C.
+Following this, prior to thread C releasing the lock, if thread A wishes to take control of the resources thread B holds a lock over, it donates its priority to thread B as expected. However, as thread B donated its priority to thread C, and now holds the priority of thread A, it "updates" its donation to give thread C the new higher priority it received from thread A. 
 
-
-
-
-
-
-
-
-
-
-
+At this stage, both threads A and B are blocked, with thread C having a nested donation. When thread C's process runs to completion, it releases its lock, and changes its priority to its initial value as the donation list is now empty. This causes thread B to release its lock as it has now acquired the resources it needed from thread C, which in turn causes thread B to revert back to its initial priority thereby unblocking thread A and giving control back to it. 
 
 ### ALGORITHMS
 
@@ -88,15 +79,17 @@ Following this, prior to thread C releasing the lock, if thread A wishes to take
 > 
 > How do you ensure that the highest priority waiting thread wakes up first for a (i) lock, (ii) semaphore, or (iii) condition variable?
 
+(i) Locks implement semaphores, that handle waking up threads.  
+(ii) Semaphores have a list of waiters. We handle waking up the thread with the highest priority by sorting the list of waiters before waking them up. We prevent race conditions by blocking interrupts before sorting the list.
+(iii)  
+
 > A4: (3 marks)
 > 
-> Describe the sequence of events when a call to lock_acquire()
-> causes a priority donation. How is nested donation handled?
+> Describe the sequence of events when a call to lock_acquire() causes a priority donation. How is nested donation handled?
 
 > A5: (3 marks)
 > 
-> Describe the sequence of events when lock_release() is called
-> on a lock that a higher-priority thread is waiting for.
+> Describe the sequence of events when lock_release() is called on a lock that a higher-priority thread is waiting for.
 
 ### SYNCHRONIZATION
 
