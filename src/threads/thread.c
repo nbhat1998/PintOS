@@ -404,16 +404,11 @@ void update_priority(struct thread *cur, struct thread *caller, int new_priority
   }
   cur->priority = max;
 
-  // Update List of Don-Recipients recursively
+  // Update recipient if it exist
   //donation_recursive_update
-  if (!list_empty(&cur->don_recipients))
+  if (cur->recipient)
   {
-    for (struct list_elem *e = list_begin(&cur->don_recipients);
-         e != list_end(&cur->don_recipients); e = list_next(e))
-    {
-      update_priority(list_entry(e, struct don_recipient, elem)->recipient,
-                      cur, new_priority);
-    }
+    update_priority(cur->recipient, cur, new_priority);
   }
 
   // Update list of donations and their locks
@@ -626,7 +621,7 @@ init_thread(struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
   list_init(&t->donations);
   t->init_priority = priority;
-  list_init(&t->don_recipients);
+  t->recipient = NULL;
 
   /* Assigning data members at boot for advanced scheduler */
   if (thread_mlfqs)
