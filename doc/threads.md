@@ -1,4 +1,3 @@
-
 <h1 align="center" style="white-space:pre">
 OS 211 
 TASK 1: SCHEDULING 
@@ -203,6 +202,6 @@ ADVANCED SCHEDULER
 > Briefly critique your design, pointing out advantages and
 > disadvantages in your design choices.
 
-* An advantage is that for the fixed point arithmetic we used inline functions instead of normal functions, which should eliminate the latency added due to function calls. However, this is guaranteed to always happen like it would with macros, as inline functions calling other inline fucntions may not be expanded inline.
+* An advantage is that for the fixed point arithmetic we used inline functions instead of normal functions, which should eliminate the latency added due to function calls. However, this is not guaranteed to always happen like it would with macros, as inline functions calling other inline fucntions may not be expanded inline.
 
 
