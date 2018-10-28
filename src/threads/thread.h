@@ -90,8 +90,8 @@ struct thread
 
   int init_priority;          /* Initial priority, before donations */
   struct list donations;      /* List of donated priorities */
-  struct list don_recipients; /* List of threads who 
-                                          received priorities from me*/
+  struct thread *recipient;   /* Pointer to the thread who received a donation from thread 
+                                 Only valid if thread has donated to another thread*/
 
   struct list_elem allelem;   /* List element for all threads list. */
   /* Shared between thread.c and synch.c. */
@@ -99,7 +99,7 @@ struct thread
 
   int nice;                   /* Thread's niceness value, used to recalculate thread's priority */
   int priority;               /* Priority. */
-  int32_t recent_cpu;           /* Estimate of the time taken on the CPU recently*/
+  int32_t recent_cpu;         /* Estimate of the time taken on the CPU recently*/
 #ifdef USERPROG
   /* Owned by userprog/process.c. */
   uint32_t *pagedir; /* Page directory. */
