@@ -88,10 +88,10 @@ At this stage, both threads A and B are blocked, with thread C having a nested d
 > Describe the sequence of events when a call to lock_acquire() causes a priority donation. How is nested donation handled?
 
 In lock acquire: 
-  if the lock requested has a holder then create a new donation struct populated with the required fields 
-  add it to the lock's holder's donation list 
-
-finally we call update priority on the holder that will set its priority to eh highest priortity between its own and the donation list 
+  * If the lock requested has a holder then create a new donation struct populated with the required fields 
+  add it to the lock's holder's donations list. Then it will call update priority on the holder that will set its priority to the highest priortity between its own and the highest donation in the donations list. This function will also handle nested donations as it will check if the recipient field of the thread is not NULL. If so, it will recursively call the function on the recipient thread. 
+  * If there is no lock holder, it will just set the lock's holder to itself.
+  * Regardless, it will call sema down.
 
 When lock acquire is called   
 > A5: (3 marks)
