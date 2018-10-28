@@ -185,7 +185,7 @@ ADVANCED SCHEDULER
 > Did any ambiguities in the scheduler specification make values in 
 > the table uncertain? If so, what rule did you use to resolve them?
 
-* When the highest priority thread drops to the second highest priority, the specification is vague as to which thread should run. In our code, we yield every time the priority is updated, so we used this rule to complete the table.
+ When the highest priority thread drops to the second highest priority, the specification is vague as to which thread should run. In our code, we yield every time the priority is updated, so we used this rule to complete the table.
 
 
 > B4: (2 marks)
@@ -195,13 +195,14 @@ ADVANCED SCHEDULER
 
 
 
----- RATIONALE ----
+
+### RATIONALE
 
 > B5: (2 marks)
 > 
 > Briefly critique your design, pointing out advantages and
 > disadvantages in your design choices.
 
-* An advantage is that for the fixed point arithmetic we used inline functions instead of normal functions, which should eliminate the latency added due to function calls. However, this is not guaranteed to always happen like it would with macros, as inline functions calling other inline fucntions may not be expanded inline.
+ An advantage is that for the fixed point arithmetic we used inline functions instead of normal functions, which should eliminate the latency added due to function calls. However, this is not guaranteed to always happen like it would with macros, as inline functions calling other inline fucntions may not be expanded inline.
 
 
