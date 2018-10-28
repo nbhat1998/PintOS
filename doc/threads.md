@@ -78,9 +78,9 @@ At this stage, both threads A and B are blocked, with thread C having a nested d
 > 
 > How do you ensure that the highest priority waiting thread wakes up first for a (i) lock, (ii) semaphore, or (iii) condition variable?
 
-(i) Locks implement semaphores, which handle waking up threads by waking up the thread with the highest priority. This is implemented by sorting the list of waiters beforehand.
+(i) Locks implement semaphores, which handle waking up threads by waking up the thread with the highest priority. This is implemented by sorting the list of waiters beforehand.  
 (ii) Semaphores have a list of waiters. We handle waking up the thread with the highest priority by sorting the list of waiters before waking them up. We prevent race conditions by blocking interrupts before sorting the list.  
-(iii) Condition variables have a list of semaphores. We look through all the semaphores to find the one with the highest thread priority, and call sema_up on that semaphore, which in turn causes the highest priority thread to wake up.
+(iii) Condition variables have a list of semaphores. We look through all the semaphores to find the one with the highest thread priority, and call sema_up on that semaphore, which in turn causes the highest priority thread to wake up.  
 
 > A4: (3 marks)
 > 
