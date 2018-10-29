@@ -13,9 +13,6 @@ Pintos Group 13
 * Maria Teguiani  <mt5217@ic.ac.uk> 
 * Iulia Ivana     <imi17@ic.ac.uk>
 
-PRELIMINARIES
----
->MAYBE TODO
 
 PRIORITY SCHEDULING
 ---
@@ -169,23 +166,23 @@ ADVANCED SCHEDULER
 
 |timer<br>ticks|recent_cpu<br>A|recent_cpu<br>B|recent_cpu<br>C | priority<br>A|priority<br>B|priority<br>C|thread<br>to run|
 |:-:|:----:|:----:|:----:|:----:|:----:|:----:|:---:|
-| 0 |  0   |  0   |  0   |  63  |  62  |  62  |  A  |
-| 4 |  4   |  0   |  0   |  62  |  62  |  62  |  A  |
-| 8 |  8   |  0   |  0   |  61  |  62  |  62  |  B  |
-|12 |  8   |  4   |  0   |  61  |  61  |  62  |  C  |
-|16 |  8   |  4   |  4   |  61  |  61  |  61  |  A  |
-|20 |  12  |  4   |  4   |  60  |  61  |  61  |  B  |
-|24 |  12  |  8   |  4   |  60  |  60  |  61  |  C  |
-|28 |  12  |  8   |  8   |  60  |  60  |  60  |  A  |
-|32 |  16  |  8   |  8   |  59  |  60  |  60  |  B  |
-|36 |  16  |  12  |  8   |  59  |  59  |  60  |  C  |
+| 0 |  0   |  0   |  0   |  63  |  61  |  59  |  A  |
+| 4 |  4   |  0   |  0   |  62  |  61  |  59  |  A  |
+| 8 |  8   |  0   |  0   |  61  |  61  |  59  |  B  |
+|12 |  8   |  4   |  0   |  61  |  60  |  59  |  A  |
+|16 |  12  |  4   |  0   |  60  |  60  |  59  |  B  |
+|20 |  12  |  8   |  0   |  60  |  59  |  59  |  A  |
+|24 |  16  |  8   |  0   |  59  |  59  |  59  |  C  |
+|28 |  16  |  8   |  4   |  59  |  59  |  58  |  B  |
+|32 |  16  |  12  |  4   |  59  |  58  |  58  |  A  |
+|36 |  20  |  12  |  4   |  58  |  58  |  58  |  C  |
 
 > B3: (2 marks) 
 > 
 > Did any ambiguities in the scheduler specification make values in 
 > the table uncertain? If so, what rule did you use to resolve them?
 
- When the highest priority thread drops to the second highest priority, the specification is vague as to which thread should run. In our code, we yield every time the priority is updated, so we used this rule to complete the table.
+ When the highest priority thread drops to the same priority as the second highest thread, the specification is vague as to which thread should run. In our code, we yield only if the thread no longer has the highest priority. In the table, we "yield" as soon as a thread drops to the same priority as the second highest priority. 
 
 
 > B4: (2 marks)
