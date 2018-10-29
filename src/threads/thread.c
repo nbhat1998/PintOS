@@ -157,8 +157,8 @@ void thread_tick(void)
     if (timer_ticks() % 4 == 0)
     {
       update_all_priorities();
-
-      if (t->priority < list_entry(list_front(&ready_list),
+      if (!list_empty(&ready_list) &&
+          t->priority < list_entry(list_front(&ready_list),
                                    struct thread, elem)
                             ->priority)
       {
