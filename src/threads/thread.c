@@ -154,7 +154,7 @@ void thread_tick(void)
 
     /* Every time slice, update priorities off all running/ready/blocked threads
     then yield */
-    if (timer_ticks() % 4 == 0)
+    if (timer_ticks() % TIME_SLICE == 0)
     {
       update_all_priorities();
       list_sort(&ready_list, list_more_priority, NULL);
