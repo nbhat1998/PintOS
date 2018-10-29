@@ -158,13 +158,11 @@ void thread_tick(void)
     {
       update_all_priorities();
 
-      if (intr_context())
+      if (t->priority < list_entry(list_front(&ready_list),
+                                   struct thread, elem)
+                            ->priority)
       {
         intr_yield_on_return();
-      }
-      else
-      {
-        thread_yield();
       }
     }
   }
@@ -443,7 +441,7 @@ void thread_set_priority(int new_priority)
     if (new_priority < PRI_MIN)
     {
       new_priority = PRI_MIN;
-    }  
+    }
     cur->priority = new_priority;
     // TODO : yield threads here if <comp> with max
     if (list_size(&ready_list) != 0 &&
