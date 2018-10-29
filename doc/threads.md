@@ -193,7 +193,7 @@ ADVANCED SCHEDULER
 > How is the way you divided the cost of scheduling between code
 > inside and outside interrupt context likely to affect performance?
 
-
+As timer interrupts happen once per tick, carrying out resource intensive tasks within a timer interrupt will add latency to the program. Resource intensive tasks that happen outside of interrupts are not carried out as often, and have less of a bearing on the overall runtime of the program.
 
 
 ### RATIONALE
