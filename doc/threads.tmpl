@@ -8,9 +8,12 @@
 
 >> Fill in the names and email addresses of your group members.
 
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
+George Soteriou <gs2617@ic.ac.uk> 
+Niranjan Bhat   <nb1317@ic.ac.uk>
+Maria Teguiani  <mt5217@ic.ac.uk> 
+Iulia Ivana     <imi17@ic.ac.uk> 
+
+
 
 ---- PRELIMINARIES ----
 
@@ -30,6 +33,71 @@ FirstName LastName <email@domain.example>
 >> Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in roughly 25 words.
+
+thread : niceness, priority, recent_cpu 
+load_avg 
+
+
+
+
+<<<<<<< init.h >>>>>>>
+extern bool boot_complete;  
+    Boolean value tha is set to true after PintOS has booted. We use this value to ensure that we start updating load average only after a successful and complete boot. 
+
+
+
+
+
+
+
+<<<<<<< sync.h >>>>>>>>>
+struct donation
+    An element held in each thread's list of donations to keep track of the threads that donated to it. 
+{
+  struct lock *lock;                /* Requested Lock */
+        The lock that the donor is waiting for to be released by the recipient thread (this thread) 
+  struct don_recipient *donor_bond; /* Pointer to don_recipient in donor */
+        A pointer to don_recipient in the donor thread // TODO Expand on this, why do we store this? 
+  int priority;                     /* Priority donated */
+        // An integer that stores the priority that got donated to the thread. We keep track of this to fall back to this priority in case of multiple donations. 
+  struct list_elem elem;            /* List element for donations list */
+        // Element used to the order this struct in the donations list of the thread (struct list donations)
+  struct thread *donor;             /* Thread that donated to you */
+        // A pointer to the donor thread
+};      
+
+struct don_recipient // TODO : Rethink this, might change implementation. Why is list don_recepients a list considering that it will never be more than one size long. Each thread can only donate to one other thread and after donating it will block itself. 
+        // An element that is held the list of don_recepients of the donor thread to keep track of the threads that this particular thread donated to. This element is used in case of recursive donations. 
+{
+  struct thread *recipient; /* Pointer to the thread that holds the lock */ 
+        // A pointer to the thread it donated to
+  struct list_elem elem;    /* List element for don_recipients list */
+        // 
+};
+
+
+<<<<<< thread.h >>>>>>>>
+struct thread
+{
+    .... << same as before >>
+    int init_priority;          /* Initial priority, before donations */
+        // When all donations are satisfied, this is the priority that the thread should fall back to (this is the native priority)
+    struct list donations;      /* List of donated priorities */
+        // A list of donation structs to keep track of threads that donated to this thread
+    struct list don_recipients; /* List of threads who received priorities from me*/
+        // A list of recipients // TODO 
+   
+    int nice;                   /* Thread's niceness value, used to recalculate thread's priority */
+        
+    int priority;               /* Priority. */
+    int32_t recent_cpu;           /* Estimate of the time taken on the CPU recently*/
+}
+extern bool thread_mlfqs;
+
+<<<<<  thread.c >>>>>>>>> 
+static int32_t load_avg;
+
+
 
 >> A2: (4 marks) 
 >> Draw a diagram that illustrates a nested donation in your 
@@ -108,3 +176,7 @@ ticks   A   B   C   A   B   C   to run
 >> B5: (2 marks)
 >> Briefly critique your design, pointing out advantages and
 >> disadvantages in your design choices.
+
+
+
+
