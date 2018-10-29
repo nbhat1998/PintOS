@@ -157,6 +157,7 @@ void thread_tick(void)
     if (timer_ticks() % 4 == 0)
     {
       update_all_priorities();
+      list_sort(&ready_list, list_more_priority, NULL);
       if (!list_empty(&ready_list) &&
           t->priority < list_entry(list_front(&ready_list),
                                    struct thread, elem)
@@ -444,6 +445,9 @@ void thread_set_priority(int new_priority)
       new_priority = PRI_MIN;
     }
     cur->priority = new_priority;
+    //list_remove(&cur->elem);
+    //list_insert_ordered(&ready_list, &cur->elem, list_more_priority, NULL);
+          list_sort(&ready_list, list_more_priority, NULL);
 
     if (list_size(&ready_list) != 0 &&
         new_priority < list_entry(list_front(&ready_list),
@@ -463,6 +467,9 @@ void thread_set_priority(int new_priority)
   else
   {
     cur->init_priority = new_priority;
+    //list_remove(&cur->elem);
+    //list_insert_ordered(&ready_list, &cur->elem, list_more_priority, NULL);
+          list_sort(&ready_list, list_more_priority, NULL);
 
     int max = 0;
     if (list_size(&cur->donations) != 0 &&
