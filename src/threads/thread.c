@@ -77,7 +77,7 @@ static tid_t allocate_tid(void);
 
 /* Advanced Scheduler functions */
 static int get_new_priority(struct thread *thread);
-static void update_recent_cpus(void);
+static void update_recent_cpu(void);
 static void update_load_avg(void);
 static void update_all_priorities(void);
 
@@ -148,7 +148,7 @@ void thread_tick(void)
     if (timer_ticks() % TIMER_FREQ == 0)
     {
       update_load_avg();
-      update_recent_cpus();
+      update_recent_cpu();
       // remove param here
     }
 
@@ -361,7 +361,8 @@ void thread_yield(void)
 void thread_yield_cond(void)
 {
   struct thread *cur = thread_current();
-  if (cur->priority < list_entry(list_begin(&ready_list),
+  if (!list_empty(&ready_list) &&
+      cur->priority < list_entry(list_front(&ready_list),
                                  struct thread, elem)
                           ->priority)
   {
@@ -393,7 +394,7 @@ void update_priority(struct thread *cur, struct thread *caller, int new_priority
   int max = 0;
   if (list_size(&cur->donations) != 0)
   {
-    max = list_entry(list_begin(&cur->donations),
+    max = list_entry(list_front(&cur->donations),
                      struct donation, elem)
               ->priority;
   }
@@ -443,9 +444,9 @@ void thread_set_priority(int new_priority)
       new_priority = PRI_MIN;
     }
     cur->priority = new_priority;
-    // TODO : yield threads here if <comp> with max
+
     if (list_size(&ready_list) != 0 &&
-        new_priority < list_entry(list_begin(&ready_list),
+        new_priority < list_entry(list_front(&ready_list),
                                   struct thread, elem)
                            ->priority)
     {
@@ -465,11 +466,11 @@ void thread_set_priority(int new_priority)
 
     int max = 0;
     if (list_size(&cur->donations) != 0 &&
-        max < list_entry(list_begin(&cur->donations),
+        max < list_entry(list_front(&cur->donations),
                          struct donation, elem)
                   ->priority)
     {
-      max = list_entry(list_begin(&cur->donations),
+      max = list_entry(list_front(&cur->donations),
                        struct donation, elem)
                 ->priority;
     }
@@ -817,7 +818,7 @@ void update_load_avg()
 
 /* Updates the recent cpu of threat t */
 
-void update_recent_cpus()
+void update_recent_cpu()
 {
 
   int32_t numerator = multiply_fixed_by_int(load_avg, 2);
