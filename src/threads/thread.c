@@ -149,7 +149,6 @@ void thread_tick(void)
     {
       update_load_avg();
       update_recent_cpus();
-      // remove param here
     }
 
     /* Every time slice, update priorities off all running/ready/blocked threads

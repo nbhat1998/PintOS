@@ -202,9 +202,16 @@ void lock_acquire(struct lock *lock)
   ASSERT(lock != NULL);
   ASSERT(!intr_context());
   ASSERT(!lock_held_by_current_thread(lock));
+  
+  
 
+  
   if (!thread_mlfqs)
   {
+    // Dissable interrupts
+    enum intr_level old_level;
+    old_level = intr_disable();
+
     struct donation d;
     if (boot_complete)
     {
@@ -223,6 +230,7 @@ void lock_acquire(struct lock *lock)
         update_priority(lock->holder, thread_current(), thread_get_priority());
       }
     }
+    intr_set_level(old_level);
   }
 
   sema_down(&lock->semaphore);
@@ -266,6 +274,10 @@ void lock_release(struct lock *lock)
   {
     if (boot_complete)
     {
+      // Dissable interrupts
+      enum intr_level old_level;
+      old_level = intr_disable();
+
       struct thread *me = thread_current();
 
       donation_list_filter(&me->donations, lock);
@@ -278,6 +290,7 @@ void lock_release(struct lock *lock)
       {
         update_priority(me, me, list_entry(list_begin(&me->donations), struct donation, elem)->priority);
       }
+      intr_set_level(old_level);
     }
   }
 
