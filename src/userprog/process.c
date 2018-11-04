@@ -41,17 +41,17 @@ process_execute (const char *file_name)
 
 
 
-  // TODO: Implement Tokenising 
-  // TODO: magic value for separator
+  // // TODO: Implement Tokenising 
+  // // TODO: magic value for separator " "
 
-  char *token, *save_ptr;
-  char *fn_name = strtok_r (fn_copy, " ", &save_ptr);
+  // char *token, *save_ptr;
+  // char *fn_name = strtok_r (fn_copy, " ", &save_ptr);
 
-  for (token = strtok_r (NULL, " ", &save_ptr); token != NULL;
-      token = strtok_r (NULL, " ", &save_ptr))
-  {
-    // TODO: Add token to stack 
-  }
+  // for (token = strtok_r (NULL, " ", &save_ptr); token != NULL;
+  //     token = strtok_r (NULL, " ", &save_ptr))
+  // {
+  //   // TODO: Add token to stack 
+  // }
 
 
 
@@ -456,7 +456,7 @@ setup_stack (void **esp)
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
         // REMEMBER TO CHANGE THIS!
-        *esp = PHYS_BASE -12;
+        *esp = PHYS_BASE - 12;
         // *esp = PHYS_BASE;
       else
         palloc_free_page (kpage);
