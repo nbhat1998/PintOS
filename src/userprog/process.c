@@ -37,6 +37,24 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
+  
+
+
+
+  // TODO: Implement Tokenising 
+  // TODO: magic value for separator
+
+  char *token, *save_ptr;
+  char *fn_name = strtok_r (fn_copy, " ", &save_ptr);
+
+  for (token = strtok_r (NULL, " ", &save_ptr); token != NULL;
+      token = strtok_r (NULL, " ", &save_ptr))
+  {
+    // TODO: Add token to stack 
+  }
+
+
+
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
@@ -437,7 +455,9 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE;
+        // REMEMBER TO CHANGE THIS!
+        *esp = PHYS_BASE -12;
+        // *esp = PHYS_BASE;
       else
         palloc_free_page (kpage);
     }
