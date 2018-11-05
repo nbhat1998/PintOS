@@ -101,7 +101,9 @@ start_process(void *file_name_)
    does nothing. */
 int process_wait(tid_t child_tid UNUSED)
 {
-  return -1;
+  while (true) {
+
+  }
 }
 
 /* Free the current process's resources. */
@@ -232,14 +234,6 @@ bool load(const char *argv, void (**eip)(void), void **esp)
   process_activate();
 
   /* Open executable file. */
-  /* Get file_name */
-  //char* argv_cpy, file_name, save_ptr;
-  //argv_cpy = palloc_get_page(0);
-  //if (argv_cpy == NULL) {
-  //  return TID_ERROR;
-  //}
-  //strlcpy(argv_cpy, argv, PGSIZE);
-  //file_name = strtok_r(argv_cpy, " ", &save_ptr);
 
   file = filesys_open(argv);
   if (file == NULL)
@@ -318,8 +312,9 @@ bool load(const char *argv, void (**eip)(void), void **esp)
 
   /* Set up stack. */
   if (!setup_stack(esp, argv))
+  {
     goto done;
-
+  }
   /* Start address. */
   *eip = (void (*)(void))ehdr.e_entry;
 
@@ -483,9 +478,7 @@ setup_stack(void **esp, const char *argv)
       sp -= 4 * argc;
       *sp = addresses;
       *(--sp) = &addresses;
-
       *(--sp) = argc;
-
       *(--sp) = 0;
 
       *esp = sp;
