@@ -149,6 +149,15 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   // TODO: if not user set eip to eax and clear eax and return?
+  // TODO: if not user and < what here >
+  if (!user)
+  {
+    f->eip = f->eax ;
+    f->eax = 0; 
+    return; 
+  }
+
+
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
