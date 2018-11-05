@@ -38,9 +38,6 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
   
-
-
-
   // // TODO: Implement Tokenising 
   // // TODO: magic value for separator " "
 
@@ -52,9 +49,6 @@ process_execute (const char *file_name)
   // {
   //   // TODO: Add token to stack 
   // }
-
-
-
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
@@ -452,15 +446,23 @@ setup_stack (void **esp)
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
+  {
+    success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+    if (success)
     {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
-        // REMEMBER TO CHANGE THIS!
-        *esp = PHYS_BASE - 12;
-        // *esp = PHYS_BASE;
-      else
-        palloc_free_page (kpage);
+      uint32_t* sp = *esp;
+      // REMEMBER TO CHANGE THIS!
+      sp = PHYS_BASE;
+      *(--sp) = (uint32_t) PHYS_BASE - 4;
+      sp = PHYS_BASE - 12;
+      // *esp = PHYS_BASE;
+      *esp = sp;
     }
+    else
+    {
+      palloc_free_page (kpage);
+    }
+  }
   return success;
 }
 
