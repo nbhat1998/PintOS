@@ -101,8 +101,8 @@ start_process(void *file_name_)
    does nothing. */
 int process_wait(tid_t child_tid UNUSED)
 {
-  while (true) {
-
+  while (true)
+  {
   }
 }
 
@@ -448,47 +448,50 @@ setup_stack(void **esp, const char *argv)
     success = install_page(((uint8_t *)PHYS_BASE) - PGSIZE, kpage, true);
     if (success)
     {
-      // uint32_t *sp = *esp
-      // sp = PHYS_BASE
-      // TODO: get rid of magic values 1, 4
-      uint8_t *sp = PHYS_BASE;
-
-      char *token, *save_ptr;
-      int argc = 0;
-      int32_t *addresses; // need to define on just not use this
-      // look for /0 to find end of variable
-      for (token = strtok_r(argv, " ", &save_ptr); token != NULL;
-           token = strtok_r(NULL, " ", &save_ptr))
-      {
-        argc++;
-        size_t token_length = strlen(token);
-        sp -= (int8_t)(token_length + 1);
-        addresses[argc] = sp;
-        strlcpy(sp, token, token_length);
-      }
-
-      /* word align */
-      sp -= (int32_t)sp % 4;
-
-      /* add null pointer(end of argv) */
-      sp -= 4;
-      *sp = NULL;
-
-      /* adding argv addresses,address of argv array, argc, and return address
-      to stack */
-      sp -= 4 * argc;
-      *sp = addresses;
-      *(--sp) = &addresses;
-      *(--sp) = argc;
-      *(--sp) = 0;
-
-      *esp = sp;
+      *esp = PHYS_BASE;
     }
     else
     {
       palloc_free_page(kpage);
     }
   }
+
+  uint8_t *sp = PHYS_BASE;
+
+  char *token, *save_ptr;
+  int argc = 0;
+  for (token = strtok_r(argv, " ", &save_ptr); token != NULL;
+       token = strtok_r(NULL, " ", &save_ptr))
+  {
+    argc++;
+    size_t token_length = strlen(token);
+    sp -= (int8_t)(token_length + 1);
+    strlcpy(sp, token, token_length);
+  }
+
+  /* word align */
+  int8_t *argv_ptr = sp;
+  sp -= (int8_t)sp % 4;
+
+  /* add null pointer(end of argv) */
+  sp = (uint32_t*) sp;
+  *(--sp) = NULL;
+
+  /* adding argv addresses,address of argv array, argc, and return address
+      to stack */
+  for(int i = 0; i < argc; i++) {
+    *(--sp) = argv_ptr;
+    while(*argv_ptr != '\0') {
+      argv++;
+    }
+    argv++;
+  }
+  *(--sp) = sp + 1;
+  *(--sp) = argc;
+  *(--sp) = 0;
+
+  *esp = sp;
+
   return success;
 }
 
