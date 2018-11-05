@@ -455,7 +455,8 @@ setup_stack(void **esp, const char *argv)
 
       char *token, *save_ptr;
       int argc = 0;
-      int32_t *addresses;
+      int32_t *addresses; // need to define on just not use this
+      // look for /0 to find end of variable
       for (token = strtok_r(argv, " ", &save_ptr); token != NULL;
            token = strtok_r(NULL, " ", &save_ptr))
       {
