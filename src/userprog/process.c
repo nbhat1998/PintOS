@@ -471,7 +471,7 @@ setup_stack(void **esp, const char *argv)
 
       /* add null pointer(end of argv) */
       sp -= 4;
-      *sp = PT_NULL;
+      *sp = NULL;
 
       /* adding argv addresses,address of argv array, argc, and return address
       to stack */
