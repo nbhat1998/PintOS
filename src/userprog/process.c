@@ -37,18 +37,6 @@ tid_t process_execute(const char *file_name)
     return TID_ERROR;
   strlcpy(fn_copy, file_name, PGSIZE);
 
-  // // TODO: Implement Tokenising
-  // // TODO: magic value for separator " "
-
-  // char *token, *save_ptr;
-  // char *fn_name = strtok_r (fn_copy, " ", &save_ptr);
-
-  // for (token = strtok_r (NULL, " ", &save_ptr); token != NULL;
-  //     token = strtok_r (NULL, " ", &save_ptr))
-  // {
-  //   // TODO: Add token to stack
-  // }
-
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create(file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
@@ -234,11 +222,14 @@ bool load(const char *argv, void (**eip)(void), void **esp)
   process_activate();
 
   /* Open executable file. */
-
-  file = filesys_open(argv);
+  char* save_ptr;
+  char* argv_cpy = malloc(strlen(argv) + 1);
+  strlcpy(argv_cpy, argv, strlen(argv) + 1);
+  char* file_name = strtok_r(argv_cpy, " ", &save_ptr);
+  file = filesys_open(file_name);
   if (file == NULL)
   {
-    printf("load: %s: open failed\n", argv);
+    printf("load: %s: open failed\n", file_name);
     goto done;
   }
 
@@ -248,7 +239,7 @@ bool load(const char *argv, void (**eip)(void), void **esp)
       ehdr.e_machine != 3 || ehdr.e_version != 1 ||
       ehdr.e_phentsize != sizeof(struct Elf32_Phdr) || ehdr.e_phnum > 1024)
   {
-    printf("load: %s: error loading executable\n", argv);
+    printf("load: %s: error loading executable\n", file_name);
     goto done;
   }
 
@@ -464,33 +455,36 @@ setup_stack(void **esp, const char *argv)
        token = strtok_r(NULL, " ", &save_ptr))
   {
     argc++;
-    size_t token_length = strlen(token);
-    sp -= (int8_t)(token_length + 1);
+    size_t token_length = strlen(token) + 1;
+    sp -= (int8_t)(token_length);
     strlcpy(sp, token, token_length);
   }
 
   /* word align */
   int8_t *argv_ptr = sp;
-  sp -= (int8_t)sp % 4;
+  sp -= (uint8_t)sp % 4;
 
-  /* add null pointer(end of argv) */
-  sp = (uint32_t*) sp;
-  *(--sp) = NULL;
+  /* add null pointer(end) of argv) */
+  sp -= 4;
+  *sp = NULL;
 
-  /* adding argv addresses,address of argv array, argc, and return address
+  /* adding argv addresses,address of ar0gv array, argc, and return address
       to stack */
+  int32_t* sp32 = (int32_t*) sp;
   for(int i = 0; i < argc; i++) {
-    *(--sp) = argv_ptr;
-    while(*argv_ptr != '\0') {
-      argv++;
-    }
-    argv++;
-  }
-  *(--sp) = sp + 1;
-  *(--sp) = argc;
-  *(--sp) = 0;
+    *(--sp32) = argv_ptr;
 
-  *esp = sp;
+    while(*argv_ptr != '\0') {
+      argv_ptr++;
+    }
+    argv_ptr++;
+  }
+
+  *(--sp32) = sp32 + 1;
+  *(--sp32) = argc;
+  *(--sp32) = 0;
+
+  *esp = (void*) sp32;
 
   return success;
 }
