@@ -37,18 +37,6 @@ tid_t process_execute(const char *file_name)
     return TID_ERROR;
   strlcpy(fn_copy, file_name, PGSIZE);
 
-  // // TODO: Implement Tokenising
-  // // TODO: magic value for separator " "
-
-  // char *token, *save_ptr;
-  // char *fn_name = strtok_r (fn_copy, " ", &save_ptr);
-
-  // for (token = strtok_r (NULL, " ", &save_ptr); token != NULL;
-  //     token = strtok_r (NULL, " ", &save_ptr))
-  // {
-  //   // TODO: Add token to stack
-  // }
-
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create(file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
@@ -101,8 +89,8 @@ start_process(void *file_name_)
    does nothing. */
 int process_wait(tid_t child_tid UNUSED)
 {
-  while (true) {
-
+  while (true)
+  {
   }
 }
 
@@ -234,11 +222,14 @@ bool load(const char *argv, void (**eip)(void), void **esp)
   process_activate();
 
   /* Open executable file. */
-
-  file = filesys_open(argv);
+  char* save_ptr;
+  char* argv_cpy = malloc(strlen(argv) + 1);
+  strlcpy(argv_cpy, argv, strlen(argv) + 1);
+  char* file_name = strtok_r(argv_cpy, " ", &save_ptr);
+  file = filesys_open(file_name);
   if (file == NULL)
   {
-    printf("load: %s: open failed\n", argv);
+    printf("load: %s: open failed\n", file_name);
     goto done;
   }
 
@@ -248,7 +239,7 @@ bool load(const char *argv, void (**eip)(void), void **esp)
       ehdr.e_machine != 3 || ehdr.e_version != 1 ||
       ehdr.e_phentsize != sizeof(struct Elf32_Phdr) || ehdr.e_phnum > 1024)
   {
-    printf("load: %s: error loading executable\n", argv);
+    printf("load: %s: error loading executable\n", file_name);
     goto done;
   }
 
@@ -448,46 +439,53 @@ setup_stack(void **esp, const char *argv)
     success = install_page(((uint8_t *)PHYS_BASE) - PGSIZE, kpage, true);
     if (success)
     {
-      // uint32_t *sp = *esp
-      // sp = PHYS_BASE
-      // TODO: get rid of magic values 1, 4
-      uint8_t *sp = PHYS_BASE;
-
-      char *token, *save_ptr;
-      int argc = 0;
-      int32_t *addresses;
-      for (token = strtok_r(argv, " ", &save_ptr); token != NULL;
-           token = strtok_r(NULL, " ", &save_ptr))
-      {
-        argc++;
-        size_t token_length = strlen(token);
-        sp -= (int8_t)(token_length + 1);
-        addresses[argc] = sp;
-        strlcpy(sp, token, token_length);
-      }
-
-      /* word align */
-      sp -= (int32_t)sp % 4;
-
-      /* add null pointer(end of argv) */
-      sp -= 4;
-      *sp = NULL;
-
-      /* adding argv addresses,address of argv array, argc, and return address
-      to stack */
-      sp -= 4 * argc;
-      *sp = addresses;
-      *(--sp) = &addresses;
-      *(--sp) = argc;
-      *(--sp) = 0;
-
-      *esp = sp;
+      *esp = PHYS_BASE;
     }
     else
     {
       palloc_free_page(kpage);
     }
   }
+
+  uint8_t *sp = PHYS_BASE;
+
+  char *token, *save_ptr;
+  int argc = 0;
+  for (token = strtok_r(argv, " ", &save_ptr); token != NULL;
+       token = strtok_r(NULL, " ", &save_ptr))
+  {
+    argc++;
+    size_t token_length = strlen(token) + 1;
+    sp -= (int8_t)(token_length);
+    strlcpy(sp, token, token_length);
+  }
+
+  /* word align */
+  int8_t *argv_ptr = sp;
+  sp -= (uint8_t)sp % 4;
+
+  /* add null pointer(end) of argv) */
+  sp -= 4;
+  *sp = NULL;
+
+  /* adding argv addresses,address of ar0gv array, argc, and return address
+      to stack */
+  int32_t* sp32 = (int32_t*) sp;
+  for(int i = 0; i < argc; i++) {
+    *(--sp32) = argv_ptr;
+
+    while(*argv_ptr != '\0') {
+      argv_ptr++;
+    }
+    argv_ptr++;
+  }
+
+  *(--sp32) = sp32 + 1;
+  *(--sp32) = argc;
+  *(--sp32) = 0;
+
+  *esp = (void*) sp32;
+
   return success;
 }
 
