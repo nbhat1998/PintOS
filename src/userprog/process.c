@@ -87,11 +87,26 @@ start_process(void *file_name_)
 
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
-int process_wait(tid_t child_tid UNUSED)
+int process_wait(tid_t child_tid)
 {
-  while (true)
+  struct list_elem *child;
+  for (child = list_begin(&thread_current()->child_processes);
+       child != list_end(&thread_current()->child_processes);
+       child = list_next(child))
   {
+    struct process *child_process = list_entry(child, struct process, elem);
+    lock_acquire(&child_process->lock);
+
+    printf("%d %d\n", child_tid, child_process->pid);
+
+    if (child_process->pid == child_tid)
+    {
+      lock_release(&child_process->lock);
+      sema_down(&child_process->sema);
+      return child_process->status;
+    }
   }
+  return -1;
 }
 
 /* Free the current process's resources. */
@@ -222,14 +237,14 @@ bool load(const char *argv, void (**eip)(void), void **esp)
   process_activate();
 
   /* Open executable file. */
-  char* save_ptr;
-  char* argv_cpy = malloc(strlen(argv) + 1);
+  char *save_ptr;
+  char *argv_cpy = malloc(strlen(argv) + 1);
   if (argv_cpy == NULL)
   {
     PANIC("Failed to allocate argv_cpy in load");
   }
   strlcpy(argv_cpy, argv, strlen(argv) + 1);
-  char* file_name = strtok_r(argv_cpy, " ", &save_ptr);
+  char *file_name = strtok_r(argv_cpy, " ", &save_ptr);
   file = filesys_open(file_name);
   if (file == NULL)
   {
@@ -475,11 +490,13 @@ setup_stack(void **esp, const char *argv)
 
   /* adding argv addresses,address of ar0gv array, argc, and return address
       to stack */
-  int32_t* sp32 = (int32_t*) sp;
-  for(int i = 0; i < argc; i++) {
+  int32_t *sp32 = (int32_t *)sp;
+  for (int i = 0; i < argc; i++)
+  {
     *(--sp32) = argv_ptr;
 
-    while(*argv_ptr != '\0') {
+    while (*argv_ptr != '\0')
+    {
       argv_ptr++;
     }
     argv_ptr++;
@@ -489,7 +506,7 @@ setup_stack(void **esp, const char *argv)
   *(--sp32) = argc;
   *(--sp32) = 0;
 
-  *esp = (void*) sp32;
+  *esp = (void *)sp32;
 
   return success;
 }

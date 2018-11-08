@@ -223,6 +223,11 @@ tid_t thread_create(const char *name, int priority,
   /* Initialize thread. */
   init_thread(t, name, priority);
   tid = t->tid = allocate_tid();
+  if (boot_complete)
+  {
+    t->proccess->pid = t->tid;
+  }
+
 
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
@@ -644,7 +649,7 @@ init_thread(struct thread *t, const char *name, int priority)
     {
       PANIC("Failed to allocate process in init_thread");
     }
-    p->pid = t->tid;
+
     sema_init(&p->sema, 0);
     lock_init(&p->lock);
     p->status = -1;
