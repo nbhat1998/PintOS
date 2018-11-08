@@ -83,23 +83,25 @@ typedef int tid_t;
 struct thread
 {
   /* Owned by thread.c. */
-  tid_t tid;                  /* Thread identifier. */
-  enum thread_status status;  /* Thread state. */
-  char name[16];              /* Name (for debugging purposes). */
-  uint8_t *stack;             /* Saved stack pointer. */
+  tid_t tid;                 /* Thread identifier. */
+  enum thread_status status; /* Thread state. */
+  char name[16];             /* Name (for debugging purposes). */
+  uint8_t *stack;            /* Saved stack pointer. */
 
-  int init_priority;          /* Initial priority, before donations */
-  struct list donations;      /* List of donated priorities */
-  struct thread *recipient;   /* Pointer to the thread who received a donation from thread 
+  int init_priority;        /* Initial priority, before donations */
+  struct list donations;    /* List of donated priorities */
+  struct thread *recipient; /* Pointer to the thread who received a donation from thread 
                                  Only valid if thread has donated to another thread*/
+  struct list child_processes;
+  struct process *proccess;
 
-  struct list_elem allelem;   /* List element for all threads list. */
+  struct list_elem allelem; /* List element for all threads list. */
   /* Shared between thread.c and synch.c. */
   struct list_elem elem; /* List element. */
 
-  int nice;                   /* Thread's niceness value, used to recalculate thread's priority */
-  int priority;               /* Priority. */
-  int32_t recent_cpu;         /* Estimate of the time taken on the CPU recently*/
+  int nice;           /* Thread's niceness value, used to recalculate thread's priority */
+  int priority;       /* Priority. */
+  int32_t recent_cpu; /* Estimate of the time taken on the CPU recently*/
 #ifdef USERPROG
   /* Owned by userprog/process.c. */
   uint32_t *pagedir; /* Page directory. */
@@ -107,6 +109,16 @@ struct thread
 
   /* Owned by thread.c. */
   unsigned magic; /* Detects stack overflow. */
+};
+
+struct process
+{
+  tid_t pid;
+  struct semaphore sema;
+  struct lock lock;
+  int status;
+  struct list_elem elem;
+  bool first_done;
 };
 
 /* If false (default), use round-robin scheduler.

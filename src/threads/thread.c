@@ -446,7 +446,7 @@ void thread_set_priority(int new_priority)
     cur->priority = new_priority;
     //list_remove(&cur->elem);
     //list_insert_ordered(&ready_list, &cur->elem, list_more_priority, NULL);
-          list_sort(&ready_list, list_more_priority, NULL);
+    list_sort(&ready_list, list_more_priority, NULL);
 
     if (list_size(&ready_list) != 0 &&
         new_priority < list_entry(list_front(&ready_list),
@@ -468,7 +468,7 @@ void thread_set_priority(int new_priority)
     cur->init_priority = new_priority;
     //list_remove(&cur->elem);
     //list_insert_ordered(&ready_list, &cur->elem, list_more_priority, NULL);
-          list_sort(&ready_list, list_more_priority, NULL);
+    list_sort(&ready_list, list_more_priority, NULL);
 
     int max = 0;
     if (list_size(&cur->donations) != 0 &&
@@ -632,6 +632,28 @@ init_thread(struct thread *t, const char *name, int priority)
   list_init(&t->donations);
   t->init_priority = priority;
   t->recipient = NULL;
+
+  // INIT list of children
+  list_init(&t->child_processes);
+
+  if (boot_complete)
+  { // For all threads other than main
+    // Create a new proccess struct
+    struct process *p = malloc(sizeof(struct process));
+    if (p == NULL)
+    {
+      PANIC("Failed to allocate process in init_thread");
+    }
+    p->pid = t->tid;
+    sema_init(&p->sema, 0);
+    lock_init(&p->lock);
+    p->status = -1;
+    p->first_done = false;
+
+    // And add pointers so that both child and parent can access it
+    t->proccess = p;
+    list_push_back(&thread_current()->child_processes, &p->elem);
+  }
 
   /* Assigning data members at boot for advanced scheduler */
   if (thread_mlfqs)
