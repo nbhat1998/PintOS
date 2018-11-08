@@ -70,7 +70,7 @@ void syscall_init(void)
 static void
 syscall_handler(struct intr_frame *f)
 {
-  printf("system call!\n");
+  printf("system call! ");
   uint32_t *args = (uint32_t *)f->esp + 1;
   f->eax = syscalls[*((int *)f->esp)](args);
 }
@@ -82,6 +82,9 @@ uint32_t sys_halt(uint32_t *args)
 
 uint32_t sys_exit(uint32_t *args)
 {
+  // thread_current()->process->status = 
+  thread_exit();
+  NOT_REACHED();
   return 0;
 }
 
