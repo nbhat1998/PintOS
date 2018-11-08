@@ -224,6 +224,10 @@ bool load(const char *argv, void (**eip)(void), void **esp)
   /* Open executable file. */
   char* save_ptr;
   char* argv_cpy = malloc(strlen(argv) + 1);
+  if (argv_cpy == NULL)
+  {
+    PANIC("Failed to allocate argv_cpy in load");
+  }
   strlcpy(argv_cpy, argv, strlen(argv) + 1);
   char* file_name = strtok_r(argv_cpy, " ", &save_ptr);
   file = filesys_open(file_name);
@@ -314,6 +318,7 @@ bool load(const char *argv, void (**eip)(void), void **esp)
 done:
   /* We arrive here whether the load is successful or not. */
   file_close(file);
+  free(argv_cpy);
   return success;
 }
 
