@@ -225,7 +225,7 @@ tid_t thread_create(const char *name, int priority,
   tid = t->tid = allocate_tid();
   if (boot_complete)
   {
-    t->proccess->pid = t->tid;
+    t->process->pid = t->tid;
   }
 
 
@@ -643,7 +643,7 @@ init_thread(struct thread *t, const char *name, int priority)
 
   if (boot_complete)
   { // For all threads other than main
-    // Create a new proccess struct
+    // Create a new process struct
     struct process *p = malloc(sizeof(struct process));
     if (p == NULL)
     {
@@ -656,7 +656,7 @@ init_thread(struct thread *t, const char *name, int priority)
     p->first_done = false;
 
     // And add pointers so that both child and parent can access it
-    t->proccess = p;
+    t->process = p;
     list_push_back(&thread_current()->child_processes, &p->elem);
   }
 

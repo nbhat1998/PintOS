@@ -94,7 +94,7 @@ struct thread
   struct thread *recipient; /* Pointer to the thread who received a donation from thread 
                                  Only valid if thread has donated to another thread*/
   struct list child_processes;
-  struct process *proccess;
+  struct process *process;
 
   struct list_elem allelem; /* List element for all threads list. */
   /* Shared between thread.c and synch.c. */

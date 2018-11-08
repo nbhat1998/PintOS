@@ -96,9 +96,6 @@ int process_wait(tid_t child_tid)
   {
     struct process *child_process = list_entry(child, struct process, elem);
     lock_acquire(&child_process->lock);
-
-    printf("%d %d\n", child_tid, child_process->pid);
-
     if (child_process->pid == child_tid)
     {
       lock_release(&child_process->lock);
@@ -114,6 +111,36 @@ void process_exit(void)
 {
   struct thread *cur = thread_current();
   uint32_t *pd;
+
+  // iterate through children
+  struct list_elem *child = list_begin(&cur->child_processes);
+  while(child != list_end(&cur->child_processes))
+  {
+    struct process *child_process = list_entry(child, struct process, elem);
+    lock_acquire(&child_process->lock);
+    if (!child_process->first_done){
+      child_process->first_done = true;
+      child = list_next(child);
+      lock_release(&child_process->lock);
+    }else{
+      struct list_elem *temp = child;
+      child = list_next(child);
+      list_remove(temp);
+      lock_release(&child_process->lock);
+      free(child_process);
+    }
+  }
+
+  // edit your process
+  lock_acquire(&cur->process->lock);
+  if (!cur->process->first_done){
+    cur->process->first_done = true;
+    sema_up(&cur->process->sema);
+    lock_release(&cur->process->lock);
+  }else{
+    lock_release(&cur->process->lock);
+    free (cur->process);
+  }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -238,7 +265,7 @@ bool load(const char *argv, void (**eip)(void), void **esp)
 
   /* Open executable file. */
   char *save_ptr;
-  char *argv_cpy = malloc(strlen(argv) + 1);
+  char *argv_cpy = (char*) malloc(strlen(argv) + 1);
   if (argv_cpy == NULL)
   {
     PANIC("Failed to allocate argv_cpy in load");
