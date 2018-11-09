@@ -52,6 +52,9 @@ put_user(uint8_t *udst, uint8_t byte)
   return error_code != -1;
 }
 
+/* Lock used by filesystem */
+static struct lock filesys_lock;
+
 static void syscall_handler(struct intr_frame *);
 
 uint32_t sys_halt(uint32_t *args);
@@ -87,6 +90,20 @@ void syscall_init(void)
 {
   intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
+
+static int
+allocate_fd(void)
+{
+  static int next_fd = 1;
+  int fd;
+
+  lock_acquire(&filesys_lock);
+  fd = next_fd++;
+  lock_release(&filesys_lock);
+
+  return fd;
+}
+
 
 static void
 syscall_handler(struct intr_frame *f)
