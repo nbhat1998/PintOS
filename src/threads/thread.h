@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include "synch.h"
 
+#include "syscall.h"
+
 /* States in a thread's life cycle. */
 enum thread_status
 {
@@ -120,6 +122,8 @@ struct process
   int status;
   struct list_elem elem;
   bool first_done;
+
+  struct list fileContainer; 
 };
 
 /* If false (default), use round-robin scheduler.
