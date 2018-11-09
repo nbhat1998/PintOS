@@ -94,7 +94,7 @@ void syscall_init(void)
 static int
 allocate_fd(void)
 {
-  static int next_fd = 1;
+  static int next_fd = 2;
   int fd;
 
   lock_acquire(&filesys_lock);

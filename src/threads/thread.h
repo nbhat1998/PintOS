@@ -123,7 +123,7 @@ struct process
   struct list_elem elem;
   bool first_done;
 
-  struct list fileContainer; 
+  struct list file_containers; 
 };
 
 /* If false (default), use round-robin scheduler.
