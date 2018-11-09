@@ -4,6 +4,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "../filesys/filesys.h"
 
 
 /* Reads a byte at user virtual address UADDR.
@@ -156,7 +157,18 @@ uint32_t sys_remove(uint32_t *args)
 
 uint32_t sys_open(uint32_t *args)
 {
-  return 0;
+  char* file = get_word(args);
+  char* file_name;
+  strlcpy(file_name, file, sizeof(file));
+
+  lock_acquire(&filesys_lock);
+  struct file_container* new_file = malloc(sizeof (struct file_container));
+  new_file->fd = allocate_fd();
+  new_file->f = filesys_open(file_name);
+  list_push_back(&thread_current()->process->file_containers, &new_file->elem);
+  lock_release(&filesys_lock);
+
+  return new_file->fd;
 }
 
 uint32_t sys_filesize(uint32_t *args)
