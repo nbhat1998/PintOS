@@ -54,6 +54,7 @@ put_user(uint8_t *udst, uint8_t byte)
 }
 
 /* Lock used by filesystem */
+// TODO: LOCK INIT SOMEWHERE...
 static struct lock filesys_lock;
 
 static void syscall_handler(struct intr_frame *);
@@ -98,6 +99,7 @@ allocate_fd(void)
   static int next_fd = 2;
   int fd;
 
+  //TODO: USE A DIFFERENT LOCK!!!!!! (global)
   lock_acquire(&filesys_lock);
   fd = next_fd++;
   lock_release(&filesys_lock);
