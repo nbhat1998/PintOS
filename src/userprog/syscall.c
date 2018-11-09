@@ -3,6 +3,8 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
+
 
 /* Reads a byte at user virtual address UADDR.
 UADDR must be below PHYS_BASE.
@@ -16,6 +18,25 @@ get_user(const uint8_t *uaddr)
       : "=&a"(result)
       : "m"(*uaddr));
   return result;
+}
+
+#define WORD_LENGTH 4
+#define BYTE 8
+static int32_t 
+get_word(uint8_t *uaddr) 
+{
+  int32_t word = 0;
+
+  for(int i = 0; i < WORD_LENGTH; i++) 
+  {
+    int new_byte = 0;
+    new_byte = get_user(uaddr);
+    new_byte <<= i * BYTE;
+    word += new_byte;
+    uaddr++;
+  }
+
+  return word;
 }
 
 /* Writes BYTE to user address UDST.
@@ -70,9 +91,17 @@ void syscall_init(void)
 static void
 syscall_handler(struct intr_frame *f)
 {
-  printf("system call! ");
+  printf("system call!\n");
+  int function = get_word(f->esp);
+  if(function == -1) {
+    // TODO: DO SOMETHING BAD
+  }
+
+
   uint32_t *args = (uint32_t *)f->esp + 1;
-  f->eax = syscalls[*((int *)f->esp)](args);
+  hex_dump(0, args, (int8_t *) PHYS_BASE - ((int8_t*) args), true);
+
+  f->eax = syscalls[function](args);
 }
 
 uint32_t sys_halt(uint32_t *args)
