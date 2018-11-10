@@ -162,10 +162,10 @@ uint32_t sys_open(uint32_t *args)
   char* file = get_word(args);
   char* file_name;
   strlcpy(file_name, file, sizeof(file));
-
-  lock_acquire(&filesys_lock);
   struct file_container* new_file = malloc(sizeof (struct file_container));
   new_file->fd = allocate_fd();
+  
+  lock_acquire(&filesys_lock);
   new_file->f = filesys_open(file_name);
   list_push_back(&thread_current()->process->file_containers, &new_file->elem);
   lock_release(&filesys_lock);
