@@ -6,7 +6,8 @@
 void syscall_init (void);
 
 
-struct file_container {
+
+struct fileContainer {
     int fd; 
     struct file *f; 
 

@@ -99,7 +99,8 @@ allocate_fd(void)
   static int next_fd = 2;
   int fd;
 
-  //TODO: USE A DIFFERENT LOCK!!!!!! (global)
+  // TODO: USE A DIFFERENT LOCK!!!!!! (global)
+  // TODO: Perform lock_init on this lock at some point  
   lock_acquire(&filesys_lock);
   fd = next_fd++;
   lock_release(&filesys_lock);
@@ -154,7 +155,13 @@ uint32_t sys_create(uint32_t *args)
 
 uint32_t sys_remove(uint32_t *args)
 {
-  return 0;
+  char *file = get_word(args); 
+  char *file_name; 
+  strlcpy(file_name,file,sizeof(file)); 
+  bool success_value; 
+
+  // TODO : to be continued after desgn decision on whether or not a file should keep track of all the processes who refer to it, so that if a file has been closed and then the all processes which have file descriptors for it are closed, then the file should cease to exist 
+  
 }
 
 uint32_t sys_open(uint32_t *args)
@@ -175,7 +182,19 @@ uint32_t sys_open(uint32_t *args)
 
 uint32_t sys_filesize(uint32_t *args)
 {
-  return 0;
+  int param_fd = (int)get_word(args);
+  int length_of_file;  
+  for (e = list_begin(&thread_current()->process->file_containers); e != list_end(&thread_current()->process->file_containers); e = list_next(e))
+  {
+    if (param_fd == e.fd)
+    {
+      lock_acquire(&filesys_lock); 
+      length_of_file = file_length(e.f); 
+      lock_release(&filesys_lock); 
+      break;
+    }
+  }
+  return length_of_file;  
 }
 
 uint32_t sys_read(uint32_t *args)
