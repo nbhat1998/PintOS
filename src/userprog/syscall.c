@@ -280,5 +280,17 @@ uint32_t sys_write(uint32_t *args)
 
 uint32_t sys_close(uint32_t *args)
 {
-  return 0;
+  int param_fd = (int)get_word(args); 
+  for (struct list_elem* e = list_begin(&thread_current()->process->file_containers); e != list_end(&thread_current()->process->file_containers); e = list_next(e))
+  {
+    struct file_container *this_container = list_entry(e,struct file_container, elem);
+    if (param_fd == this_container->fd)
+    {
+      lock_acquire(&filesys_lock);
+      list_remove(e);
+      lock_release(&filesys_lock);
+    }
+    // TODO: Exiting or terminating process implicitly closes all open file descriptors
+    return; 
+      
 }
