@@ -184,12 +184,13 @@ uint32_t sys_filesize(uint32_t *args)
 {
   int param_fd = (int)get_word(args);
   int length_of_file;  
-  for (e = list_begin(&thread_current()->process->file_containers); e != list_end(&thread_current()->process->file_containers); e = list_next(e))
+  for (struct list_elem* e = list_begin(&thread_current()->process->file_containers); e != list_end(&thread_current()->process->file_containers); e = list_next(e))
   {
-    if (param_fd == e.fd)
+    struct file_container *this_container = list_entry(e, struct file_container, elem);
+    if (param_fd == this_container->fd)
     {
       lock_acquire(&filesys_lock); 
-      length_of_file = file_length(e.f); 
+      length_of_file = file_length(this_container->f); 
       lock_release(&filesys_lock); 
       break;
     }
