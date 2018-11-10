@@ -161,9 +161,16 @@ uint32_t sys_create(uint32_t *args)
 
   uint8_t* char_pointer = (uint8_t*) args;
   char_pointer += sizeof(file_name);
-  char_pointer = (uint32_t*) char_pointer;
-  //args = args + sizeof(file_name);
+  args = (uint32_t*) char_pointer;
+
   unsigned initial_size = get_word(args); 
+
+  lock_acquire(&filesys_lock);
+  bool success = filesys_create(file_name,initial_size);
+  lock_release(&filesys_lock);
+
+  return success; 
+
 }
 
 uint32_t sys_remove(uint32_t *args)
