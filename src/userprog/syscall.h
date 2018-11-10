@@ -7,7 +7,6 @@ void syscall_init (void);
 struct file_container {
     int fd; 
     struct file *f; 
-
     struct list_elem elem; 
 };
 
