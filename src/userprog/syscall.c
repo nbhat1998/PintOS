@@ -226,7 +226,7 @@ uint32_t sys_seek(uint32_t *args)
   int param_fd = (int)get_word(args); 
   args = args + 1 ; 
 
-  unsigned param_position = (unsigned)get_words(args);
+  unsigned param_position = (unsigned)get_word(args);
 
   for ( struct list_elem *e = list_begin(&thread_current()->process->file_containers); e != list_end(&thread_current()->process->file_containers); e = list_next(e))
   {
@@ -293,4 +293,5 @@ uint32_t sys_close(uint32_t *args)
     // TODO: Exiting or terminating process implicitly closes all open file descriptors
     return; 
       
+  }
 }

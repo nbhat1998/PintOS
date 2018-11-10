@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include "synch.h"
 
-#include "syscall.h"
+#include "../userprog/syscall.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
