@@ -170,6 +170,7 @@ uint32_t sys_create(uint32_t *args)
   lock_release(&filesys_lock);
 
   return success; 
+  // TODO: dirty casting going on here, reconsider during design decisions?
 
 }
 
@@ -218,9 +219,33 @@ uint32_t sys_filesize(uint32_t *args)
   return length_of_file;  
 }
 
+uint32_t sys_seek(uint32_t *args)
+{
+  int param_fd = (int)get_word(args); 
+  args = args + 1 ; 
+
+  unsigned param_position = (unsigned)get_words(args);
+
+  for ( struct list_elem *e = list_begin(&thread_current()->process->file_containers); e != list_end(&thread_current()->process->file_containers); e = list_next(e))
+  {
+    struct file_container *this_container = list_entry(e,struct file_container, elem);
+    if (param_fd == this_container->fd)
+    {
+      lock_acquire(&filesys_lock); 
+
+      file_seek(this_container->f,param_position);
+      lock_release(&filesys_lock);
+      break; 
+    }
+  }
+
+  return; 
+}
+
 uint32_t sys_tell(uint32_t *args)
 {
   int param_fd = (int)get_word(args);
+
   unsigned tell_value; 
   for (struct list_elem* e = list_begin(&thread_current()->process->file_containers); e != list_end(&thread_current()->process->file_containers); e = list_next(e))
   {
@@ -248,10 +273,6 @@ uint32_t sys_write(uint32_t *args)
   return 0;
 }
 
-uint32_t sys_seek(uint32_t *args)
-{
-  return 0;
-}
 
 
 
