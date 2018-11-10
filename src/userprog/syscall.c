@@ -132,6 +132,8 @@ syscall_handler(struct intr_frame *f)
 
 uint32_t sys_halt(uint32_t *args)
 {
+  shutdown_power_off(); 
+  // good night sweet prince
   return 0;
 }
 
