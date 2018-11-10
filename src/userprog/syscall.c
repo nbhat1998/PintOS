@@ -32,6 +32,11 @@ get_word(uint8_t *uaddr)
   {
     int new_byte = 0;
     new_byte = get_user(uaddr);
+    if (new_byte == -1)
+    {
+      PANIC("new_byte is -1, panic!");
+      // TODO: check if we really need the panic, "very sure we need the if statement" - iulia 
+    }
     new_byte <<= i * BYTE;
     word += new_byte;
     uaddr++;
@@ -150,7 +155,15 @@ uint32_t sys_wait(uint32_t *args)
 
 uint32_t sys_create(uint32_t *args)
 {
-  return 0;
+  char *file = get_word(args);
+  char *file_name; 
+  strlcpy(file_name,file,sizeof(file));
+
+  uint8_t* char_pointer = (uint8_t*) args;
+  char_pointer += sizeof(file_name);
+  char_pointer = (uint32_t*) char_pointer;
+  //args = args + sizeof(file_name);
+  unsigned initial_size = get_word(args); 
 }
 
 uint32_t sys_remove(uint32_t *args)
@@ -215,7 +228,7 @@ uint32_t sys_tell(uint32_t *args)
   }
 
   return tell_value;
-
+  // TODO: some dirty casting going on here, change or nah?
 }
 
 uint32_t sys_read(uint32_t *args)
