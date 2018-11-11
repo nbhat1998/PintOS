@@ -34,8 +34,7 @@ get_word(uint8_t *uaddr)
     new_byte = get_user(uaddr);
     if (new_byte == -1)
     {
-      PANIC("new_byte is -1, panic!");
-      // TODO: check if we really need the panic, "very sure we need the if statement" - iulia
+      sys_exit_failure();
     }
     new_byte <<= i * BYTE;
     word += new_byte;
@@ -64,6 +63,7 @@ put_user(uint8_t *udst, uint8_t byte)
 static void syscall_handler(struct intr_frame *);
 
 uint32_t sys_halt(uint32_t *args);
+void sys_exit_failure();
 uint32_t sys_exit(uint32_t *args);
 uint32_t sys_exec(uint32_t *args);
 uint32_t sys_wait(uint32_t *args);
@@ -117,9 +117,9 @@ syscall_handler(struct intr_frame *f)
 {
   //printf("system call!\n");
   int function = get_word(f->esp);
-  if (function == -1)
+  if (function == NULL)
   {
-    // TODO: DO SOMETHING BAD
+    sys_exit_failure();
   }
 
   uint32_t *args = (uint32_t *)f->esp + 1;
@@ -136,10 +136,22 @@ uint32_t sys_halt(uint32_t *args)
   return 0;
 }
 
+void sys_exit_failure()
+{
+  thread_current()->process->status = (int)-1;
+  printf("%s: exit(%d)\n", thread_current()->name, thread_current()->process->status);
+  thread_exit();
+  NOT_REACHED();
+}
+
 uint32_t sys_exit(uint32_t *args)
 {
-  thread_current()->process->status = (int) get_word(args);
-  printf ("%s: exit(%d)\n", thread_current()->name, thread_current()->process->status);
+  thread_current()->process->status = (int)get_word(args);
+  if (thread_current()->process->status == -1)
+  {
+    sys_exit_failure();
+  }
+  printf("%s: exit(%d)\n", thread_current()->name, thread_current()->process->status);
   thread_exit();
   NOT_REACHED();
   return 0;
@@ -152,22 +164,20 @@ uint32_t sys_exec(uint32_t *args)
 
 uint32_t sys_wait(uint32_t *args)
 {
-  tid_t param_pid = (tid_t)get_word(args); 
-  return process_wait(param_pid); 
-  
+  tid_t param_pid = (tid_t)get_word(args);
+  return process_wait(param_pid);
 }
 
 uint32_t sys_create(uint32_t *args)
 {
   char *file = get_word(args);
   char file_start;
-  if(file == NULL) {
-    *(--args) = -1 ;
-    sys_exit(args);
-    //idk crash or smth
+  if (file == NULL)
+  {
+    sys_exit_failure();
   }
   strlcpy(&file_start, file, strlen(file));
-  char* file_name = &file_start; 
+  char *file_name = &file_start;
 
   uint8_t *char_pointer = (uint8_t *)args;
   char_pointer += strlen(file_name);
