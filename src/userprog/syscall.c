@@ -297,7 +297,7 @@ uint32_t sys_read(uint32_t *args)
 
     char *temp_malloc_buffer = malloc(param_size);
     param_buffer = temp_malloc_buffer; 
-    int actually_read = -1; 
+    int actually_read = 0; 
     if ( param_fd == 0 )
     {
       int read_counter = 0;
