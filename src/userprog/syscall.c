@@ -60,7 +60,7 @@ put_user(uint8_t *udst, uint8_t byte)
 
 /* Lock used by filesystem */
 // TODO: LOCK INIT SOMEWHERE...
-struct lock filesys_lock;
+
 
 static void syscall_handler(struct intr_frame *);
 
@@ -273,7 +273,32 @@ uint32_t sys_read(uint32_t *args)
 
 uint32_t sys_write(uint32_t *args)
 {
-  return 0;
+  int param_fd = (int)get_word(args);
+  args = args + 1; 
+
+  void *param_buffer = get_word(args); 
+
+
+  uint8_t* void_pointer = (uint8_t*) args;
+  void_pointer += sizeof(param_buffer);
+  args = (uint32_t*) void_pointer;
+
+  unsigned param_size = (unsigned)get_word(args); 
+  int32_t actually_written = 0; 
+  for (struct list_elem* e = list_begin(&thread_current()->process->file_containers); e != list_end(&thread_current()->process->file_containers); e = list_next(e))
+  {
+    struct file_container *this_container = list_entry(e,struct file_container, elem);
+    if (param_fd == this_container->fd)
+    {
+      lock_acquire(&filesys_lock);
+      actually_written = file_write(this_container->f,param_buffer,param_size);
+      lock_release(&filesys_lock);
+      break;
+    }
+  }
+
+  return actually_written; 
+
 }
 
 
