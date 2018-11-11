@@ -60,7 +60,7 @@ put_user(uint8_t *udst, uint8_t byte)
 
 /* Lock used by filesystem */
 // TODO: LOCK INIT SOMEWHERE...
-static struct lock filesys_lock;
+struct lock filesys_lock;
 
 static void syscall_handler(struct intr_frame *);
 
