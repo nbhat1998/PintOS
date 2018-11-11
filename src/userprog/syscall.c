@@ -5,6 +5,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "../filesys/filesys.h"
+#include "../lib/user/syscall.h"
 
 /* Reads a byte at user virtual address UADDR.
 UADDR must be below PHYS_BASE.
@@ -138,6 +139,7 @@ uint32_t sys_halt(uint32_t *args)
 uint32_t sys_exit(uint32_t *args)
 {
   thread_current()->process->status = (int) get_word(args);
+  printf ("%s: exit(%d)\n", thread_current()->name, thread_current()->process->status);
   thread_exit();
   NOT_REACHED();
   return 0;
@@ -158,11 +160,17 @@ uint32_t sys_wait(uint32_t *args)
 uint32_t sys_create(uint32_t *args)
 {
   char *file = get_word(args);
-  char *file_name;
-  strlcpy(file_name, file, sizeof(file));
+  char file_start;
+  if(file == NULL) {
+    *(--args) = -1 ;
+    sys_exit(args);
+    //idk crash or smth
+  }
+  strlcpy(&file_start, file, strlen(file));
+  char* file_name = &file_start; 
 
   uint8_t *char_pointer = (uint8_t *)args;
-  char_pointer += sizeof(file_name);
+  char_pointer += strlen(file_name);
   args = (uint32_t *)char_pointer;
 
   unsigned initial_size = get_word(args);
