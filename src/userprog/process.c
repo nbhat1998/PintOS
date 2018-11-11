@@ -103,6 +103,7 @@ int process_wait(tid_t child_tid)
       sema_down(&child_process->sema);
       return child_process->status;
     }
+    lock_release(&child_process->lock);
   }
   return -1;
 }
@@ -115,15 +116,18 @@ void process_exit(void)
 
   // iterate through children
   struct list_elem *child = list_begin(&cur->child_processes);
-  while(child != list_end(&cur->child_processes))
+  while (child != list_end(&cur->child_processes))
   {
     struct process *child_process = list_entry(child, struct process, elem);
     lock_acquire(&child_process->lock);
-    if (!child_process->first_done){
+    if (!child_process->first_done)
+    {
       child_process->first_done = true;
       child = list_next(child);
       lock_release(&child_process->lock);
-    }else{
+    }
+    else
+    {
       struct list_elem *temp = child;
       child = list_next(child);
       list_remove(temp);
@@ -134,13 +138,16 @@ void process_exit(void)
 
   // edit your process
   lock_acquire(&cur->process->lock);
-  if (!cur->process->first_done){
+  if (!cur->process->first_done)
+  {
     cur->process->first_done = true;
     sema_up(&cur->process->sema);
     lock_release(&cur->process->lock);
-  }else{
+  }
+  else
+  {
     lock_release(&cur->process->lock);
-    free (cur->process);
+    free(cur->process);
   }
 
   /* Destroy the current process's page directory and switch back
@@ -266,7 +273,7 @@ bool load(const char *argv, void (**eip)(void), void **esp)
 
   /* Open executable file. */
   char *save_ptr;
-  char *argv_cpy = (char*) malloc(strlen(argv) + 1);
+  char *argv_cpy = (char *)malloc(strlen(argv) + 1);
   if (argv_cpy == NULL)
   {
     PANIC("Failed to allocate argv_cpy in load");

@@ -137,7 +137,7 @@ uint32_t sys_halt(uint32_t *args)
 
 uint32_t sys_exit(uint32_t *args)
 {
-  // thread_current()->process->status =
+  thread_current()->process->status = (int) get_word(args);
   thread_exit();
   NOT_REACHED();
   return 0;
