@@ -150,7 +150,9 @@ uint32_t sys_exec(uint32_t *args)
 
 uint32_t sys_wait(uint32_t *args)
 {
-  return 0;
+  tid_t param_pid = (tid_t)get_word(args); 
+  return process_wait(param_pid); 
+  
 }
 
 uint32_t sys_create(uint32_t *args)
