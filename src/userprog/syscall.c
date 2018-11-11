@@ -6,6 +6,7 @@
 #include "threads/vaddr.h"
 #include "../filesys/filesys.h"
 #include "../lib/user/syscall.h"
+#include "../devices/input.h"
 
 /* Reads a byte at user virtual address UADDR.
 UADDR must be below PHYS_BASE.
@@ -283,7 +284,39 @@ uint32_t sys_tell(uint32_t *args)
 
 uint32_t sys_read(uint32_t *args)
 {
-  return 0;
+    int param_fd = (int)get_word(args); 
+    args+=1; 
+
+    char *param_buffer = (char *)get_word(args);
+    
+    uint8_t *void_pointer = (uint8_t *)args;
+    void_pointer += sizeof(param_buffer);
+    args = (uint32_t *)void_pointer;
+
+    unsigned param_size = (unsigned)get_word(args);
+
+    int actually_read = 0; 
+    if ( param_fd == 0 )
+    {
+      
+      
+    }
+    else 
+    {
+      lock_acquire(&filesys_lock);
+      for (struct list_elem *e = list_begin(&thread_current()->process->file_containers); e != list_end(&thread_current()->process->file_containers); e = list_next(e))
+      {
+        struct file_container *this_container = list_entry(e, struct file_container, elem);
+        if (param_fd == this_container->fd)
+        {
+          actually_read = file_read(this_container->f, param_buffer, param_size); 
+          break; 
+        }
+      }
+      lock_release(&filesys_lock);
+      return actually_read; 
+    }
+
 }
 
 uint32_t sys_write(uint32_t *args)
