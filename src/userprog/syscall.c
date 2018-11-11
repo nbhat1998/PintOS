@@ -295,10 +295,22 @@ uint32_t sys_read(uint32_t *args)
 
     unsigned param_size = (unsigned)get_word(args);
 
-    int actually_read = 0; 
+    char *temp_malloc_buffer = malloc(param_size);
+    param_buffer = temp_malloc_buffer; 
+    int actually_read = -1; 
     if ( param_fd == 0 )
     {
-      
+      int read_counter = 0;
+      while (param_size-->0)
+      {
+        char read_value = (char)input_getc();
+        *(param_buffer++) = read_value; 
+        read_counter++; 
+      }
+
+      actually_read = read_counter; 
+      free(temp_malloc_buffer); 
+      return actually_read;  
       
     }
     else 
