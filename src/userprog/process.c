@@ -519,7 +519,7 @@ setup_stack(void **esp, const char *argv)
   /* adding argv addresses,address of ar0gv array, argc, and return address
       to stack */
   int32_t *sp32 = (int32_t *)sp;
-  for (int i = 0; i < argc; i++)
+  for (int i = 0; i <= argc; i++)
   {
     *(--sp32) = argv_ptr;
 
