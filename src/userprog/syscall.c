@@ -134,6 +134,7 @@ uint32_t sys_halt(uint32_t *args)
 {
   shutdown_power_off(); 
   // good night sweet prince
+  NOT_REACHED();
   return 0;
 }
 
