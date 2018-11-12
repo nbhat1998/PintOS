@@ -43,11 +43,13 @@ tid_t process_execute(const char *file_name)
     return TID_ERROR;
   strlcpy(file_name_kernel, file_name, PGSIZE);
 
-  file_deny_write(filesys_open(file_name_kernel));
 
   /* Create a new thread to execute FILE_NAME. */
   char *save_ptr;
   char *name = strtok_r(file_name_kernel, " ", &save_ptr);
+
+  file_deny_write(filesys_open(name));
+
   tid = thread_create(name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page(fn_copy);
