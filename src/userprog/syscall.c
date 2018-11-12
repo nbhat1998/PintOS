@@ -282,7 +282,7 @@ uint32_t sys_open(uint32_t *args)
   }
   list_push_back(&thread_current()->process->file_containers, &new_file->elem);
   lock_release(&filesys_lock);
-  free(new_file);
+  //free(new_file);
   free(file_name);
 
 
