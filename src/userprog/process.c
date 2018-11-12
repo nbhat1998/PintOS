@@ -71,7 +71,7 @@ start_process(void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load(file_name, &if_.eip, &if_.esp);
 
-  // For sys_exec
+  /* For sys_exec to wakup thread that created this after load is done */
   thread_current()->process->setup = success;
   sema_up(&thread_current()->process->setup_sema);
 
@@ -137,7 +137,7 @@ void process_exit(void)
   uint32_t *pd;
 
   file_allow_write(filesys_open(cur->name));
-  // iterate through children
+  /* iterate through children */
   struct list_elem *child = list_begin(&cur->child_processes);
   while (child != list_end(&cur->child_processes))
   {
@@ -159,7 +159,7 @@ void process_exit(void)
     }
   }
 
-  // edit your process
+  /* edit current process */
   lock_acquire(&cur->process->lock);
   if (!cur->process->first_done)
   {

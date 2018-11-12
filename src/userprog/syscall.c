@@ -62,7 +62,7 @@ check_ptr(uint8_t *uaddr)
   } while (c != '\0');
 }
 
-    /* Writes BYTE to user address UDST.
+/* Writes BYTE to user address UDST.
 UDST must be below PHYS_BASE.
 Returns true if successful, false if a segfault occurred. */
 static bool put_user(uint8_t *udst, uint8_t byte)
@@ -73,9 +73,6 @@ static bool put_user(uint8_t *udst, uint8_t byte)
       : "q"(byte));
   return error_code != -1;
 }
-
-/* Lock used by filesystem */
-// TODO: LOCK INIT SOMEWHERE...
 
 static void syscall_handler(struct intr_frame *);
 
@@ -119,8 +116,6 @@ allocate_fd(void)
   static int next_fd = 2;
   int fd;
 
-  // TODO: USE A DIFFERENT LOCK!!!!!! (global)
-  // TODO: Perform lock_init on this lock at some point
   lock_acquire(&filesys_lock);
   fd = next_fd++;
   lock_release(&filesys_lock);
@@ -131,7 +126,6 @@ allocate_fd(void)
 static void
 syscall_handler(struct intr_frame *f)
 {
-  // printf("system call!\n");
   int function = get_word(f->esp);
   if (function == NULL)
   {
@@ -139,7 +133,6 @@ syscall_handler(struct intr_frame *f)
   }
 
   uint32_t *args = (uint32_t *)f->esp + 1;
-  // hex_dump(0, args, (int8_t *)PHYS_BASE - ((int8_t *)args), true);
 
   f->eax = syscalls[function](args);
 }
@@ -179,7 +172,7 @@ uint32_t sys_exec(uint32_t *args)
   check_ptr(name);
 
   tid_t tid = process_execute(name);
-  // Wait until setup is done
+  /* Wait until setup is done */
   struct list_elem *child;
   for (child = list_begin(&thread_current()->child_processes);
        child != list_end(&thread_current()->child_processes);
@@ -216,28 +209,17 @@ uint32_t sys_wait(uint32_t *args)
 uint32_t sys_create(uint32_t *args)
 {
   char *file = get_word(args);
-  char *file_kernel = malloc(PGSIZE);
-  if (file == NULL)
-  {
-    sys_exit_failure();
-  }
+
   check_ptr(file);
-  strlcpy(file_kernel, file, PGSIZE);
-  /*
-    uint8_t *char_pointer = (uint8_t *)args;
-    char_pointer += strlen(file_kernel);
-    args = (uint32_t *)char_pointer;
-  */
+
   args++; 
   unsigned initial_size = get_word(args);
 
   lock_acquire(&filesys_lock);
-  bool success = filesys_create(file_kernel, initial_size);
+  bool success = filesys_create(file, initial_size);
   lock_release(&filesys_lock);
 
-  free(file_kernel);
   return success;
-  // TODO: dirty casting going on here, reconsider during design decisions?
 }
 
 uint32_t sys_remove(uint32_t *args)
@@ -251,7 +233,7 @@ uint32_t sys_remove(uint32_t *args)
   check_ptr(file);
   strlcpy(file_name, file, PGSIZE);
   bool success_value;
-
+  // TODO : FIX THIS!
   // TODO : to be continued after desgn decision on whether or not a file should keep track of all the processes who refer to it, so that if a file has been closed and then the all processes which have file descriptors for it are closed, then the file should cease to exist
 }
 
@@ -263,7 +245,7 @@ uint32_t sys_open(uint32_t *args)
   {
     return -1;
   }
-    check_ptr(file);
+  check_ptr(file);
 
   strlcpy(file_name, file, PGSIZE);
 
@@ -275,7 +257,7 @@ uint32_t sys_open(uint32_t *args)
   new_file->fd = allocate_fd();
   
   lock_acquire(&filesys_lock);
-  new_file->f = filesys_open(file_name);
+  new_file->f = filesys_open(file);
   if ( new_file->f == NULL)
   {
     free(new_file); 
@@ -283,10 +265,8 @@ uint32_t sys_open(uint32_t *args)
   }
   list_push_back(&thread_current()->process->file_containers, &new_file->elem);
   lock_release(&filesys_lock);
-  // free(new_file);
-  free(file_name);
-  // TODO: free name in close/remove
 
+  free(file_name);
 
   return new_file->fd;
 }
@@ -350,7 +330,6 @@ uint32_t sys_tell(uint32_t *args)
   }
 
   return tell_value;
-  // TODO: some dirty casting going on here, change or nah?
 }
 
 uint32_t sys_read(uint32_t *args)
@@ -366,7 +345,6 @@ uint32_t sys_read(uint32_t *args)
   }
 
   unsigned param_size = (unsigned)get_word(args);
-  //check_buffer(param_buffer,param_size); 
 
   int actually_read = 0;
   if (param_fd == 0)
@@ -395,8 +373,7 @@ uint32_t sys_read(uint32_t *args)
       }
     }
     lock_release(&filesys_lock);
-    //free(param_buffer_kernel);
-    //free(temp_malloc_buffer);
+
     return actually_read;
   }
 }
@@ -404,7 +381,7 @@ uint32_t sys_read(uint32_t *args)
 uint32_t sys_write(uint32_t *args)
 {
   int param_fd = (int)get_word(args);
-  args = args + 1;
+  args++;
 
   char *param_buffer = get_word(args);
   char *param_buffer_kernel = malloc(PGSIZE);
@@ -414,18 +391,14 @@ uint32_t sys_write(uint32_t *args)
   }
   check_ptr(param_buffer);
   strlcpy(param_buffer_kernel, param_buffer, PGSIZE);
-
-
-   uint8_t *void_pointer = (uint8_t *)args;
-  void_pointer += sizeof(param_buffer);
-  args = (uint32_t *)void_pointer; 
+ 
+  args++;
 
   unsigned param_size = (unsigned)get_word(args);
   int32_t actually_written = 0;
 
   if (param_fd == 1)
   {
-    //printf("size: %d\n", strlen(param_buffer));
     if (strlen(param_buffer_kernel) < 500)
     {
       putbuf(param_buffer_kernel, strlen(param_buffer_kernel));
@@ -462,11 +435,9 @@ uint32_t sys_close(uint32_t *args)
     {
       lock_acquire(&filesys_lock);
       list_remove(e);
-     // free(this_container->name); 
       free(this_container);
       lock_release(&filesys_lock);
     }
-    // TODO: Exiting or terminating process implicitly closes all open file descriptors
     return;
   }
 }
