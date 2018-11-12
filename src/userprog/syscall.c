@@ -62,6 +62,20 @@ check_ptr(uint8_t *uaddr)
   } while (c != '\0');
 }
 
+static void
+check_buffer(uint8_t *uaddr, unsigned size) 
+{
+  char c;
+  for ( unsigned i = 0 ; i < size ; ++i)
+  {
+    c = get_user(uaddr);
+    if(c == -1) {
+      sys_exit_failure();
+    }
+    uaddr++;
+  } 
+}
+
     /* Writes BYTE to user address UDST.
 UDST must be below PHYS_BASE.
 Returns true if successful, false if a segfault occurred. */
@@ -357,20 +371,11 @@ uint32_t sys_read(uint32_t *args)
   args++; 
 
   char *param_buffer = get_word(args);
-  //char *param_buffer_kernel = malloc(PGSIZE);
-  //check_ptr(param_buffer);
-
-  //strlcpy(param_buffer_kernel, param_buffer, PGSIZE);
-
   args++;
 
   unsigned param_size = (unsigned)get_word(args);
-  // char *temp_malloc_buffer = malloc(param_size);
-  // if (temp_malloc_buffer == NULL)
-  // {
-  //   return -1;
-  // }
-  // param_buffer = temp_malloc_buffer;
+  check_buffer(param_buffer,param_size); 
+
   int actually_read = 0;
   if (param_fd == 0)
   {
@@ -383,8 +388,6 @@ uint32_t sys_read(uint32_t *args)
     }
 
     actually_read = read_counter;
-    //free(param_buffer_kernel);
-    //free(temp_malloc_buffer);
     return actually_read;
   }
   else
