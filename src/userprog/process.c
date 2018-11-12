@@ -290,7 +290,7 @@ bool load(const char *argv, void (**eip)(void), void **esp)
   char *argv_cpy = (char *)malloc(strlen(argv) + 1);
   if (argv_cpy == NULL)
   {
-    PANIC("Failed to allocate argv_cpy in load");
+    goto done;
   }
   strlcpy(argv_cpy, argv, strlen(argv) + 1);
   char *file_name = strtok_r(argv_cpy, " ", &save_ptr);

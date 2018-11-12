@@ -31,6 +31,10 @@ get_word(uint8_t *uaddr)
 
   for (int i = 0; i < WORD_LENGTH; i++)
   {
+    if(uaddr >= PHYS_BASE)
+    {
+      sys_exit_failure();
+    }
     int new_byte = 0;
     new_byte = get_user(uaddr);
     if (new_byte == -1)
@@ -138,7 +142,7 @@ uint32_t sys_halt(uint32_t *args)
 
 void sys_exit_failure()
 {
-  thread_current()->process->status = (int)-1;
+  thread_current()->process->status = -1;
   printf("%s: exit(%d)\n", thread_current()->name, thread_current()->process->status);
   thread_exit();
   NOT_REACHED();
@@ -146,7 +150,7 @@ void sys_exit_failure()
 
 uint32_t sys_exit(uint32_t *args)
 {
-  thread_current()->process->status = (int)get_word(args);
+  thread_current()->process->status = get_word(args);
   if (thread_current()->process->status == -1)
   {
     sys_exit_failure();
@@ -161,6 +165,10 @@ uint32_t sys_exec(uint32_t *args)
 {
   char *name = get_word(args);
   char *name_kernel = malloc(PGSIZE);
+  if (name_kernel == NULL)
+  {
+    return -1;
+  }
   strlcpy(name_kernel, name, PGSIZE);
 
   tid_t tid = process_execute(name_kernel);
@@ -228,6 +236,10 @@ uint32_t sys_remove(uint32_t *args)
 {
   char *file = get_word(args);
   char *file_name = malloc(PGSIZE);
+  if (file_name == NULL)
+  {
+    return -1;
+  }
   strlcpy(file_name, file, PGSIZE);
   bool success_value;
 
@@ -238,16 +250,24 @@ uint32_t sys_open(uint32_t *args)
 {
   char *file = get_word(args);
   char *file_name = malloc(PGSIZE);
+  if (file_name == NULL)
+  {
+    return -1;
+  }
   strlcpy(file_name, file, PGSIZE);
 
   struct file_container *new_file = malloc(sizeof(struct file_container));
+  if (new_file == NULL)
+  {
+    return -1;
+  }
   new_file->fd = allocate_fd();
 
   lock_acquire(&filesys_lock);
   new_file->f = filesys_open(file_name);
   list_push_back(&thread_current()->process->file_containers, &new_file->elem);
   lock_release(&filesys_lock);
-
+  free(new_file);
   free(file_name);
   return new_file->fd;
 }
@@ -319,15 +339,23 @@ uint32_t sys_read(uint32_t *args)
   int param_fd = (int)get_word(args);
   args += 1;
 
-  char *param_buffer = (char *)get_word(args);
+  char *param_buffer = get_word(args);
+  char *param_buffer_kernel = malloc(PGSIZE);
+  if (param_buffer_kernel == NULL)
+  {
+    return -1;
+  }
+  strlcpy(param_buffer_kernel, param_buffer, PGSIZE);
 
-  uint8_t *void_pointer = (uint8_t *)args;
-  void_pointer += sizeof(param_buffer);
-  args = (uint32_t *)void_pointer;
+  args++;
 
   unsigned param_size = (unsigned)get_word(args);
 
   char *temp_malloc_buffer = malloc(param_size);
+  if (temp_malloc_buffer == NULL)
+  {
+    return -1;
+  }
   param_buffer = temp_malloc_buffer;
   int actually_read = 0;
   if (param_fd == 0)
@@ -341,6 +369,7 @@ uint32_t sys_read(uint32_t *args)
     }
 
     actually_read = read_counter;
+    free(param_buffer_kernel);
     free(temp_malloc_buffer);
     return actually_read;
   }
@@ -357,6 +386,8 @@ uint32_t sys_read(uint32_t *args)
       }
     }
     lock_release(&filesys_lock);
+    free(param_buffer_kernel);
+    free(temp_malloc_buffer);
     return actually_read;
   }
 }
@@ -368,6 +399,10 @@ uint32_t sys_write(uint32_t *args)
 
   char *param_buffer = get_word(args);
   char *param_buffer_kernel = malloc(PGSIZE);
+  if (param_buffer_kernel == NULL)
+  {
+    return -1;
+  }
   strlcpy(param_buffer_kernel, param_buffer, PGSIZE);
 
   uint8_t *void_pointer = (uint8_t *)args;
