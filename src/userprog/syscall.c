@@ -414,10 +414,10 @@ uint32_t sys_write(uint32_t *args)
   check_ptr(param_buffer);
   strlcpy(param_buffer_kernel, param_buffer, PGSIZE);
 
-  args++;
-  /* uint8_t *void_pointer = (uint8_t *)args;
+
+   uint8_t *void_pointer = (uint8_t *)args;
   void_pointer += sizeof(param_buffer);
-  args = (uint32_t *)void_pointer; */
+  args = (uint32_t *)void_pointer; 
 
   unsigned param_size = (unsigned)get_word(args);
   int32_t actually_written = 0;
