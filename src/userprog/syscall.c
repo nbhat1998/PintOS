@@ -131,7 +131,7 @@ allocate_fd(void)
 static void
 syscall_handler(struct intr_frame *f)
 {
-  //printf("system call!\n");
+  // printf("system call!\n");
   int function = get_word(f->esp);
   if (function == NULL)
   {
@@ -139,7 +139,7 @@ syscall_handler(struct intr_frame *f)
   }
 
   uint32_t *args = (uint32_t *)f->esp + 1;
-  //hex_dump(0, args, (int8_t *)PHYS_BASE - ((int8_t *)args), true);
+  // hex_dump(0, args, (int8_t *)PHYS_BASE - ((int8_t *)args), true);
 
   f->eax = syscalls[function](args);
 }
@@ -179,7 +179,7 @@ uint32_t sys_exec(uint32_t *args)
   check_ptr(name);
 
   tid_t tid = process_execute(name);
-  //Wait until setup is done
+  // Wait until setup is done
   struct list_elem *child;
   for (child = list_begin(&thread_current()->child_processes);
        child != list_end(&thread_current()->child_processes);
@@ -414,9 +414,10 @@ uint32_t sys_write(uint32_t *args)
   check_ptr(param_buffer);
   strlcpy(param_buffer_kernel, param_buffer, PGSIZE);
 
-  uint8_t *void_pointer = (uint8_t *)args;
+  args++;
+  /* uint8_t *void_pointer = (uint8_t *)args;
   void_pointer += sizeof(param_buffer);
-  args = (uint32_t *)void_pointer;
+  args = (uint32_t *)void_pointer; */
 
   unsigned param_size = (unsigned)get_word(args);
   int32_t actually_written = 0;
