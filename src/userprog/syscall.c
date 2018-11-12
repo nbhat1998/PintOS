@@ -31,7 +31,7 @@ get_word(uint8_t *uaddr)
 
   for (int i = 0; i < WORD_LENGTH; i++)
   {
-    if(uaddr >= PHYS_BASE)
+    if (uaddr >= PHYS_BASE)
     {
       sys_exit_failure();
     }
@@ -49,11 +49,23 @@ get_word(uint8_t *uaddr)
   return word;
 }
 
-/* Writes BYTE to user address UDST.
+static void
+check_ptr(uint8_t *uaddr) 
+{
+  char c;
+  do {
+    c = get_user(uaddr);
+    if(c == -1) {
+      sys_exit_failure();
+    }
+    uaddr++;
+  } while (c != '\0');
+}
+
+    /* Writes BYTE to user address UDST.
 UDST must be below PHYS_BASE.
 Returns true if successful, false if a segfault occurred. */
-static bool
-put_user(uint8_t *udst, uint8_t byte)
+    static bool put_user(uint8_t *udst, uint8_t byte)
 {
   int error_code;
   asm("movl $1f, %0; movb %b2, %1; 1:"
@@ -164,15 +176,9 @@ uint32_t sys_exit(uint32_t *args)
 uint32_t sys_exec(uint32_t *args)
 {
   char *name = get_word(args);
-  char *name_kernel = malloc(PGSIZE);
-  if (name_kernel == NULL)
-  {
-    return -1;
-  }
-  strlcpy(name_kernel, name, PGSIZE);
+  check_ptr(name);
 
-  tid_t tid = process_execute(name_kernel);
-  free(name_kernel);
+  tid_t tid = process_execute(name);
   //Wait until setup is done
   struct list_elem *child;
   for (child = list_begin(&thread_current()->child_processes);
@@ -215,6 +221,7 @@ uint32_t sys_create(uint32_t *args)
   {
     sys_exit_failure();
   }
+  check_ptr(file);
   strlcpy(file_kernel, file, PGSIZE);
 
   uint8_t *char_pointer = (uint8_t *)args;
@@ -240,6 +247,7 @@ uint32_t sys_remove(uint32_t *args)
   {
     return -1;
   }
+  check_ptr(file);
   strlcpy(file_name, file, PGSIZE);
   bool success_value;
 
@@ -254,6 +262,8 @@ uint32_t sys_open(uint32_t *args)
   {
     return -1;
   }
+    check_ptr(file);
+
   strlcpy(file_name, file, PGSIZE);
 
   struct file_container *new_file = malloc(sizeof(struct file_container));
@@ -345,6 +355,8 @@ uint32_t sys_read(uint32_t *args)
   {
     return -1;
   }
+  check_ptr(param_buffer);
+
   strlcpy(param_buffer_kernel, param_buffer, PGSIZE);
 
   args++;
@@ -403,6 +415,7 @@ uint32_t sys_write(uint32_t *args)
   {
     return -1;
   }
+  check_ptr(param_buffer);
   strlcpy(param_buffer_kernel, param_buffer, PGSIZE);
 
   uint8_t *void_pointer = (uint8_t *)args;
