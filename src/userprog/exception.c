@@ -160,6 +160,11 @@ page_fault (struct intr_frame *f)
     NOT_REACHED();
   }
 
+  if(user) 
+  {
+    sys_exit_failure();
+    NOT_REACHED();
+  }
 
 
   /* To implement virtual memory, delete the rest of the function
