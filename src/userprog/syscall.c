@@ -164,7 +164,7 @@ uint32_t sys_exec(uint32_t *args)
   strlcpy(name_kernel, name, PGSIZE);
 
   tid_t tid = process_execute(name_kernel);
-
+  free(name_kernel);
   //Wait until setup is done
   struct list_elem *child;
   for (child = list_begin(&thread_current()->child_processes);
@@ -179,7 +179,7 @@ uint32_t sys_exec(uint32_t *args)
       sema_down(&child_process->setup_sema);
       lock_acquire(&child_process->lock);
       if (child_process->setup)
-      {    
+      {
         lock_release(&child_process->lock);
         return tid;
       }
@@ -202,7 +202,7 @@ uint32_t sys_wait(uint32_t *args)
 uint32_t sys_create(uint32_t *args)
 {
   char *file = get_word(args);
-  char* file_kernel = malloc(PGSIZE);
+  char *file_kernel = malloc(PGSIZE);
   if (file == NULL)
   {
     sys_exit_failure();
@@ -219,6 +219,7 @@ uint32_t sys_create(uint32_t *args)
   bool success = filesys_create(file_kernel, initial_size);
   lock_release(&filesys_lock);
 
+  free(file_kernel);
   return success;
   // TODO: dirty casting going on here, reconsider during design decisions?
 }
@@ -236,7 +237,7 @@ uint32_t sys_remove(uint32_t *args)
 uint32_t sys_open(uint32_t *args)
 {
   char *file = get_word(args);
-  char* file_name = malloc(PGSIZE); 
+  char *file_name = malloc(PGSIZE);
   strlcpy(file_name, file, PGSIZE);
 
   struct file_container *new_file = malloc(sizeof(struct file_container));
@@ -247,6 +248,7 @@ uint32_t sys_open(uint32_t *args)
   list_push_back(&thread_current()->process->file_containers, &new_file->elem);
   lock_release(&filesys_lock);
 
+  free(file_name);
   return new_file->fd;
 }
 
@@ -381,7 +383,9 @@ uint32_t sys_write(uint32_t *args)
     if (strlen(param_buffer_kernel) < 500)
     {
       putbuf(param_buffer_kernel, strlen(param_buffer_kernel));
-      return strlen(param_buffer_kernel);
+      actually_written = strlen(param_buffer_kernel);
+      free(param_buffer_kernel);
+      return actually_written;
     }
   }
   else
@@ -397,6 +401,7 @@ uint32_t sys_write(uint32_t *args)
       }
     }
     lock_release(&filesys_lock);
+    free(param_buffer_kernel);
     return actually_written;
   }
 }
