@@ -275,10 +275,17 @@ uint32_t sys_open(uint32_t *args)
 
   lock_acquire(&filesys_lock);
   new_file->f = filesys_open(file_name);
+  if ( new_file->f == NULL)
+  {
+    free(new_file); 
+    return -1; 
+  }
   list_push_back(&thread_current()->process->file_containers, &new_file->elem);
   lock_release(&filesys_lock);
   free(new_file);
   free(file_name);
+
+
   return new_file->fd;
 }
 
@@ -347,13 +354,13 @@ uint32_t sys_tell(uint32_t *args)
 uint32_t sys_read(uint32_t *args)
 {
   int param_fd = (int)get_word(args);
-  args += 1;
+  args++; 
 
   char *param_buffer = get_word(args);
   char *param_buffer_kernel = malloc(PGSIZE);
   if (param_buffer_kernel == NULL)
   {
-    return -1;
+    return -1; // iff malloc fails
   }
   check_ptr(param_buffer);
 
@@ -362,7 +369,6 @@ uint32_t sys_read(uint32_t *args)
   args++;
 
   unsigned param_size = (unsigned)get_word(args);
-
   char *temp_malloc_buffer = malloc(param_size);
   if (temp_malloc_buffer == NULL)
   {
@@ -376,7 +382,7 @@ uint32_t sys_read(uint32_t *args)
     while (param_size-- > 0)
     {
       char read_value = (char)input_getc();
-      *(param_buffer++) = read_value;
+      *(param_buffer_kernel++) = read_value;
       read_counter++;
     }
 
