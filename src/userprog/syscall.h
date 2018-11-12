@@ -9,8 +9,6 @@ struct file_container {
     int fd; 
     struct file *f; 
     struct list_elem elem; 
-
-    char *name; 
 };
 struct lock filesys_lock;
 
