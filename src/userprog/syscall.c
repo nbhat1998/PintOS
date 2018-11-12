@@ -65,7 +65,7 @@ check_ptr(uint8_t *uaddr)
     /* Writes BYTE to user address UDST.
 UDST must be below PHYS_BASE.
 Returns true if successful, false if a segfault occurred. */
-    static bool put_user(uint8_t *udst, uint8_t byte)
+static bool put_user(uint8_t *udst, uint8_t byte)
 {
   int error_code;
   asm("movl $1f, %0; movb %b2, %1; 1:"
@@ -357,24 +357,20 @@ uint32_t sys_read(uint32_t *args)
   args++; 
 
   char *param_buffer = get_word(args);
-  char *param_buffer_kernel = malloc(PGSIZE);
-  if (param_buffer_kernel == NULL)
-  {
-    return -1; // iff malloc fails
-  }
-  check_ptr(param_buffer);
+  //char *param_buffer_kernel = malloc(PGSIZE);
+  //check_ptr(param_buffer);
 
-  strlcpy(param_buffer_kernel, param_buffer, PGSIZE);
+  //strlcpy(param_buffer_kernel, param_buffer, PGSIZE);
 
   args++;
 
   unsigned param_size = (unsigned)get_word(args);
-  char *temp_malloc_buffer = malloc(param_size);
-  if (temp_malloc_buffer == NULL)
-  {
-    return -1;
-  }
-  param_buffer = temp_malloc_buffer;
+  // char *temp_malloc_buffer = malloc(param_size);
+  // if (temp_malloc_buffer == NULL)
+  // {
+  //   return -1;
+  // }
+  // param_buffer = temp_malloc_buffer;
   int actually_read = 0;
   if (param_fd == 0)
   {
@@ -382,13 +378,13 @@ uint32_t sys_read(uint32_t *args)
     while (param_size-- > 0)
     {
       char read_value = (char)input_getc();
-      *(param_buffer_kernel++) = read_value;
+      *(param_buffer++) = read_value;
       read_counter++;
     }
 
     actually_read = read_counter;
-    free(param_buffer_kernel);
-    free(temp_malloc_buffer);
+    //free(param_buffer_kernel);
+    //free(temp_malloc_buffer);
     return actually_read;
   }
   else
@@ -404,8 +400,8 @@ uint32_t sys_read(uint32_t *args)
       }
     }
     lock_release(&filesys_lock);
-    free(param_buffer_kernel);
-    free(temp_malloc_buffer);
+    //free(param_buffer_kernel);
+    //free(temp_malloc_buffer);
     return actually_read;
   }
 }
