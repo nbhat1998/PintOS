@@ -281,10 +281,6 @@ uint32_t sys_open(uint32_t *args)
     free(new_file); 
     return -1; 
   }
-  if (strcmp(thread_current()->name,file_name)==0)
-  {
-    file_deny_write(new_file->f); 
-  } 
   list_push_back(&thread_current()->process->file_containers, &new_file->elem);
   lock_release(&filesys_lock);
   // free(new_file);

@@ -43,6 +43,8 @@ tid_t process_execute(const char *file_name)
     return TID_ERROR;
   strlcpy(file_name_kernel, file_name, PGSIZE);
 
+  file_deny_write(filesys_open(file_name_kernel));
+
   /* Create a new thread to execute FILE_NAME. */
   char *save_ptr;
   char *name = strtok_r(file_name_kernel, " ", &save_ptr);
@@ -134,6 +136,7 @@ void process_exit(void)
   struct thread *cur = thread_current();
   uint32_t *pd;
 
+  file_allow_write(filesys_open(cur->name));
   // iterate through children
   struct list_elem *child = list_begin(&cur->child_processes);
   while (child != list_end(&cur->child_processes))
