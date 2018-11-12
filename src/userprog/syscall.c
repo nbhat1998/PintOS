@@ -64,7 +64,6 @@ put_user(uint8_t *udst, uint8_t byte)
 static void syscall_handler(struct intr_frame *);
 
 uint32_t sys_halt(uint32_t *args);
-void sys_exit_failure();
 uint32_t sys_exit(uint32_t *args);
 uint32_t sys_exec(uint32_t *args);
 uint32_t sys_wait(uint32_t *args);
@@ -160,7 +159,37 @@ uint32_t sys_exit(uint32_t *args)
 
 uint32_t sys_exec(uint32_t *args)
 {
-  return 0;
+  char *name = get_word(args);
+  char name_kernel;
+  strlcpy(&name_kernel, name, sizeof(name));
+  char* name_kernel_ptr = &name_kernel;
+
+  tid_t tid = process_execute(name_kernel_ptr);
+
+  //Wait until setup is done
+  struct list_elem *child;
+  for (child = list_begin(&thread_current()->child_processes);
+       child != list_end(&thread_current()->child_processes);
+       child = list_next(child))
+  {
+    struct process *child_process = list_entry(child, struct process, elem);
+    lock_acquire(&child_process->lock);
+    if (child_process->pid == tid)
+    {
+      lock_release(&child_process->lock);
+      sema_down(&child_process->setup_sema);
+      if (child_process->setup)
+      {
+        return tid;
+      }
+      else
+      {
+        return -1;
+      }
+    }
+    lock_release(&child_process->lock);
+  }
+  return -1;
 }
 
 uint32_t sys_wait(uint32_t *args)
@@ -207,8 +236,9 @@ uint32_t sys_remove(uint32_t *args)
 uint32_t sys_open(uint32_t *args)
 {
   char *file = get_word(args);
-  char *file_name;
-  strlcpy(file_name, file, sizeof(file));
+  char file_name_char;
+  strlcpy(&file_name_char, file, sizeof(file));
+  char* file_name = &file_name_char;
   struct file_container *new_file = malloc(sizeof(struct file_container));
   new_file->fd = allocate_fd();
 
@@ -284,51 +314,49 @@ uint32_t sys_tell(uint32_t *args)
 
 uint32_t sys_read(uint32_t *args)
 {
-    int param_fd = (int)get_word(args); 
-    args+=1; 
+  int param_fd = (int)get_word(args);
+  args += 1;
 
-    char *param_buffer = (char *)get_word(args);
-    
-    uint8_t *void_pointer = (uint8_t *)args;
-    void_pointer += sizeof(param_buffer);
-    args = (uint32_t *)void_pointer;
+  char *param_buffer = (char *)get_word(args);
 
-    unsigned param_size = (unsigned)get_word(args);
+  uint8_t *void_pointer = (uint8_t *)args;
+  void_pointer += sizeof(param_buffer);
+  args = (uint32_t *)void_pointer;
 
-    char *temp_malloc_buffer = malloc(param_size);
-    param_buffer = temp_malloc_buffer; 
-    int actually_read = 0; 
-    if ( param_fd == 0 )
+  unsigned param_size = (unsigned)get_word(args);
+
+  char *temp_malloc_buffer = malloc(param_size);
+  param_buffer = temp_malloc_buffer;
+  int actually_read = 0;
+  if (param_fd == 0)
+  {
+    int read_counter = 0;
+    while (param_size-- > 0)
     {
-      int read_counter = 0;
-      while (param_size-->0)
-      {
-        char read_value = (char)input_getc();
-        *(param_buffer++) = read_value; 
-        read_counter++; 
-      }
-
-      actually_read = read_counter; 
-      free(temp_malloc_buffer); 
-      return actually_read;  
-      
-    }
-    else 
-    {
-      lock_acquire(&filesys_lock);
-      for (struct list_elem *e = list_begin(&thread_current()->process->file_containers); e != list_end(&thread_current()->process->file_containers); e = list_next(e))
-      {
-        struct file_container *this_container = list_entry(e, struct file_container, elem);
-        if (param_fd == this_container->fd)
-        {
-          actually_read = file_read(this_container->f, param_buffer, param_size); 
-          break; 
-        }
-      }
-      lock_release(&filesys_lock);
-      return actually_read; 
+      char read_value = (char)input_getc();
+      *(param_buffer++) = read_value;
+      read_counter++;
     }
 
+    actually_read = read_counter;
+    free(temp_malloc_buffer);
+    return actually_read;
+  }
+  else
+  {
+    lock_acquire(&filesys_lock);
+    for (struct list_elem *e = list_begin(&thread_current()->process->file_containers); e != list_end(&thread_current()->process->file_containers); e = list_next(e))
+    {
+      struct file_container *this_container = list_entry(e, struct file_container, elem);
+      if (param_fd == this_container->fd)
+      {
+        actually_read = file_read(this_container->f, param_buffer, param_size);
+        break;
+      }
+    }
+    lock_release(&filesys_lock);
+    return actually_read;
+  }
 }
 
 uint32_t sys_write(uint32_t *args)

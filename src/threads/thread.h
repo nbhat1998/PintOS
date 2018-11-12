@@ -118,10 +118,12 @@ struct process
 {
   tid_t pid;
   struct semaphore sema;
+  struct semaphore setup_sema;
   struct lock lock;
   int status;
   struct list_elem elem;
   bool first_done;
+  bool setup;
 
   struct list file_containers; 
 };

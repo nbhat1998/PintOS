@@ -12,4 +12,6 @@ struct file_container {
 };
 struct lock filesys_lock;
 
+void sys_exit_failure();
+
 #endif /* userprog/syscall.h */

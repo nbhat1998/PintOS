@@ -5,6 +5,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "syscall.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -154,8 +155,9 @@ page_fault (struct intr_frame *f)
   if (!user && fault_addr < PHYS_BASE)
   {
     f->eip = f->eax ;
-    f->eax = 0xFFFFFFFF ; 
-    return; 
+    f->eax = 0xFFFFFFFF ;
+    sys_exit_failure();
+    NOT_REACHED();
   }
 
 
