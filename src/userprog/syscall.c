@@ -160,11 +160,10 @@ uint32_t sys_exit(uint32_t *args)
 uint32_t sys_exec(uint32_t *args)
 {
   char *name = get_word(args);
-  char name_kernel;
-  strlcpy(&name_kernel, name, sizeof(name));
-  char* name_kernel_ptr = &name_kernel;
+  char *name_kernel = malloc(PGSIZE);
+  strlcpy(name_kernel, name, PGSIZE);
 
-  tid_t tid = process_execute(name_kernel_ptr);
+  tid_t tid = process_execute(name_kernel);
 
   //Wait until setup is done
   struct list_elem *child;
@@ -178,18 +177,20 @@ uint32_t sys_exec(uint32_t *args)
     {
       lock_release(&child_process->lock);
       sema_down(&child_process->setup_sema);
+      lock_acquire(&child_process->lock);
       if (child_process->setup)
-      {
+      {    
+        lock_release(&child_process->lock);
         return tid;
       }
       else
       {
+        lock_release(&child_process->lock);
         return -1;
       }
     }
     lock_release(&child_process->lock);
   }
-  return -1;
 }
 
 uint32_t sys_wait(uint32_t *args)
@@ -201,22 +202,21 @@ uint32_t sys_wait(uint32_t *args)
 uint32_t sys_create(uint32_t *args)
 {
   char *file = get_word(args);
-  char file_start;
+  char* file_kernel = malloc(PGSIZE);
   if (file == NULL)
   {
     sys_exit_failure();
   }
-  strlcpy(&file_start, file, strlen(file));
-  char *file_name = &file_start;
+  strlcpy(file_kernel, file, PGSIZE);
 
   uint8_t *char_pointer = (uint8_t *)args;
-  char_pointer += strlen(file_name);
+  char_pointer += strlen(file_kernel);
   args = (uint32_t *)char_pointer;
 
   unsigned initial_size = get_word(args);
 
   lock_acquire(&filesys_lock);
-  bool success = filesys_create(file_name, initial_size);
+  bool success = filesys_create(file_kernel, initial_size);
   lock_release(&filesys_lock);
 
   return success;
@@ -226,8 +226,8 @@ uint32_t sys_create(uint32_t *args)
 uint32_t sys_remove(uint32_t *args)
 {
   char *file = get_word(args);
-  char *file_name;
-  strlcpy(file_name, file, sizeof(file));
+  char *file_name = malloc(PGSIZE);
+  strlcpy(file_name, file, PGSIZE);
   bool success_value;
 
   // TODO : to be continued after desgn decision on whether or not a file should keep track of all the processes who refer to it, so that if a file has been closed and then the all processes which have file descriptors for it are closed, then the file should cease to exist
@@ -236,9 +236,9 @@ uint32_t sys_remove(uint32_t *args)
 uint32_t sys_open(uint32_t *args)
 {
   char *file = get_word(args);
-  char file_name_char;
-  strlcpy(&file_name_char, file, sizeof(file));
-  char* file_name = &file_name_char;
+  char* file_name = malloc(PGSIZE); 
+  strlcpy(file_name, file, PGSIZE);
+
   struct file_container *new_file = malloc(sizeof(struct file_container));
   new_file->fd = allocate_fd();
 
@@ -364,9 +364,9 @@ uint32_t sys_write(uint32_t *args)
   int param_fd = (int)get_word(args);
   args = args + 1;
 
-  char *param_buffer = (char *)get_word(args);
-  //char *param_buffer_kernel;
-  //strlcpy(param_buffer_kernel, param_buffer, sizeof(param_buffer));
+  char *param_buffer = get_word(args);
+  char *param_buffer_kernel = malloc(PGSIZE);
+  strlcpy(param_buffer_kernel, param_buffer, PGSIZE);
 
   uint8_t *void_pointer = (uint8_t *)args;
   void_pointer += sizeof(param_buffer);
@@ -378,10 +378,10 @@ uint32_t sys_write(uint32_t *args)
   if (param_fd == 1)
   {
     //printf("size: %d\n", strlen(param_buffer));
-    if (strlen(param_buffer) < 500)
+    if (strlen(param_buffer_kernel) < 500)
     {
-      putbuf(param_buffer, strlen(param_buffer));
-      return strlen(param_buffer);
+      putbuf(param_buffer_kernel, strlen(param_buffer_kernel));
+      return strlen(param_buffer_kernel);
     }
   }
   else
@@ -392,7 +392,7 @@ uint32_t sys_write(uint32_t *args)
       struct file_container *this_container = list_entry(e, struct file_container, elem);
       if (param_fd == this_container->fd)
       {
-        actually_written = file_write(this_container->f, param_buffer, param_size);
+        actually_written = file_write(this_container->f, param_buffer_kernel, param_size);
         break;
       }
     }

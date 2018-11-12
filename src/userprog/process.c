@@ -38,8 +38,8 @@ tid_t process_execute(const char *file_name)
   strlcpy(fn_copy, file_name, PGSIZE);
 
   /* Create a new thread to execute FILE_NAME. */
-  char* save_ptr;
-  char* name = strtok_r(file_name, " ", &save_ptr);
+  char *save_ptr;
+  char *name = strtok_r(file_name, " ", &save_ptr);
   tid = thread_create(file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page(fn_copy);
@@ -105,9 +105,17 @@ int process_wait(tid_t child_tid)
     lock_acquire(&child_process->lock);
     if (child_process->pid == child_tid)
     {
-      lock_release(&child_process->lock);
-      sema_down(&child_process->sema);
-      return child_process->status;
+      if (child_process->first_done)
+      {
+        lock_release(&child_process->lock);
+        return -1;
+      }
+      else
+      {
+        lock_release(&child_process->lock);
+        sema_down(&child_process->sema);
+        return child_process->status;
+      }
     }
     lock_release(&child_process->lock);
   }
