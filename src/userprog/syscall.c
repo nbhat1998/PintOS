@@ -273,7 +273,7 @@ uint32_t sys_open(uint32_t *args)
     return -1;
   }
   new_file->fd = allocate_fd();
-
+  new_file->name = file_name; 
   lock_acquire(&filesys_lock);
   new_file->f = filesys_open(file_name);
   if ( new_file->f == NULL)
@@ -283,8 +283,9 @@ uint32_t sys_open(uint32_t *args)
   }
   list_push_back(&thread_current()->process->file_containers, &new_file->elem);
   lock_release(&filesys_lock);
-  //free(new_file);
-  free(file_name);
+  // free(new_file);
+  // free(file_name);
+  // TODO: free name in close/remove
 
 
   return new_file->fd;
@@ -441,6 +442,11 @@ uint32_t sys_write(uint32_t *args)
       struct file_container *this_container = list_entry(e, struct file_container, elem);
       if (param_fd == this_container->fd)
       {
+        if ( strcmp(this_container->name,thread_current()->name) == 0 )
+        {
+          lock_release(&filesys_lock);
+          return -1; 
+        }
         actually_written = file_write(this_container->f, param_buffer_kernel, param_size);
         break;
       }
@@ -461,6 +467,8 @@ uint32_t sys_close(uint32_t *args)
     {
       lock_acquire(&filesys_lock);
       list_remove(e);
+      free(this_container->name); 
+      free(this_container);
       lock_release(&filesys_lock);
     }
     // TODO: Exiting or terminating process implicitly closes all open file descriptors
