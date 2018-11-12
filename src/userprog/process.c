@@ -48,8 +48,6 @@ tid_t process_execute(const char *file_name)
   char *save_ptr;
   char *name = strtok_r(file_name_kernel, " ", &save_ptr);
 
-  file_deny_write(filesys_open(name));
-
   tid = thread_create(name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page(fn_copy);
@@ -388,6 +386,7 @@ bool load(const char *argv, void (**eip)(void), void **esp)
   /* Start address. */
   *eip = (void (*)(void))ehdr.e_entry;
 
+  file_deny_write(filesys_open(t->name));
   success = true;
 
 done:
