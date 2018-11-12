@@ -223,11 +223,12 @@ uint32_t sys_create(uint32_t *args)
   }
   check_ptr(file);
   strlcpy(file_kernel, file, PGSIZE);
-
-  uint8_t *char_pointer = (uint8_t *)args;
-  char_pointer += strlen(file_kernel);
-  args = (uint32_t *)char_pointer;
-
+  /*
+    uint8_t *char_pointer = (uint8_t *)args;
+    char_pointer += strlen(file_kernel);
+    args = (uint32_t *)char_pointer;
+  */
+  args++; 
   unsigned initial_size = get_word(args);
 
   lock_acquire(&filesys_lock);
