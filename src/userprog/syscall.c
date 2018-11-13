@@ -1,5 +1,6 @@
 #include "userprog/syscall.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
@@ -347,6 +348,8 @@ uint32_t sys_read(uint32_t *args)
   char *param_buffer = get_word(args);
   args++;
 
+  /* TODO: Make new buffer, read to it, and then 
+     use putuser to copy to param_buffer */
   if (param_buffer >= PHYS_BASE)
   {
     sys_exit_failure();
