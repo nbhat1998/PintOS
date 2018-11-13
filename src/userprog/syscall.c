@@ -422,15 +422,15 @@ uint32_t sys_write(uint32_t *args)
 
   char *param_buffer = get_word(args);
 
-  if (!check_ptr(param_buffer))
-  {
-    return 0;
-  }
-
   args++;
 
   unsigned param_size = (unsigned)get_word(args);
   int32_t actually_written = 0;
+
+  if (param_buffer + param_size >= PHYS_BASE)
+  {
+    return 0;
+  }
 
   if (param_fd == 1)
   {
