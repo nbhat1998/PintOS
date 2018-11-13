@@ -14,6 +14,7 @@
 #include "devices/timer.h"
 #include "threads/init.h"
 #include "threads/fixed_point.h"
+#include "threads/malloc.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -77,7 +78,7 @@ static tid_t allocate_tid(void);
 
 /* Advanced Scheduler functions */
 static int get_new_priority(struct thread *thread);
-static void update_recent_cpu(void);
+static void update_recent_cpus(void);
 static void update_load_avg(void);
 static void update_all_priorities(void);
 
@@ -148,23 +149,21 @@ void thread_tick(void)
     if (timer_ticks() % TIMER_FREQ == 0)
     {
       update_load_avg();
-      update_recent_cpu();
-      // remove param here
+      update_recent_cpus();
     }
 
     /* Every time slice, update priorities off all running/ready/blocked threads
     then yield */
-    if (timer_ticks() % 4 == 0)
+    if (timer_ticks() % TIME_SLICE == 0)
     {
       update_all_priorities();
-
-      if (intr_context())
+      list_sort(&ready_list, list_more_priority, NULL);
+      if (!list_empty(&ready_list) &&
+          t->priority < list_entry(list_front(&ready_list),
+                                   struct thread, elem)
+                            ->priority)
       {
         intr_yield_on_return();
-      }
-      else
-      {
-        thread_yield();
       }
     }
   }
@@ -225,6 +224,11 @@ tid_t thread_create(const char *name, int priority,
   /* Initialize thread. */
   init_thread(t, name, priority);
   tid = t->tid = allocate_tid();
+  if (boot_complete)
+  {
+    t->process->pid = t->tid;
+  }
+
 
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
@@ -363,7 +367,8 @@ void thread_yield(void)
 void thread_yield_cond(void)
 {
   struct thread *cur = thread_current();
-  if (cur->priority < list_entry(list_begin(&ready_list),
+  if (!list_empty(&ready_list) &&
+      cur->priority < list_entry(list_front(&ready_list),
                                  struct thread, elem)
                           ->priority)
   {
@@ -389,12 +394,13 @@ void thread_foreach(thread_action_func *func, void *aux)
 
 void update_priority(struct thread *cur, struct thread *caller, int new_priority)
 {
-
+  enum intr_level old_level;
+  old_level = intr_disable();
   // UPDATE PRIORITY
   int max = 0;
   if (list_size(&cur->donations) != 0)
   {
-    max = list_entry(list_begin(&cur->donations),
+    max = list_entry(list_front(&cur->donations),
                      struct donation, elem)
               ->priority;
   }
@@ -422,12 +428,15 @@ void update_priority(struct thread *cur, struct thread *caller, int new_priority
       d->priority = new_priority;
     }
   }
+  intr_set_level(old_level);
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority(int new_priority)
 {
   struct thread *cur = thread_current();
+  enum intr_level old_level;
+  old_level = intr_disable();
 
   if (thread_mlfqs)
   {
@@ -441,9 +450,12 @@ void thread_set_priority(int new_priority)
       new_priority = PRI_MIN;
     }
     cur->priority = new_priority;
-    // TODO : yield threads here if <comp> with max
+    //list_remove(&cur->elem);
+    //list_insert_ordered(&ready_list, &cur->elem, list_more_priority, NULL);
+    list_sort(&ready_list, list_more_priority, NULL);
+
     if (list_size(&ready_list) != 0 &&
-        new_priority < list_entry(list_begin(&ready_list),
+        new_priority < list_entry(list_front(&ready_list),
                                   struct thread, elem)
                            ->priority)
     {
@@ -460,14 +472,17 @@ void thread_set_priority(int new_priority)
   else
   {
     cur->init_priority = new_priority;
+    //list_remove(&cur->elem);
+    //list_insert_ordered(&ready_list, &cur->elem, list_more_priority, NULL);
+    list_sort(&ready_list, list_more_priority, NULL);
 
     int max = 0;
     if (list_size(&cur->donations) != 0 &&
-        max < list_entry(list_begin(&cur->donations),
+        max < list_entry(list_front(&cur->donations),
                          struct donation, elem)
                   ->priority)
     {
-      max = list_entry(list_begin(&cur->donations),
+      max = list_entry(list_front(&cur->donations),
                        struct donation, elem)
                 ->priority;
     }
@@ -493,6 +508,7 @@ void thread_set_priority(int new_priority)
       }
     }
   }
+  intr_set_level(old_level);
 }
 
 /* Returns the current thread's priority. */
@@ -622,6 +638,33 @@ init_thread(struct thread *t, const char *name, int priority)
   list_init(&t->donations);
   t->init_priority = priority;
   t->recipient = NULL;
+
+  // INIT list of children
+  list_init(&t->child_processes);
+
+  if (boot_complete)
+  { // For all threads other than main
+    // Create a new process struct
+    struct process *p = (struct process*) malloc(sizeof(struct process));
+    if (p == NULL)
+    {
+      PANIC("Failed to allocate process in init_thread");
+    }
+
+    sema_init(&p->sema, 0);
+    sema_init(&p->setup_sema, 0);
+    lock_init(&p->lock);
+    list_init(&p->file_containers);
+    p->already_waited = false;
+    p->status = -1;
+    p->first_done = false;
+    p->name = malloc(strlen(name));
+    strlcpy(p->name, name, strlen(name));
+
+    // And add pointers so that both child and parent can access it
+    t->process = p;
+    list_push_back(&thread_current()->child_processes, &p->elem);
+  }
 
   /* Assigning data members at boot for advanced scheduler */
   if (thread_mlfqs)
@@ -814,7 +857,7 @@ void update_load_avg()
 
 /* Updates the recent cpu of threat t */
 
-void update_recent_cpu()
+void update_recent_cpus()
 {
 
   int32_t numerator = multiply_fixed_by_int(load_avg, 2);
