@@ -148,6 +148,7 @@ void process_exit(void)
   struct thread *cur = thread_current();
   uint32_t *pd;
 
+  /* Close all files */
   struct list_elem *file_elem = list_begin(&cur->process->file_containers);
   while (file_elem != list_end(&cur->process->file_containers))
   {
@@ -156,12 +157,8 @@ void process_exit(void)
     file_close(file_container->f);
     free(file_container);
   }
-  // struct file *f = filesys_open(cur->name);
-  // if (f != NULL)
-  // {
-  //   file_allow_write(f);
-  // }
-  /* iterate through children */
+
+  /* Iterate through children */
   struct list_elem *child = list_begin(&cur->child_processes);
   while (child != list_end(&cur->child_processes))
   {
@@ -184,7 +181,7 @@ void process_exit(void)
     }
   }
 
-  /* edit current process */
+  /* Edit current process */
   lock_acquire(&cur->process->lock);
   if (!cur->process->first_done)
   {
@@ -330,12 +327,13 @@ bool load(const char *argv, void (**eip)(void), void **esp)
   char *file_name = strtok_r(argv_cpy, " ", &save_ptr);
   file = filesys_open(file_name);
   
-  
   if (file == NULL)
   {
     printf("load: %s: open failed\n", file_name);
     goto done;
   }
+
+  /* Add file to list of file containers and deny write */
   new_file_container(file);
   file_deny_write(file);
 
