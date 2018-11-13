@@ -8,6 +8,7 @@
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
+#include "userprog/syscall.h"
 #include "filesys/directory.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
@@ -43,12 +44,21 @@ tid_t process_execute(const char *file_name)
     return TID_ERROR;
   strlcpy(file_name_kernel, file_name, PGSIZE);
 
-
   /* Create a new thread to execute FILE_NAME. */
   char *save_ptr;
   char *name = strtok_r(file_name_kernel, " ", &save_ptr);
 
+  lock_acquire(&filesys_lock);
+  struct file *f = filesys_open(name);
+  if (f == NULL)
+  {
+    return -1;
+  }
+  file_deny_write(f);
+  lock_release(&filesys_lock);
+
   tid = thread_create(name, PRI_DEFAULT, start_process, fn_copy);
+
   if (tid == TID_ERROR)
     palloc_free_page(fn_copy);
 
@@ -58,9 +68,9 @@ tid_t process_execute(const char *file_name)
 /* A thread function that loads a user process and starts it
    running. */
 static void
-start_process(void *file_name_)
+start_process(void *args)
 {
-  char *file_name = file_name_;
+  char *file_name = args;
   struct intr_frame if_;
   bool success;
 
@@ -69,7 +79,13 @@ start_process(void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+
+  /* Get filesys lock */
+  lock_acquire(&filesys_lock);
+  /* Load File and setup stack */
   success = load(file_name, &if_.eip, &if_.esp);
+
+  lock_release(&filesys_lock);
 
   /* For sys_exec to wakup thread that created this after load is done */
   thread_current()->process->setup = success;
@@ -78,7 +94,9 @@ start_process(void *file_name_)
   /* If load failed, quit. */
   palloc_free_page(file_name);
   if (!success)
+  {
     thread_exit();
+  }
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -98,10 +116,7 @@ start_process(void *file_name_)
    exception), returns -1.  If TID is invalid or if it was not a
    child of the calling process, or if process_wait() has already
    been successfully called for the given TID, returns -1
-   immediately, without waiting.
-
-   This function will be implemented in problem 2-2.  For now, it
-   does nothing. */
+   immediately, without waiting. */
 int process_wait(tid_t child_tid)
 {
   struct list_elem *child;
@@ -136,7 +151,11 @@ void process_exit(void)
   struct thread *cur = thread_current();
   uint32_t *pd;
 
-  file_allow_write(filesys_open(cur->name));
+  struct file *f = filesys_open(cur->name);
+  if (f != NULL)
+  {
+    file_allow_write(f);
+  }
   /* iterate through children */
   struct list_elem *child = list_begin(&cur->child_processes);
   while (child != list_end(&cur->child_processes))
@@ -386,12 +405,11 @@ bool load(const char *argv, void (**eip)(void), void **esp)
   /* Start address. */
   *eip = (void (*)(void))ehdr.e_entry;
 
-  file_deny_write(filesys_open(t->name));
   success = true;
 
 done:
   /* We arrive here whether the load is successful or not. */
-  file_close(file);
+  // file_close(file);
   free(argv_cpy);
   return success;
 }

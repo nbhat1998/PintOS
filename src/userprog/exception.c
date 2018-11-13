@@ -152,17 +152,11 @@ page_fault (struct intr_frame *f)
 
   // TODO: if not user set eip to eax and clear eax and return?
   // TODO: if not user and < what here >
-  if (!user && fault_addr < PHYS_BASE)
+  if (!user && fault_addr < PHYS_BASE || user)
   {
     f->eip = f->eax ;
     f->eax = 0xFFFFFFFF ;
-    sys_exit_failure();
-    NOT_REACHED();
-  }
-
-  if(user) 
-  {
-    sys_exit_failure();
+    sys_exit();
     NOT_REACHED();
   }
 

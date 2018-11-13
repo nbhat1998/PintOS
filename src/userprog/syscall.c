@@ -172,6 +172,9 @@ uint32_t sys_exec(uint32_t *args)
   check_ptr(name);
 
   tid_t tid = process_execute(name);
+  if(tid == -1) {
+    return -1;
+  }
   /* Wait until setup is done */
   struct list_elem *child;
   for (child = list_begin(&thread_current()->child_processes);
@@ -232,7 +235,8 @@ uint32_t sys_remove(uint32_t *args)
   }
   check_ptr(file);
   strlcpy(file_name, file, PGSIZE);
-  bool success_value;
+  bool success = filesys_remove(file);
+  return success;
   // TODO : FIX THIS!
   // TODO : to be continued after desgn decision on whether or not a file should keep track of all the processes who refer to it, so that if a file has been closed and then the all processes which have file descriptors for it are closed, then the file should cease to exist
 }
@@ -416,12 +420,14 @@ uint32_t sys_write(uint32_t *args)
       if (param_fd == this_container->fd)
       {
         actually_written = file_write(this_container->f, param_buffer_kernel, param_size);
-        break;
+        lock_release(&filesys_lock);
+        free(param_buffer_kernel);
+        return actually_written;     
       }
     }
     lock_release(&filesys_lock);
     free(param_buffer_kernel);
-    return actually_written;
+    return -1;
   }
 }
 
