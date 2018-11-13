@@ -150,7 +150,7 @@ uint32_t sys_halt(uint32_t *args)
 
 void sys_exit_failure()
 {
-  thread_current()->process->status = -1;
+  //thread_current()->process->status = -1;
   printf("%s: exit(%d)\n", thread_current()->name, thread_current()->process->status);
   thread_exit();
   NOT_REACHED();
@@ -159,10 +159,6 @@ void sys_exit_failure()
 uint32_t sys_exit(uint32_t *args)
 {
   thread_current()->process->status = get_word(args);
-  if (thread_current()->process->status == -1)
-  {
-    sys_exit_failure();
-  }
   printf("%s: exit(%d)\n", thread_current()->name, thread_current()->process->status);
   thread_exit();
   NOT_REACHED();
@@ -239,7 +235,9 @@ uint32_t sys_remove(uint32_t *args)
   }
   check_ptr(file);
   strlcpy(file_name, file, PGSIZE);
+  lock_acquire(&filesys_lock);
   bool success = filesys_remove(file);
+  lock_release(&filesys_lock);
   return success;
   // TODO : FIX THIS!
   // TODO : to be continued after desgn decision on whether or not a file should keep track of all the processes who refer to it, so that if a file has been closed and then the all processes which have file descriptors for it are closed, then the file should cease to exist
@@ -268,6 +266,7 @@ uint32_t sys_open(uint32_t *args)
   new_file->f = filesys_open(file);
   if (new_file->f == NULL)
   {
+    lock_release(&filesys_lock);
     free(new_file);
     return -1;
   }
@@ -313,10 +312,9 @@ uint32_t sys_seek(uint32_t *args)
 
       file_seek(this_container->f, param_position);
       lock_release(&filesys_lock);
-      break;
+      return;
     }
   }
-
   return;
 }
 

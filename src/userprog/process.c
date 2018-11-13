@@ -131,12 +131,20 @@ int process_wait(tid_t child_tid)
       if (child_process->first_done)
       {
         lock_release(&child_process->lock);
-        return -1;
+        if (child_process->already_waited)
+        {
+          return -1;
+        }
+        else
+        {
+          return child_process->status;
+        }
       }
       else
       {
         lock_release(&child_process->lock);
         sema_down(&child_process->sema);
+        child_process->already_waited = true;
         return child_process->status;
       }
     }
