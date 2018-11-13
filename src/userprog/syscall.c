@@ -114,8 +114,7 @@ void syscall_init(void)
   intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
-int
-allocate_fd()
+int allocate_fd()
 {
   static int next_fd = 2;
   int fd;
@@ -169,7 +168,8 @@ uint32_t sys_exit(uint32_t *args)
 uint32_t sys_exec(uint32_t *args)
 {
   char *name = get_word(args);
-  if(!check_ptr(name)) {
+  if (!check_ptr(name))
+  {
     sys_exit_failure();
   }
 
@@ -216,7 +216,8 @@ uint32_t sys_create(uint32_t *args)
 {
   char *file = get_word(args);
 
-  if(!check_ptr(file)) {
+  if (!check_ptr(file))
+  {
     sys_exit_failure();
   }
 
@@ -233,7 +234,8 @@ uint32_t sys_create(uint32_t *args)
 uint32_t sys_remove(uint32_t *args)
 {
   char *file = get_word(args);
-  if(!check_ptr(file)) {
+  if (!check_ptr(file))
+  {
     sys_exit_failure();
   }
   char *file_name = malloc(PGSIZE);
@@ -254,7 +256,8 @@ uint32_t sys_open(uint32_t *args)
 {
   char *file = get_word(args);
 
-  if(!check_ptr(file)) {
+  if (!check_ptr(file))
+  {
     sys_exit_failure();
   }
 
@@ -263,17 +266,17 @@ uint32_t sys_open(uint32_t *args)
   {
     return -1;
   }
-  
+
   strlcpy(file_name, file, PGSIZE);
-  
+
   lock_acquire(&filesys_lock);
-  struct file* f = filesys_open(file_name);
+  struct file *f = filesys_open(file_name);
+  lock_release(&filesys_lock);
+
   if (f == NULL)
   {
-    lock_release(&filesys_lock);
     return -1;
   }
-  lock_release(&filesys_lock);
 
   int fd = new_file_container(f);
 
@@ -282,7 +285,8 @@ uint32_t sys_open(uint32_t *args)
   return fd;
 }
 
-int new_file_container(struct file* file) {
+int new_file_container(struct file *file)
+{
   struct file_container *new_file = malloc(sizeof(struct file_container));
   if (new_file == NULL)
   {
@@ -418,7 +422,8 @@ uint32_t sys_write(uint32_t *args)
 
   char *param_buffer = get_word(args);
 
-  if(!check_ptr(param_buffer)) {
+  if (!check_ptr(param_buffer))
+  {
     return 0;
   }
 
@@ -431,7 +436,9 @@ uint32_t sys_write(uint32_t *args)
   {
     if (strlen(param_buffer) < 500)
     {
+      lock_acquire(&filesys_lock);
       putbuf(param_buffer, strlen(param_buffer));
+      lock_release(&filesys_lock);
       actually_written = strlen(param_buffer);
       return actually_written;
     }

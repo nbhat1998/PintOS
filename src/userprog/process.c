@@ -129,11 +129,7 @@ int process_wait(tid_t child_tid)
         lock_release(&child_process->lock);
         sema_down(&child_process->sema);
       }
-      struct file *f = filesys_open(child_process->name);
-      if (f != NULL)
-      {
-        file_allow_write(f);
-      }
+
       child_process->already_waited = true;
       return child_process->status;
     }
@@ -325,8 +321,11 @@ bool load(const char *argv, void (**eip)(void), void **esp)
   }
   strlcpy(argv_cpy, argv, strlen(argv) + 1);
   char *file_name = strtok_r(argv_cpy, " ", &save_ptr);
+
+  lock_acquire(&filesys_lock);
   file = filesys_open(file_name);
-  
+  lock_release(&filesys_lock);
+
   if (file == NULL)
   {
     printf("load: %s: open failed\n", file_name);
