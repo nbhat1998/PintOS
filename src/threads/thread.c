@@ -644,7 +644,7 @@ init_thread(struct thread *t, const char *name, int priority)
   if (boot_complete)
   { // For all threads other than main
     // Create a new process struct
-    struct process *p = malloc(sizeof(struct process));
+    struct process *p = (struct process*) malloc(sizeof(struct process));
     if (p == NULL)
     {
       PANIC("Failed to allocate process in init_thread");

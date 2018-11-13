@@ -50,12 +50,14 @@ get_word(uint8_t *uaddr)
 }
 
 static void
-check_ptr(uint8_t *uaddr) 
+check_ptr(uint8_t *uaddr)
 {
   char c;
-  do {
+  do
+  {
     c = get_user(uaddr);
-    if(c == -1) {
+    if (c == -1)
+    {
       sys_exit_failure();
     }
     uaddr++;
@@ -172,7 +174,8 @@ uint32_t sys_exec(uint32_t *args)
   check_ptr(name);
 
   tid_t tid = process_execute(name);
-  if(tid == -1) {
+  if (tid == -1)
+  {
     return -1;
   }
   /* Wait until setup is done */
@@ -215,7 +218,7 @@ uint32_t sys_create(uint32_t *args)
 
   check_ptr(file);
 
-  args++; 
+  args++;
   unsigned initial_size = get_word(args);
 
   lock_acquire(&filesys_lock);
@@ -259,13 +262,13 @@ uint32_t sys_open(uint32_t *args)
     return -1;
   }
   new_file->fd = allocate_fd();
-  
+
   lock_acquire(&filesys_lock);
   new_file->f = filesys_open(file);
-  if ( new_file->f == NULL)
+  if (new_file->f == NULL)
   {
-    free(new_file); 
-    return -1; 
+    free(new_file);
+    return -1;
   }
   list_push_back(&thread_current()->process->file_containers, &new_file->elem);
   lock_release(&filesys_lock);
@@ -287,10 +290,10 @@ uint32_t sys_filesize(uint32_t *args)
       lock_acquire(&filesys_lock);
       length_of_file = file_length(this_container->f);
       lock_release(&filesys_lock);
-      break;
+      return length_of_file;
     }
   }
-  return length_of_file;
+  return -1;
 }
 
 uint32_t sys_seek(uint32_t *args)
@@ -329,22 +332,23 @@ uint32_t sys_tell(uint32_t *args)
       lock_acquire(&filesys_lock);
       tell_value = file_tell(this_container->f);
       lock_release(&filesys_lock);
-      break;
+      return tell_value;
     }
   }
 
-  return tell_value;
+  return -1;
 }
 
 uint32_t sys_read(uint32_t *args)
 {
   int param_fd = (int)get_word(args);
-  args++; 
+  args++;
 
   char *param_buffer = get_word(args);
   args++;
 
-  if(param_buffer >= PHYS_BASE) {
+  if (param_buffer >= PHYS_BASE)
+  {
     sys_exit_failure();
   }
 
@@ -395,7 +399,7 @@ uint32_t sys_write(uint32_t *args)
   }
   check_ptr(param_buffer);
   strlcpy(param_buffer_kernel, param_buffer, PGSIZE);
- 
+
   args++;
 
   unsigned param_size = (unsigned)get_word(args);
@@ -422,7 +426,7 @@ uint32_t sys_write(uint32_t *args)
         actually_written = file_write(this_container->f, param_buffer_kernel, param_size);
         lock_release(&filesys_lock);
         free(param_buffer_kernel);
-        return actually_written;     
+        return actually_written;
       }
     }
     lock_release(&filesys_lock);
