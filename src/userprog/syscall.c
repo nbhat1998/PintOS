@@ -435,7 +435,7 @@ uint32_t sys_write(uint32_t *args)
     }
     lock_release(&filesys_lock);
     free(param_buffer_kernel);
-    return -1;
+    return 0;
   }
 }
 
