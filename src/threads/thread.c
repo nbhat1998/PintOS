@@ -14,6 +14,7 @@
 #include "devices/timer.h"
 #include "threads/init.h"
 #include "threads/fixed_point.h"
+#include "threads/malloc.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -644,16 +645,21 @@ init_thread(struct thread *t, const char *name, int priority)
   if (boot_complete)
   { // For all threads other than main
     // Create a new process struct
-    struct process *p = malloc(sizeof(struct process));
+    struct process *p = (struct process*) malloc(sizeof(struct process));
     if (p == NULL)
     {
       PANIC("Failed to allocate process in init_thread");
     }
 
     sema_init(&p->sema, 0);
+    sema_init(&p->setup_sema, 0);
     lock_init(&p->lock);
+    list_init(&p->file_containers);
+    p->already_waited = false;
     p->status = -1;
     p->first_done = false;
+    p->name = malloc(strlen(name));
+    strlcpy(p->name, name, strlen(name));
 
     // And add pointers so that both child and parent can access it
     t->process = p;

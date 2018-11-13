@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include "synch.h"
 
+#include "../userprog/syscall.h"
+
 /* States in a thread's life cycle. */
 enum thread_status
 {
@@ -116,10 +118,16 @@ struct process
 {
   tid_t pid;
   struct semaphore sema;
+  struct semaphore setup_sema;
   struct lock lock;
   int status;
   struct list_elem elem;
   bool first_done;
+  bool setup;
+  bool already_waited;
+  char* name;
+
+  struct list file_containers; 
 };
 
 /* If false (default), use round-robin scheduler.

@@ -8,6 +8,7 @@
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
+#include "userprog/syscall.h"
 #include "filesys/directory.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
@@ -17,6 +18,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 
 static thread_func start_process NO_RETURN;
 static bool load(const char *cmdline, void (**eip)(void), void **esp);
@@ -28,6 +30,7 @@ static bool load(const char *cmdline, void (**eip)(void), void **esp);
 tid_t process_execute(const char *file_name)
 {
   char *fn_copy;
+  char *file_name_kernel;
   tid_t tid;
 
   /* Make a copy of FILE_NAME.
@@ -37,19 +40,29 @@ tid_t process_execute(const char *file_name)
     return TID_ERROR;
   strlcpy(fn_copy, file_name, PGSIZE);
 
+  file_name_kernel = palloc_get_page(0);
+  if (file_name_kernel == NULL)
+    return TID_ERROR;
+  strlcpy(file_name_kernel, file_name, PGSIZE);
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create(file_name, PRI_DEFAULT, start_process, fn_copy);
+  char *save_ptr;
+  char *name = strtok_r(file_name_kernel, " ", &save_ptr);
+
+  tid = thread_create(name, PRI_DEFAULT, start_process, fn_copy);
+
   if (tid == TID_ERROR)
     palloc_free_page(fn_copy);
+
   return tid;
 }
 
 /* A thread function that loads a user process and starts it
    running. */
 static void
-start_process(void *file_name_)
+start_process(void *args)
 {
-  char *file_name = file_name_;
+  char *file_name = args;
   struct intr_frame if_;
   bool success;
 
@@ -58,12 +71,21 @@ start_process(void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+
+  /* Get filesys lock */
+  /* Load File and setup stack */
   success = load(file_name, &if_.eip, &if_.esp);
+
+  /* For sys_exec to wakup thread that created this after load is done */
+  thread_current()->process->setup = success;
+  sema_up(&thread_current()->process->setup_sema);
 
   /* If load failed, quit. */
   palloc_free_page(file_name);
   if (!success)
+  {
     thread_exit();
+  }
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -83,10 +105,7 @@ start_process(void *file_name_)
    exception), returns -1.  If TID is invalid or if it was not a
    child of the calling process, or if process_wait() has already
    been successfully called for the given TID, returns -1
-   immediately, without waiting.
-
-   This function will be implemented in problem 2-2.  For now, it
-   does nothing. */
+   immediately, without waiting. */
 int process_wait(tid_t child_tid)
 {
   struct list_elem *child;
@@ -98,10 +117,24 @@ int process_wait(tid_t child_tid)
     lock_acquire(&child_process->lock);
     if (child_process->pid == child_tid)
     {
-      lock_release(&child_process->lock);
-      sema_down(&child_process->sema);
+      if (child_process->first_done)
+      {
+        lock_release(&child_process->lock);
+        if (child_process->already_waited)
+        {
+          return -1;
+        }
+      }
+      else
+      {
+        lock_release(&child_process->lock);
+        sema_down(&child_process->sema);
+      }
+
+      child_process->already_waited = true;
       return child_process->status;
     }
+    lock_release(&child_process->lock);
   }
   return -1;
 }
@@ -112,34 +145,52 @@ void process_exit(void)
   struct thread *cur = thread_current();
   uint32_t *pd;
 
-  // iterate through children
+  /* Close all files */
+  struct list_elem *file_elem = list_begin(&cur->process->file_containers);
+  while (file_elem != list_end(&cur->process->file_containers))
+  {
+    struct file_container *file_container = list_entry(file_elem, struct file_container, elem);
+    file_elem = list_next(file_elem);
+    file_close(file_container->f);
+    free(file_container);
+  }
+
+  /* Iterate through children */
   struct list_elem *child = list_begin(&cur->child_processes);
-  while(child != list_end(&cur->child_processes))
+  while (child != list_end(&cur->child_processes))
   {
     struct process *child_process = list_entry(child, struct process, elem);
     lock_acquire(&child_process->lock);
-    if (!child_process->first_done){
+    if (!child_process->first_done)
+    {
       child_process->first_done = true;
       child = list_next(child);
       lock_release(&child_process->lock);
-    }else{
+    }
+    else
+    {
       struct list_elem *temp = child;
       child = list_next(child);
       list_remove(temp);
       lock_release(&child_process->lock);
+      free(child_process->name);
       free(child_process);
     }
   }
 
-  // edit your process
+  /* Edit current process */
   lock_acquire(&cur->process->lock);
-  if (!cur->process->first_done){
+  if (!cur->process->first_done)
+  {
     cur->process->first_done = true;
     sema_up(&cur->process->sema);
     lock_release(&cur->process->lock);
-  }else{
+  }
+  else
+  {
     lock_release(&cur->process->lock);
-    free (cur->process);
+    free(cur->process->name);
+    free(cur->process);
   }
 
   /* Destroy the current process's page directory and switch back
@@ -265,19 +316,27 @@ bool load(const char *argv, void (**eip)(void), void **esp)
 
   /* Open executable file. */
   char *save_ptr;
-  char *argv_cpy = (char*) malloc(strlen(argv) + 1);
+  char *argv_cpy = (char *)malloc(strlen(argv) + 1);
   if (argv_cpy == NULL)
   {
-    PANIC("Failed to allocate argv_cpy in load");
+    goto done;
   }
   strlcpy(argv_cpy, argv, strlen(argv) + 1);
   char *file_name = strtok_r(argv_cpy, " ", &save_ptr);
+
+  lock_acquire(&filesys_lock);
   file = filesys_open(file_name);
+  lock_release(&filesys_lock);
+
   if (file == NULL)
   {
     printf("load: %s: open failed\n", file_name);
     goto done;
   }
+
+  /* Add file to list of file containers and deny write */
+  new_file_container(file);
+  file_deny_write(file);
 
   /* Read and verify executable header. */
   if (file_read(file, &ehdr, sizeof ehdr) != sizeof ehdr ||
@@ -352,6 +411,7 @@ bool load(const char *argv, void (**eip)(void), void **esp)
   {
     goto done;
   }
+
   /* Start address. */
   *eip = (void (*)(void))ehdr.e_entry;
 
@@ -359,7 +419,6 @@ bool load(const char *argv, void (**eip)(void), void **esp)
 
 done:
   /* We arrive here whether the load is successful or not. */
-  file_close(file);
   free(argv_cpy);
   return success;
 }
@@ -518,7 +577,7 @@ setup_stack(void **esp, const char *argv)
   /* adding argv addresses,address of ar0gv array, argc, and return address
       to stack */
   int32_t *sp32 = (int32_t *)sp;
-  for (int i = 0; i < argc; i++)
+  for (int i = 0; i <= argc; i++)
   {
     *(--sp32) = argv_ptr;
 

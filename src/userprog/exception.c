@@ -5,6 +5,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "syscall.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -151,13 +152,13 @@ page_fault (struct intr_frame *f)
 
   // TODO: if not user set eip to eax and clear eax and return?
   // TODO: if not user and < what here >
-  if (!user && fault_addr < PHYS_BASE)
+  if (!user && fault_addr < PHYS_BASE || user)
   {
     f->eip = f->eax ;
-    f->eax = 0xFFFFFFFF ; 
-    return; 
+    f->eax = 0xFFFFFFFF ;
+    sys_exit_failure();
+    NOT_REACHED();
   }
-
 
 
   /* To implement virtual memory, delete the rest of the function
