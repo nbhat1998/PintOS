@@ -346,45 +346,48 @@ uint32_t sys_read(uint32_t *args)
   char *param_buffer = get_word(args);
   args++;
 
-  /* TODO: Make new buffer, read to it, and then 
-     use putuser to copy to param_buffer */
-  if (param_buffer >= PHYS_BASE)
-  {
-    sys_exit_failure();
-  }
-
   unsigned param_size = (unsigned)get_word(args);
 
   int actually_read = 0;
   if (param_fd == 0)
   {
-    int read_counter = 0;
     while (param_size-- > 0)
     {
       char read_value = (char)input_getc();
-      *(param_buffer++) = read_value;
-      read_counter++;
+      if (!put_user(param_buffer++, read_value))
+      {
+        return 0;
+      }
+      actually_read++;
     }
-
-    actually_read = read_counter;
-    return actually_read;
   }
   else
   {
     lock_acquire(&filesys_lock);
-    for (struct list_elem *e = list_begin(&thread_current()->process->file_containers); e != list_end(&thread_current()->process->file_containers); e = list_next(e))
+    for (struct list_elem *e = list_begin(&thread_current()->process->file_containers);
+         e != list_end(&thread_current()->process->file_containers);
+         e = list_next(e))
     {
       struct file_container *this_container = list_entry(e, struct file_container, elem);
       if (param_fd == this_container->fd)
       {
-        actually_read = file_read(this_container->f, param_buffer, param_size);
+        char *kernel_buffer = malloc(param_size);
+        actually_read = file_read(this_container->f, kernel_buffer, param_size);
+        for (int i = 0; i < param_size; i++)
+        {
+          if (!put_user(param_buffer++, kernel_buffer[i]))
+          {
+            lock_release(&filesys_lock);
+            return 0;
+          }
+        }
         break;
       }
     }
     lock_release(&filesys_lock);
-
-    return actually_read;
   }
+
+  return actually_read;
 }
 
 uint32_t sys_write(uint32_t *args)
