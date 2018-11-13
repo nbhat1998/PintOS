@@ -156,7 +156,7 @@ page_fault (struct intr_frame *f)
   {
     f->eip = f->eax ;
     f->eax = 0xFFFFFFFF ;
-    sys_exit();
+    sys_exit_failure();
     NOT_REACHED();
   }
 

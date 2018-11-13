@@ -5,9 +5,14 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
-#include "../filesys/filesys.h"
-#include "../lib/user/syscall.h"
-#include "../devices/input.h"
+#include "filesys/filesys.h"
+#include "lib/user/syscall.h"
+#include "devices/input.h"
+#include "threads/malloc.h"
+#include "userprog/process.h"
+#include "filesys/file.h"
+#include "filesys/filesys.h"
+#include "lib/string.h"
 
 /* Reads a byte at user virtual address UADDR.
 UADDR must be below PHYS_BASE.
@@ -275,6 +280,7 @@ uint32_t sys_open(uint32_t *args)
 
   if (f == NULL)
   {
+    free(file_name);
     return -1;
   }
 
@@ -324,13 +330,14 @@ uint32_t sys_seek(uint32_t *args)
 
   unsigned param_position = (unsigned)get_word(args);
 
-  for (struct list_elem *e = list_begin(&thread_current()->process->file_containers); e != list_end(&thread_current()->process->file_containers); e = list_next(e))
+  for (struct list_elem *e = list_begin(&thread_current()->process->file_containers);
+                         e != list_end(&thread_current()->process->file_containers);
+                         e = list_next(e))
   {
     struct file_container *this_container = list_entry(e, struct file_container, elem);
     if (param_fd == this_container->fd)
     {
       lock_acquire(&filesys_lock);
-
       file_seek(this_container->f, param_position);
       lock_release(&filesys_lock);
       return;
@@ -344,7 +351,9 @@ uint32_t sys_tell(uint32_t *args)
   int param_fd = (int)get_word(args);
 
   unsigned tell_value;
-  for (struct list_elem *e = list_begin(&thread_current()->process->file_containers); e != list_end(&thread_current()->process->file_containers); e = list_next(e))
+  for (struct list_elem *e = list_begin(&thread_current()->process->file_containers);
+                         e != list_end(&thread_current()->process->file_containers);
+                         e = list_next(e))
   {
     struct file_container *this_container = list_entry(e, struct file_container, elem);
     if (param_fd == this_container->fd)

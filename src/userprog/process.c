@@ -18,6 +18,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 
 static thread_func start_process NO_RETURN;
 static bool load(const char *cmdline, void (**eip)(void), void **esp);
@@ -188,6 +189,7 @@ void process_exit(void)
   else
   {
     lock_release(&cur->process->lock);
+    free(cur->process->name);
     free(cur->process);
   }
 

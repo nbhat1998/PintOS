@@ -14,6 +14,7 @@
 #include "devices/timer.h"
 #include "threads/init.h"
 #include "threads/fixed_point.h"
+#include "threads/malloc.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
