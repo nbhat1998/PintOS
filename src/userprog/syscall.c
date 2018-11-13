@@ -50,19 +50,20 @@ get_word(uint8_t *uaddr)
   return word;
 }
 
-static void
+static bool
 check_ptr(uint8_t *uaddr)
 {
   char c;
   do
   {
     c = get_user(uaddr);
-    if (c == -1)
+    if (uaddr >= PHYS_BASE || c == -1)
     {
-      sys_exit_failure();
+      return false;
     }
     uaddr++;
   } while (c != '\0');
+  return true;
 }
 
 /* Writes BYTE to user address UDST.
@@ -113,8 +114,8 @@ void syscall_init(void)
   intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
-static int
-allocate_fd(void)
+int
+allocate_fd()
 {
   static int next_fd = 2;
   int fd;
@@ -168,7 +169,9 @@ uint32_t sys_exit(uint32_t *args)
 uint32_t sys_exec(uint32_t *args)
 {
   char *name = get_word(args);
-  check_ptr(name);
+  if(!check_ptr(name)) {
+    sys_exit_failure();
+  }
 
   tid_t tid = process_execute(name);
   if (tid == -1)
@@ -213,7 +216,9 @@ uint32_t sys_create(uint32_t *args)
 {
   char *file = get_word(args);
 
-  check_ptr(file);
+  if(!check_ptr(file)) {
+    sys_exit_failure();
+  }
 
   args++;
   unsigned initial_size = get_word(args);
@@ -228,33 +233,56 @@ uint32_t sys_create(uint32_t *args)
 uint32_t sys_remove(uint32_t *args)
 {
   char *file = get_word(args);
+  if(!check_ptr(file)) {
+    sys_exit_failure();
+  }
   char *file_name = malloc(PGSIZE);
   if (file_name == NULL)
   {
     return -1;
   }
-  check_ptr(file);
   strlcpy(file_name, file, PGSIZE);
   lock_acquire(&filesys_lock);
+
   bool success = filesys_remove(file);
   lock_release(&filesys_lock);
+  free(file_name);
   return success;
-  // TODO : FIX THIS!
-  // TODO : to be continued after desgn decision on whether or not a file should keep track of all the processes who refer to it, so that if a file has been closed and then the all processes which have file descriptors for it are closed, then the file should cease to exist
 }
 
 uint32_t sys_open(uint32_t *args)
 {
   char *file = get_word(args);
+
+  if(!check_ptr(file)) {
+    sys_exit_failure();
+  }
+
   char *file_name = malloc(PGSIZE);
   if (file_name == NULL)
   {
     return -1;
   }
-  check_ptr(file);
-
+  
   strlcpy(file_name, file, PGSIZE);
+  
+  lock_acquire(&filesys_lock);
+  struct file* f = filesys_open(file_name);
+  if (f == NULL)
+  {
+    lock_release(&filesys_lock);
+    return -1;
+  }
+  lock_release(&filesys_lock);
 
+  int fd = new_file_container(f);
+
+  free(file_name);
+
+  return fd;
+}
+
+int new_file_container(struct file* file) {
   struct file_container *new_file = malloc(sizeof(struct file_container));
   if (new_file == NULL)
   {
@@ -262,19 +290,8 @@ uint32_t sys_open(uint32_t *args)
   }
   new_file->fd = allocate_fd();
 
-  lock_acquire(&filesys_lock);
-  new_file->f = filesys_open(file);
-  if (new_file->f == NULL)
-  {
-    lock_release(&filesys_lock);
-    free(new_file);
-    return -1;
-  }
+  new_file->f = file;
   list_push_back(&thread_current()->process->file_containers, &new_file->elem);
-  lock_release(&filesys_lock);
-
-  free(file_name);
-
   return new_file->fd;
 }
 
@@ -347,6 +364,10 @@ uint32_t sys_read(uint32_t *args)
   args++;
 
   unsigned param_size = (unsigned)get_word(args);
+  if (param_buffer + param_size >= PHYS_BASE)
+  {
+    sys_exit_failure();
+  }
 
   int actually_read = 0;
   if (param_fd == 0)
@@ -396,13 +417,10 @@ uint32_t sys_write(uint32_t *args)
   args++;
 
   char *param_buffer = get_word(args);
-  char *param_buffer_kernel = malloc(PGSIZE);
-  if (param_buffer_kernel == NULL)
-  {
-    return -1;
+
+  if(!check_ptr(param_buffer)) {
+    return 0;
   }
-  check_ptr(param_buffer);
-  strlcpy(param_buffer_kernel, param_buffer, PGSIZE);
 
   args++;
 
@@ -411,30 +429,29 @@ uint32_t sys_write(uint32_t *args)
 
   if (param_fd == 1)
   {
-    if (strlen(param_buffer_kernel) < 500)
+    if (strlen(param_buffer) < 500)
     {
-      putbuf(param_buffer_kernel, strlen(param_buffer_kernel));
-      actually_written = strlen(param_buffer_kernel);
-      free(param_buffer_kernel);
+      putbuf(param_buffer, strlen(param_buffer));
+      actually_written = strlen(param_buffer);
       return actually_written;
     }
   }
   else
   {
     lock_acquire(&filesys_lock);
-    for (struct list_elem *e = list_begin(&thread_current()->process->file_containers); e != list_end(&thread_current()->process->file_containers); e = list_next(e))
+    for (struct list_elem *e = list_begin(&thread_current()->process->file_containers);
+         e != list_end(&thread_current()->process->file_containers);
+         e = list_next(e))
     {
       struct file_container *this_container = list_entry(e, struct file_container, elem);
       if (param_fd == this_container->fd)
       {
-        actually_written = file_write(this_container->f, param_buffer_kernel, param_size);
+        actually_written = file_write(this_container->f, param_buffer, param_size);
         lock_release(&filesys_lock);
-        free(param_buffer_kernel);
         return actually_written;
       }
     }
     lock_release(&filesys_lock);
-    free(param_buffer_kernel);
     return 0;
   }
 }

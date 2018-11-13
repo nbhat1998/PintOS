@@ -657,6 +657,8 @@ init_thread(struct thread *t, const char *name, int priority)
     p->already_waited = false;
     p->status = -1;
     p->first_done = false;
+    p->name = malloc(strlen(name));
+    strlcpy(p->name, name, strlen(name));
 
     // And add pointers so that both child and parent can access it
     t->process = p;

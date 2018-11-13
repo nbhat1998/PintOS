@@ -48,15 +48,6 @@ tid_t process_execute(const char *file_name)
   char *save_ptr;
   char *name = strtok_r(file_name_kernel, " ", &save_ptr);
 
-  lock_acquire(&filesys_lock);
-  struct file *f = filesys_open(name);
-  if (f == NULL)
-  {
-    return -1;
-  }
-  file_deny_write(f);
-  lock_release(&filesys_lock);
-
   tid = thread_create(name, PRI_DEFAULT, start_process, fn_copy);
 
   if (tid == TID_ERROR)
@@ -81,11 +72,8 @@ start_process(void *args)
   if_.eflags = FLAG_IF | FLAG_MBS;
 
   /* Get filesys lock */
-  lock_acquire(&filesys_lock);
   /* Load File and setup stack */
   success = load(file_name, &if_.eip, &if_.esp);
-
-  lock_release(&filesys_lock);
 
   /* For sys_exec to wakup thread that created this after load is done */
   thread_current()->process->setup = success;
@@ -135,18 +123,19 @@ int process_wait(tid_t child_tid)
         {
           return -1;
         }
-        else
-        {
-          return child_process->status;
-        }
       }
       else
       {
         lock_release(&child_process->lock);
         sema_down(&child_process->sema);
-        child_process->already_waited = true;
-        return child_process->status;
       }
+      struct file *f = filesys_open(child_process->name);
+      if (f != NULL)
+      {
+        file_allow_write(f);
+      }
+      child_process->already_waited = true;
+      return child_process->status;
     }
     lock_release(&child_process->lock);
   }
@@ -159,11 +148,19 @@ void process_exit(void)
   struct thread *cur = thread_current();
   uint32_t *pd;
 
-  struct file *f = filesys_open(cur->name);
-  if (f != NULL)
+  struct list_elem *file_elem = list_begin(&cur->process->file_containers);
+  while (file_elem != list_end(&cur->process->file_containers))
   {
-    file_allow_write(f);
+    struct file_container *file_container = list_entry(file_elem, struct file_container, elem);
+    file_elem = list_next(file_elem);
+    file_close(file_container->f);
+    free(file_container);
   }
+  // struct file *f = filesys_open(cur->name);
+  // if (f != NULL)
+  // {
+  //   file_allow_write(f);
+  // }
   /* iterate through children */
   struct list_elem *child = list_begin(&cur->child_processes);
   while (child != list_end(&cur->child_processes))
@@ -182,6 +179,7 @@ void process_exit(void)
       child = list_next(child);
       list_remove(temp);
       lock_release(&child_process->lock);
+      free(child_process->name);
       free(child_process);
     }
   }
@@ -331,11 +329,15 @@ bool load(const char *argv, void (**eip)(void), void **esp)
   strlcpy(argv_cpy, argv, strlen(argv) + 1);
   char *file_name = strtok_r(argv_cpy, " ", &save_ptr);
   file = filesys_open(file_name);
+  
+  
   if (file == NULL)
   {
     printf("load: %s: open failed\n", file_name);
     goto done;
   }
+  new_file_container(file);
+  file_deny_write(file);
 
   /* Read and verify executable header. */
   if (file_read(file, &ehdr, sizeof ehdr) != sizeof ehdr ||
@@ -410,6 +412,7 @@ bool load(const char *argv, void (**eip)(void), void **esp)
   {
     goto done;
   }
+
   /* Start address. */
   *eip = (void (*)(void))ehdr.e_entry;
 
@@ -417,7 +420,6 @@ bool load(const char *argv, void (**eip)(void), void **esp)
 
 done:
   /* We arrive here whether the load is successful or not. */
-  // file_close(file);
   free(argv_cpy);
   return success;
 }
