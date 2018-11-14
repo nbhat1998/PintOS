@@ -51,9 +51,10 @@ tid_t process_execute(const char *file_name)
 
   tid = thread_create(name, PRI_DEFAULT, start_process, fn_copy);
 
-  if (tid == TID_ERROR)
+  if (tid == TID_ERROR) {
     palloc_free_page(fn_copy);
-
+    palloc_free_page(file_name_kernel); 
+  }
   return tid;
 }
 
@@ -145,15 +146,7 @@ void process_exit(void)
   struct thread *cur = thread_current();
   uint32_t *pd;
 
-  /* Close all files */
-  struct list_elem *file_elem = list_begin(&cur->process->file_containers);
-  while (file_elem != list_end(&cur->process->file_containers))
-  {
-    struct file_container *file_container = list_entry(file_elem, struct file_container, elem);
-    file_elem = list_next(file_elem);
-    file_close(file_container->f);
-    free(file_container);
-  }
+  // printf("Size of file_container list: %d\n", list_size(&cur->process->file_containers));
 
   /* Iterate through children */
   struct list_elem *child = list_begin(&cur->child_processes);
@@ -173,13 +166,25 @@ void process_exit(void)
       child = list_next(child);
       list_remove(temp);
       lock_release(&child_process->lock);
-      free(child_process->name);
       free(child_process);
     }
   }
 
-  /* Edit current process */
   lock_acquire(&cur->process->lock);
+  
+  /* Close all files */
+  struct list_elem *file_elem = list_begin(&cur->process->file_containers);
+  while (file_elem != list_end(&cur->process->file_containers))
+  {
+    struct file_container *file_container = list_entry(file_elem, struct file_container, elem);
+    struct list_elem *temp = file_elem;
+    file_elem = list_next(file_elem);
+    list_remove(temp);
+    file_close(file_container->f);
+    free(file_container);
+  }
+
+  /* Edit current process */
   if (!cur->process->first_done)
   {
     cur->process->first_done = true;
@@ -189,7 +194,6 @@ void process_exit(void)
   else
   {
     lock_release(&cur->process->lock);
-    free(cur->process->name);
     free(cur->process);
   }
 
