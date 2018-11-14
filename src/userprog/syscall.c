@@ -276,16 +276,14 @@ uint32_t sys_open(uint32_t *args)
   lock_acquire(&filesys_lock);
   struct file *f = filesys_open(file_name);
   lock_release(&filesys_lock);
+  free(file_name);
 
   if (f == NULL)
   {
-    free(file_name);
     return -1;
   }
 
   int fd = new_file_container(f);
-
-  free(file_name);
 
   return fd;
 }
@@ -488,7 +486,7 @@ uint32_t sys_close(uint32_t *args)
       file_close(this_container->f);
       free(this_container);
       lock_release(&filesys_lock);
+      return;
     }
-    return;
   }
 }
