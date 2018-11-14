@@ -304,6 +304,7 @@ bool load(const char *argv, void (**eip)(void), void **esp)
   struct thread *t = thread_current();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
+  char *argv_cpy = NULL
   off_t file_ofs;
   bool success = false;
   int i;
@@ -316,7 +317,7 @@ bool load(const char *argv, void (**eip)(void), void **esp)
 
   /* Open executable file. */
   char *save_ptr;
-  char *argv_cpy = (char *)malloc(strlen(argv) + 1);
+  argv_cpy = (char *)malloc(strlen(argv) + 1);
   if (argv_cpy == NULL)
   {
     goto done;

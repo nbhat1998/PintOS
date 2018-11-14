@@ -155,7 +155,6 @@ uint32_t sys_halt(uint32_t *args)
 
 void sys_exit_failure()
 {
-  //thread_current()->process->status = -1;
   printf("%s: exit(%d)\n", thread_current()->name, thread_current()->process->status);
   thread_exit();
   NOT_REACHED();
@@ -331,8 +330,8 @@ uint32_t sys_seek(uint32_t *args)
   unsigned param_position = (unsigned)get_word(args);
 
   for (struct list_elem *e = list_begin(&thread_current()->process->file_containers);
-                         e != list_end(&thread_current()->process->file_containers);
-                         e = list_next(e))
+       e != list_end(&thread_current()->process->file_containers);
+       e = list_next(e))
   {
     struct file_container *this_container = list_entry(e, struct file_container, elem);
     if (param_fd == this_container->fd)
@@ -352,8 +351,8 @@ uint32_t sys_tell(uint32_t *args)
 
   unsigned tell_value;
   for (struct list_elem *e = list_begin(&thread_current()->process->file_containers);
-                         e != list_end(&thread_current()->process->file_containers);
-                         e = list_next(e))
+       e != list_end(&thread_current()->process->file_containers);
+       e = list_next(e))
   {
     struct file_container *this_container = list_entry(e, struct file_container, elem);
     if (param_fd == this_container->fd)
@@ -412,9 +411,11 @@ uint32_t sys_read(uint32_t *args)
           if (!put_user(param_buffer++, kernel_buffer[i]))
           {
             lock_release(&filesys_lock);
+            free(kernel_buffer);
             return 0;
           }
         }
+        free(kernel_buffer);
         break;
       }
     }
@@ -482,6 +483,7 @@ uint32_t sys_close(uint32_t *args)
     {
       lock_acquire(&filesys_lock);
       list_remove(e);
+      file_close(this_container->f);
       free(this_container);
       lock_release(&filesys_lock);
     }
