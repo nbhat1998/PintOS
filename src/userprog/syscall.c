@@ -298,7 +298,10 @@ int new_file_container(struct file *file)
   new_file->fd = allocate_fd();
 
   new_file->f = file;
+  lock_acquire(&thread_current()->process->lock);
   list_push_back(&thread_current()->process->file_containers, &new_file->elem);
+  lock_release(&thread_current()->process->lock);
+
   return new_file->fd;
 }
 
@@ -489,4 +492,5 @@ uint32_t sys_close(uint32_t *args)
       return;
     }
   }
+  return;
 }
