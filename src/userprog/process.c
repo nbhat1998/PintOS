@@ -51,9 +51,9 @@ tid_t process_execute(const char *file_name)
 
   tid = thread_create(name, PRI_DEFAULT, start_process, fn_copy);
 
+  palloc_free_page(file_name_kernel);
   if (tid == TID_ERROR) {
-    palloc_free_page(fn_copy);
-    palloc_free_page(file_name_kernel); 
+    palloc_free_page(fn_copy); 
   }
   return tid;
 }
@@ -171,7 +171,7 @@ void process_exit(void)
   }
 
   lock_acquire(&cur->process->lock);
-  
+
   /* Close all files */
   struct list_elem *file_elem = list_begin(&cur->process->file_containers);
   while (file_elem != list_end(&cur->process->file_containers))
