@@ -38,15 +38,30 @@ Maria Teguiani  <mt5217@ic.ac.uk>
 >> How does your argument parsing code avoid overflowing the stack page?
 >> What are the efficiency considerations of your approach?
 
+? ? ? ? ? ? ? 
+? ? ? ? ? ? ? 
+
+
+
+
 ---- RATIONALE ----
 
 >> A3: (3 marks)
 >> Why does Pintos implement strtok_r() but not strtok()?
 
+
+ezpz 
+
+
+
+
 >> A4: (2 marks)
 >> In Pintos, the kernel separates commands into a executable name and arguments. 
 >> In Unix-like systems, the shell does this separation. 
 >> Identify two advantages of the Unix approach.
+
+1. prevents malicious code injection into the kernel space
+2. ? ? ? ? ? same but accidental? ? ? 
 
                  SYSTEM CALLS
                  ============
@@ -58,11 +73,20 @@ Maria Teguiani  <mt5217@ic.ac.uk>
 >> global or static variable, `typedef', or enumeration. Identify the purpose of 
 >> each in roughly 25 words.
 
+
+
+
 ---- ALGORITHMS ----
 
 >> B2: (2 marks)
 >> Describe how your code ensures safe memory access of user provided data from
 >> within the kernel. 
+
+we use get_user within get_word, which checks if -1 or >= PHYS_BASE
+
+
+
+
 
 >> B3: (3 marks)
 >> Suppose that we choose to verify user provided pointers by validating them 
@@ -78,15 +102,32 @@ Maria Teguiani  <mt5217@ic.ac.uk>
 >> You should briefly explain your checking tactic and how it applies to each 
 >> case to generate your answers.
 
+
+
+
+c) minimum: 4
+    maximum: 5 ((dont quote me on this))
+
+
+
+
 >> B4: (2 marks)
 >> How do you keep the purpose of your user memory verification code clear and
 >> avoid obscuring the primary function of code in a morass of error-handling?
 >> Additionally, when an error is detected, how do you ensure that all 
 >> temporarily allocated resources (locks, buffers, etc.) are freed?
 
+a) implemented get word, chec_ptr 
+b) everytime we encounter an error, we ensure that we release all locks before performinig thread_exit
+
+
 >> B5: (8 marks)
 >> Describe your implementation of the "wait" system call and how it interacts 
 >> with process termination for both the parent and child.
+
+
+
+
 
 ---- SYNCHRONIZATION ----
 
@@ -112,6 +153,13 @@ Maria Teguiani  <mt5217@ic.ac.uk>
 >> Why did you choose to implement safe access of user memory from the kernel in 
 >> the way that you did?
 
+abstraction and clear code
+
+
+
 >> B9: (2 marks)
 >> What advantages or disadvantages can you see to your design for file 
 >> descriptors?
+
+excessive number of filecontainers eventually formed woith many of them pointing to the same file
+requires iterating over the entire list of file descriptors to look for a particular fd 
