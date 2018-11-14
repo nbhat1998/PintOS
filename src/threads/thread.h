@@ -125,7 +125,6 @@ struct process
   bool first_done;
   bool setup;
   bool already_waited;
-  char* name;
 
   struct list file_containers; 
 };
