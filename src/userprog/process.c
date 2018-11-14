@@ -304,7 +304,7 @@ bool load(const char *argv, void (**eip)(void), void **esp)
   struct thread *t = thread_current();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
-  char *argv_cpy = NULL
+  char *argv_cpy = NULL;
   off_t file_ofs;
   bool success = false;
   int i;
