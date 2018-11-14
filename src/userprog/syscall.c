@@ -137,7 +137,7 @@ syscall_handler(struct intr_frame *f)
   int function = get_word(f->esp);
   if (function == NULL)
   {
-    sys_exit_failure();
+    return -1;
   }
 
   uint32_t *args = (uint32_t *)f->esp + 1;
@@ -155,7 +155,6 @@ uint32_t sys_halt(uint32_t *args)
 
 void sys_exit_failure()
 {
-  //thread_current()->process->status = -1;
   printf("%s: exit(%d)\n", thread_current()->name, thread_current()->process->status);
   thread_exit();
   NOT_REACHED();
@@ -175,7 +174,7 @@ uint32_t sys_exec(uint32_t *args)
   char *name = get_word(args);
   if (!check_ptr(name))
   {
-    sys_exit_failure();
+    return -1;
   }
 
   tid_t tid = process_execute(name);
@@ -223,7 +222,7 @@ uint32_t sys_create(uint32_t *args)
 
   if (!check_ptr(file))
   {
-    sys_exit_failure();
+    return -1;
   }
 
   args++;
@@ -241,7 +240,7 @@ uint32_t sys_remove(uint32_t *args)
   char *file = get_word(args);
   if (!check_ptr(file))
   {
-    sys_exit_failure();
+    return -1;
   }
   char *file_name = malloc(PGSIZE);
   if (file_name == NULL)
@@ -263,7 +262,7 @@ uint32_t sys_open(uint32_t *args)
 
   if (!check_ptr(file))
   {
-    sys_exit_failure();
+    return -1;
   }
 
   char *file_name = malloc(PGSIZE);
@@ -277,16 +276,14 @@ uint32_t sys_open(uint32_t *args)
   lock_acquire(&filesys_lock);
   struct file *f = filesys_open(file_name);
   lock_release(&filesys_lock);
+  free(file_name);
 
   if (f == NULL)
   {
-    free(file_name);
     return -1;
   }
 
   int fd = new_file_container(f);
-
-  free(file_name);
 
   return fd;
 }
@@ -301,7 +298,10 @@ int new_file_container(struct file *file)
   new_file->fd = allocate_fd();
 
   new_file->f = file;
+  lock_acquire(&thread_current()->process->lock);
   list_push_back(&thread_current()->process->file_containers, &new_file->elem);
+  lock_release(&thread_current()->process->lock);
+
   return new_file->fd;
 }
 
@@ -331,8 +331,8 @@ uint32_t sys_seek(uint32_t *args)
   unsigned param_position = (unsigned)get_word(args);
 
   for (struct list_elem *e = list_begin(&thread_current()->process->file_containers);
-                         e != list_end(&thread_current()->process->file_containers);
-                         e = list_next(e))
+       e != list_end(&thread_current()->process->file_containers);
+       e = list_next(e))
   {
     struct file_container *this_container = list_entry(e, struct file_container, elem);
     if (param_fd == this_container->fd)
@@ -352,8 +352,8 @@ uint32_t sys_tell(uint32_t *args)
 
   unsigned tell_value;
   for (struct list_elem *e = list_begin(&thread_current()->process->file_containers);
-                         e != list_end(&thread_current()->process->file_containers);
-                         e = list_next(e))
+       e != list_end(&thread_current()->process->file_containers);
+       e = list_next(e))
   {
     struct file_container *this_container = list_entry(e, struct file_container, elem);
     if (param_fd == this_container->fd)
@@ -412,9 +412,11 @@ uint32_t sys_read(uint32_t *args)
           if (!put_user(param_buffer++, kernel_buffer[i]))
           {
             lock_release(&filesys_lock);
+            free(kernel_buffer);
             return 0;
           }
         }
+        free(kernel_buffer);
         break;
       }
     }
@@ -475,16 +477,20 @@ uint32_t sys_write(uint32_t *args)
 uint32_t sys_close(uint32_t *args)
 {
   int param_fd = (int)get_word(args);
-  for (struct list_elem *e = list_begin(&thread_current()->process->file_containers); e != list_end(&thread_current()->process->file_containers); e = list_next(e))
+  for (struct list_elem *e = list_begin(&thread_current()->process->file_containers);
+       e != list_end(&thread_current()->process->file_containers);
+       e = list_next(e))
   {
     struct file_container *this_container = list_entry(e, struct file_container, elem);
     if (param_fd == this_container->fd)
     {
       lock_acquire(&filesys_lock);
       list_remove(e);
+      file_close(this_container->f);
       free(this_container);
       lock_release(&filesys_lock);
+      return;
     }
-    return;
   }
+  return;
 }
