@@ -137,7 +137,7 @@ syscall_handler(struct intr_frame *f)
   int function = get_word(f->esp);
   if (function == NULL)
   {
-    sys_exit_failure();
+    return -1;
   }
 
   uint32_t *args = (uint32_t *)f->esp + 1;
@@ -222,7 +222,7 @@ uint32_t sys_create(uint32_t *args)
 
   if (!check_ptr(file))
   {
-    sys_exit_failure();
+    return -1;
   }
 
   args++;
@@ -240,7 +240,7 @@ uint32_t sys_remove(uint32_t *args)
   char *file = get_word(args);
   if (!check_ptr(file))
   {
-    sys_exit_failure();
+    return -1;
   }
   char *file_name = malloc(PGSIZE);
   if (file_name == NULL)
@@ -262,7 +262,7 @@ uint32_t sys_open(uint32_t *args)
 
   if (!check_ptr(file))
   {
-    sys_exit_failure();
+    return -1;
   }
 
   char *file_name = malloc(PGSIZE);
