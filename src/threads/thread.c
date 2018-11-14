@@ -14,6 +14,7 @@
 #include "devices/timer.h"
 #include "threads/init.h"
 #include "threads/fixed_point.h"
+#include "threads/malloc.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -223,6 +224,11 @@ tid_t thread_create(const char *name, int priority,
   /* Initialize thread. */
   init_thread(t, name, priority);
   tid = t->tid = allocate_tid();
+  if (boot_complete)
+  {
+    t->process->pid = t->tid;
+  }
+
 
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
@@ -446,7 +452,7 @@ void thread_set_priority(int new_priority)
     cur->priority = new_priority;
     //list_remove(&cur->elem);
     //list_insert_ordered(&ready_list, &cur->elem, list_more_priority, NULL);
-          list_sort(&ready_list, list_more_priority, NULL);
+    list_sort(&ready_list, list_more_priority, NULL);
 
     if (list_size(&ready_list) != 0 &&
         new_priority < list_entry(list_front(&ready_list),
@@ -468,7 +474,7 @@ void thread_set_priority(int new_priority)
     cur->init_priority = new_priority;
     //list_remove(&cur->elem);
     //list_insert_ordered(&ready_list, &cur->elem, list_more_priority, NULL);
-          list_sort(&ready_list, list_more_priority, NULL);
+    list_sort(&ready_list, list_more_priority, NULL);
 
     int max = 0;
     if (list_size(&cur->donations) != 0 &&
@@ -632,6 +638,31 @@ init_thread(struct thread *t, const char *name, int priority)
   list_init(&t->donations);
   t->init_priority = priority;
   t->recipient = NULL;
+
+  // INIT list of children
+  list_init(&t->child_processes);
+
+  if (boot_complete)
+  { // For all threads other than main
+    // Create a new process struct
+    struct process *p = (struct process*) malloc(sizeof(struct process));
+    if (p == NULL)
+    {
+      PANIC("Failed to allocate process in init_thread");
+    }
+
+    sema_init(&p->sema, 0);
+    sema_init(&p->setup_sema, 0);
+    lock_init(&p->lock);
+    list_init(&p->file_containers);
+    p->already_waited = false;
+    p->status = -1;
+    p->first_done = false;
+
+    // And add pointers so that both child and parent can access it
+    t->process = p;
+    list_push_back(&thread_current()->child_processes, &p->elem);
+  }
 
   /* Assigning data members at boot for advanced scheduler */
   if (thread_mlfqs)
