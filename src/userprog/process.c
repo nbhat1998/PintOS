@@ -567,15 +567,24 @@ setup_stack(void **esp, const char *argv)
   {
     argc++;
     size_t token_length = strlen(token) + 1;
+    if(sp - 1 <= PHYS_BASE - PGSIZE) {
+      thread_exit();
+    } 
     sp -= (int8_t)(token_length);
     strlcpy(sp, token, token_length);
   }
 
   /* word align */
   int8_t *argv_ptr = sp;
+  if(sp - ((uint8_t)sp % 4) <= PHYS_BASE - PGSIZE) {
+    thread_exit();
+  } 
   sp -= (uint8_t)sp % 4;
 
   /* add null pointer(end) of argv) */
+  if(sp - 4 <= PHYS_BASE - PGSIZE) {
+    thread_exit();
+  } 
   sp -= 4;
   *sp = NULL;
 
@@ -584,6 +593,10 @@ setup_stack(void **esp, const char *argv)
   int32_t *sp32 = (int32_t *)sp;
   for (int i = 0; i <= argc; i++)
   {
+    if(sp32 - 1 <= PHYS_BASE - PGSIZE) {
+    thread_exit();
+    } 
+
     *(--sp32) = argv_ptr;
 
     while (*argv_ptr != '\0')
@@ -593,6 +606,9 @@ setup_stack(void **esp, const char *argv)
     argv_ptr++;
   }
 
+  if(sp - 3 <= PHYS_BASE - PGSIZE) {
+    thread_exit();
+  } 
   *(--sp32) = sp32 + 1;
   *(--sp32) = argc;
   *(--sp32) = 0;
