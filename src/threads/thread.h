@@ -124,9 +124,7 @@ struct process
   struct list_elem elem;
   bool first_done;
   bool setup;
-  bool already_waited;
-
-  struct list file_containers; 
+  struct list file_containers;
 };
 
 /* If false (default), use round-robin scheduler.
