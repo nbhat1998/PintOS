@@ -28,8 +28,6 @@ get_user(const uint8_t *uaddr)
   return result;
 }
 
-#define WORD_LENGTH 4
-#define BYTE 8
 static int32_t
 get_word(uint8_t *uaddr)
 {

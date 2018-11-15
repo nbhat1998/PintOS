@@ -26,10 +26,10 @@ struct lock
 
 struct donation
 {
-  struct lock *lock;                /* Requested Lock */
-  int priority;                     /* Priority donated */
-  struct list_elem elem;            /* List element for donations list */
-  struct thread *donor;             /* Thread that donated to you */
+  struct lock *lock;     /* Requested Lock */
+  int priority;          /* Priority donated */
+  struct list_elem elem; /* List element for donations list */
+  struct thread *donor;  /* Thread that donated to you */
 };
 
 void lock_init(struct lock *);

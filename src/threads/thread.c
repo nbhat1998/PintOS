@@ -229,7 +229,6 @@ tid_t thread_create(const char *name, int priority,
     t->process->pid = t->tid;
   }
 
-
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
@@ -645,7 +644,7 @@ init_thread(struct thread *t, const char *name, int priority)
   if (boot_complete)
   { // For all threads other than main
     // Create a new process struct
-    struct process *p = (struct process*) malloc(sizeof(struct process));
+    struct process *p = (struct process *)malloc(sizeof(struct process));
     if (p == NULL)
     {
       PANIC("Failed to allocate process in init_thread");

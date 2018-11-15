@@ -3,16 +3,20 @@
 #include "../lib/kernel/list.h"
 #include "../threads/synch.h"
 
-void syscall_init (void);
+#define WORD_LENGTH 4
+#define BYTE 8
 
-struct file_container {
-    int fd; 
-    struct file *f; 
-    struct list_elem elem; 
+void syscall_init(void);
+
+struct file_container
+{
+  int fd;
+  struct file *f;
+  struct list_elem elem;
 };
 struct lock filesys_lock;
 
 void sys_exit_failure(void);
-int new_file_container(struct file*);
+int new_file_container(struct file *);
 
 #endif /* userprog/syscall.h */

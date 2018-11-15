@@ -126,7 +126,7 @@ struct process
   bool setup;
   bool already_waited;
 
-  struct list file_containers; 
+  struct list file_containers;
 };
 
 /* If false (default), use round-robin scheduler.
