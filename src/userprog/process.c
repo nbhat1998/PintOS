@@ -119,22 +119,17 @@ int process_wait(tid_t child_tid)
     lock_acquire(&child_process->lock);
     if (child_process->pid == child_tid)
     {
-      if (child_process->first_done)
-      {
-        lock_release(&child_process->lock);
-        if (child_process->already_waited)
-        {
-          return -1;
-        }
-      }
-      else
+      if (!child_process->first_done)
       {
         lock_release(&child_process->lock);
         sema_down(&child_process->sema);
+        lock_acquire(&child_process->lock);
       }
-
-      child_process->already_waited = true;
-      return child_process->status;
+      int status = child_process->status;
+      list_remove(&child_process->elem);
+      lock_release(&child_process->lock);
+      free(child_process);
+      return status;
     }
     lock_release(&child_process->lock);
   }
