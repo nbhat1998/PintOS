@@ -206,10 +206,7 @@ void lock_acquire(struct lock *lock)
   ASSERT(lock != NULL);
   ASSERT(!intr_context());
   ASSERT(!lock_held_by_current_thread(lock));
-  
-  
 
-  
   if (!thread_mlfqs)
   {
     // Dissable interrupts
@@ -383,7 +380,7 @@ void cond_signal(struct condition *cond, struct lock *lock UNUSED)
 
   enum intr_level old_level;
   old_level = intr_disable();
-  
+
   if (!list_empty(&cond->waiters))
   {
     list_sort(&cond->waiters, sema_list_more_priority, NULL);
