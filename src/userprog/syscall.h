@@ -5,6 +5,9 @@
 
 #define WORD_LENGTH 4
 #define BYTE 8
+#define NUMBER_OF_FUNCTIONS 13
+#define ARBITRARY_LENGTH_LIMIT 500
+#define FIRST_UNALLOCATED_FD 2
 
 void syscall_init(void);
 
