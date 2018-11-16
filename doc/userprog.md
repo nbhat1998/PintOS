@@ -43,7 +43,7 @@ factor, so it essentially runs in O(n) time.
 
 strtok_r() is the reentrant version of strtok(), which stores the state between calls,
 and therefore allows it to be called from multiple threads at once. Doing the same
-with strtok() would lead to undefined behaviour, as the state of the first call would be lost.
+with strtok() would lead to undefined behavior, as the state of the first call would be lost.
 
 If a string that contains two adjacent delimiting characters is passed to strtok(), they are merged. This is not desired behavior as the desired outcome would be considering two adjacent delimiting characters to contain a NULL string between them. 
 
@@ -229,7 +229,7 @@ iv) When P terminates, it will iterate through all its children, locking at each
 >
 > Why did you choose to implement safe access of user memory from the kernel in the way that you did?
 
-Our implementation uses the helper functions get_word() and check_ptr() . This provides abstration between the primary function and safe access of memory, it makes our code clearer,  
+Our implementation uses the helper functions get_word() and check_ptr() . This provides abstraction between the primary function and safe access of memory, it makes our code clearer,  
 and we also get rid of code duplication.
 
 > B9: (2 marks)
@@ -237,6 +237,6 @@ and we also get rid of code duplication.
 > What advantages or disadvantages can you see to your design for file
 > descriptors?
 
-There will be an xcessive number of file containers eventually formed with many of them pointing to the same file.
-Our implementation also requires iterating over the entire list of file descriptors to look for a particular fd, which is not particularily efficient.
-An advanage of our design is that it is easy to understand and implement.
+There will be an excessive number of file containers eventually formed with many of them pointing to the same file.
+Our implementation also requires iterating over the entire list of file descriptors to look for a particular file descriptor, which is not particularly efficient.
+An advantage of our design is that it is easy to understand and implement.
