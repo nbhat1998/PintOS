@@ -149,8 +149,8 @@ page_fault(struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  // TODO: if not user set eip to eax and clear eax and return?
-  // TODO: if not user and < what here >
+  /* If the kernel gets a fault_addr that is in user space or the user receives 
+     a page fault then don't kill pintos, just end the user process */
   if (!user && fault_addr < PHYS_BASE || user)
   {
     f->eip = f->eax;
