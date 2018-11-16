@@ -31,8 +31,8 @@ We didn't add any of the above in order to implement argument passing.
 > What are the efficiency considerations of your approach?
 
 Before decreasing the stack pointer and writing to the stack page, we
-check that it doesn't point below PHYS_BASE - PGSIZE. 
-The run-time is O(n * argc), where argc is constant and n is the most significant 
+check that it doesn't point below PHYS_BASE - PGSIZE.
+The run-time is O(n \* argc), where argc is constant and n is the most significant
 factor, so it is actually runs in linear time.
 
 ### RATIONALE
@@ -52,7 +52,7 @@ with strtok() would lead to undefined behaviour.
 > Identify two advantages of the Unix approach.
 
 1. It prevents malicious code injection into the kernel space.
-2. ? ? ? ? ? same but accidental? ? ? 
+2. ? ? ? ? ? same but accidental? ? ?
 
 ## SYSTEM CALLS
 
@@ -67,14 +67,14 @@ with strtok() would lead to undefined behaviour.
 ```
 <<<<<< thread.h >>>>>>
 
-  struct thread 
+  struct thread
   {
      ...
 [1]  struct list child_processes;
 [2]  struct process *process;
      ...
   };
-  
+
 [3]struct process
   {
 [4]  tid_t pid;
@@ -85,32 +85,33 @@ with strtok() would lead to undefined behaviour.
 [9]  struct list_elem elem;
 [10] bool first_done;
 [11] bool setup;
-[12] struct list file_containers; 
+[12] struct list file_containers;
   };
 ```
 
-  `[1]` A list of child processes (struct process), which stores all the processes started by this thread.  
-  `[2]` Current thread's own struct process. 
+`[1]` A list of child processes (struct process), which stores all the processes started by this thread.  
+ `[2]` Current thread's own struct process.
 
-  `[3]` Struct that stores the necessary members for representing and synchronizing a process.  
-  `[4]` The process ID, which is the same as the tid.  
-  `[5]` A semaphore used when a parent thread waits for a child thread.  
-  `[6]` A semaphore used in sys_exec() to notify the parent that the child has finished loading, regardless of the outcome of load().  
-  `[7]` A lock used to synchronize operations on struct process.  
-  `[8]` The curret status of the process.  
-  `[9]` Struct list_elem used to add struct process to the parent thread's list of child threads.  
-  `[10]` A boolean that is set to true when either the parent thread or the child thread finishes execution.  
-  `[11]` A boolean that is set to true if the process loaded successfully, and false otherwise.   
-  `[12]` A list of struct file_container, used for storing information about all the files opened by this process.
+`[3]` Struct that stores the necessary members for representing and synchronizing a process.  
+ `[4]` The process ID, which is the same as the tid.  
+ `[5]` A semaphore used when a parent thread waits for a child thread.  
+ `[6]` A semaphore used in sys_exec() to notify the parent that the child has finished loading, regardless of the outcome of load().  
+ `[7]` A lock used to synchronize operations on struct process.  
+ `[8]` The curret status of the process.  
+ `[9]` Struct list_elem used to add struct process to the parent thread's list of child threads.  
+ `[10]` A boolean that is set to true when either the parent thread or the child thread finishes execution.  
+ `[11]` A boolean that is set to true if the process loaded successfully, and false otherwise.  
+ `[12]` A list of struct file_container, used for storing information about all the files opened by this process.
+
 ```
 <<<<<< syscall.h >>>>>>
 
 [1]struct file_container {
-[2]  int fd; 
-[3]  struct file *f; 
-[4]  struct list_elem elem; 
+[2]  int fd;
+[3]  struct file *f;
+[4]  struct list_elem elem;
   };
-  
+
 [5]  struct lock filesys_lock;
 
 [6]  #define WORD_LENGTH 4
@@ -123,7 +124,7 @@ with strtok() would lead to undefined behaviour.
 `[4]` Struct list_elem used to add the struct to the list of file containers in struct process.  
 `[5]` A lock used to lock the file system when editing it.  
 `[6]` Defining a constant to represent the length of a word in bytes.  
-`[7]` Defining a constant to represent the length of a byte in bits.  
+`[7]` Defining a constant to represent the length of a byte in bits.
 
 ### ALGORITHMS
 
@@ -149,7 +150,7 @@ We use the get_user() and put_user() functions when writing and reading to and f
 > How do you keep the purpose of your user memory verification code clear and avoid obscuring the primary function of code in a morass of error-handling?
 > Additionally, when an error is detected, how do you ensure that all temporarily allocated resources (locks, buffers, etc.) are freed?
 
-We implemented the functions get_word() and check_ptr() which provide abstraction from memory verification when writing the primary function. get_word() actually returns 4 bytes, which is the standard size of an argument. check_ptr() checks if the all the characters in the char* provided by the user are valid.  
+We implemented the functions get_word() and check_ptr() which provide abstraction from memory verification when writing the primary function. get_word() actually returns 4 bytes, which is the standard size of an argument. check_ptr() checks if the all the characters in the char\* provided by the user are valid.  
 Before returning from any function, we free every resource allocated in that function.
 
 > B5: (8 marks)
@@ -178,13 +179,21 @@ After calling process_execute(), the parent thread calls sema_down on the child 
 >
 > Additionally, how do you ensure that all resources are freed regardless of the above case?
 
+i) P will look through its list of children process structs, lock each child and check if that child has the tid we are looking for. When it finds C, it will check and see that C has not exited, then release the lock, and sema_down() to wait until C is done. Regardless of how C exits, it will always call sema_up() after storing its exit status. P will then reacquire the lock and store the status of C. Then P removes C from the list, frees C and returns the status.
+
+ii) P will look through its list of children process structs, lock each child and check if that child has the tid we are looking for. When it finds C, it will then check and see that C has exited, it will then store the status of C, remove C from the list, free C and return the status.
+
+iii) When P terminates, it will iterate through all its children, locking at each child, until it finds C. As for all other children, in the case that C has not exited, it will set a flag showing that the parent has exited, and release the lock.
+
+iv) When P terminates, it will iterate through all its children, locking at each child, until it finds C. As for all other children, in the case that C has exited, it will remove C from the list, and free C.
+
 ### RATIONALE
 
 > B8: (2 marks)
 >
 > Why did you choose to implement safe access of user memory from the kernel in the way that you did?
 
-Our implementation uses the helper functions get_word() and check_ptr . This provides abstration between the primary function and safe access of memory, it makes our code clearer,   
+Our implementation uses the helper functions get_word() and check_ptr . This provides abstration between the primary function and safe access of memory, it makes our code clearer,  
 and we also get rid of code duplication.
 
 > B9: (2 marks)
@@ -195,5 +204,3 @@ and we also get rid of code duplication.
 There will be an xcessive number of file containers eventually formed with many of them pointing to the same file.
 Our implementation also requires iterating over the entire list of file descriptors to look for a particular fd, which is not particularily efficient.
 An advanage of our design is that it is easy to understand and implement.
-
-
