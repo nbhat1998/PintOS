@@ -243,15 +243,11 @@ and we also get rid of code duplication.
 > What advantages or disadvantages can you see to your design for file
 > descriptors?
 
-**Advantages**
-
-\>As we use a pointer to a file within the file container sturct, there is not much duplication of data.
-
+**Advantages**  
+\>As we use a pointer to a file within the file container sturct, there is not much duplication of data.  
 \>Our design is intuitive and easy to work with, as any changes to design decisions can be carried out with minimal changes to the rest of the code base. 
 
 
-**Disadvantages**
-
-\>There will be an excessive number of file containers eventually formed with many of them pointing to the same file.
-
+**Disadvantages**  
+\>There will be an excessive number of file containers eventually formed with many of them pointing to the same file.  
 \>Our implementation also requires iterating over the entire list of file descriptors to look for a particular file descriptor, which is not particularly efficient.
