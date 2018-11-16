@@ -33,7 +33,7 @@ We didn't add any of the above in order to implement argument passing.
 Before decreasing the stack pointer and writing to the stack page, we
 check that it doesn't point below PHYS_BASE - PGSIZE.
 The run-time is O(n \* argc), where argc is constant and n is the most significant
-factor, so it is actually runs in linear time.
+factor, so it essentially runs in O(n) time.
 
 ### RATIONALE
 
@@ -43,7 +43,11 @@ factor, so it is actually runs in linear time.
 
 strtok_r() is the reentrant version of strtok(), which stores the state between calls,
 and therefore allows it to be called from multiple threads at once. Doing the same
-with strtok() would lead to undefined behaviour.
+with strtok() would lead to undefined behaviour, as the state of the first call would be lost.
+
+If a string that contains two adjacent delimiting characters is passed to strtok(), they are merged. This is not desired behavior as the desired outcome would be considering two adjacent delimiting characters to contain a NULL string between them. 
+
+
 
 > A4: (2 marks)
 >
