@@ -157,16 +157,17 @@ a) Min (Unsuccessful): 1, Min (Successful):2  Max (Successful): 4
 
 b) Min(Unsuccessful): 1, Min(Successful): 2 Max: 4  
 
-  Case Minimum: For 1 page of data, the minimum number of inspections required for succesful verification would be 2 checks which would occur when the page of data is lined up perfectly with pages already existing in the page table. In case of unsuccessful verification, only 1 check would be required as the inspection would not continue after the first unsuccessful verification.
+  Case Minimum: For 1 page of data, the minimum number of inspections required for successful verification would be 2 checks which would occur when the page of data is lined up perfectly with pages already existing in the page table. In case of unsuccessful verification, only 1 check would be required as the inspection would not continue after the first unsuccessful verification.
 
-  Case Maximum: For 1 page of data, the maximum number of inpsections required for successful verification would be 4 checks which would occur when the page of data is split over two pages in the page table - 2 checks for the bounds of the required data, 1 check for the lower bound of the upper page in the page table and 1 check for the upper bound of the lower page in the page table. 
+  Case Maximum: For 1 page of data, the maximum number of inspections required for successful verification would be 4 checks which would occur when the page of data is split over two pages in the page table - 2 checks for the bounds of the required data, 1 check for the lower bound of the upper page in the page table and 1 check for the upper bound of the lower page in the page table. 
 
 
 c) Min(Unsuccessful): 1, Min(Successful): 5 Max: 10
 
-  Case Minimum: For 4 pages of data, the minimum number of inspectin required for successful verification is 5, when the 4 pages of data line up with the boundaries present in the page table. In case of unsuccessful verification, the minimum number of inspections is 1, as further inspections would not carry on after one unsuccessful verification. 
+  Case Minimum: For 4 pages of data, the minimum number of inspections required for successful verification is 5, when the 4 pages of data line up with the boundaries present in the page table. In case of unsuccessful verification, the minimum number of inspections is 1, as further inspections would not carry on after one unsuccessful verification. 
 
-  Case Maximum: For 4 pages of data, the maximum number of inspections required for successful verifications is 10, when the 4 pages of data are offset from the boundaries present in the page table - 2 checks for the boundaries of the required data, and 8 checks for the boundaries present in the page table. 
+  Case Maximum: For 4 pages of data, the maximum number of inspections required for successful verification is 10, when the 4 pages of data are offset from the boundaries present in the page table - 2 checks for the boundaries of the required data, and 8 checks for the boundaries present in the page table. 
+  
 
 > B4: (2 marks)
 >
