@@ -149,28 +149,28 @@ We use the get_user() and put_user() functions when writing and reading to and f
 >
 > You should briefly explain your checking tactic and how it applies to each case to generate your answers.
 
-a) Min (Unsuccessful): 1, Min (Successful):2  Max (Successful): 4 
+**a) Min (Unsuccessful): 1, Min (Successful):2  Max (Successful): 4** 
 
-  Case Minimum : If 10 bytes of data are present within the page, for successful verification, 2 inspections would be required. In case of unsuccessful verification, only 1 inspection would be required as after the first inspection fails, further checking would not proceed.
+  ***Case Minimum*** : If 10 bytes of data are present within the page, for successful verification, 2 inspections would be required. In case of unsuccessful verification, only 1 inspection would be required as after the first inspection fails, further checking would not proceed.
 
-  Case Maximum: If 10 bytes of data are split over 2 pages of data, for successful verification, 4 checks would be required - 2 checks for the boundaries of the 10 bytes of data, 1 check for the lower bound of the upper page the data is present in in the page table and 1 check for the upper bound of the lower page the data is present in in the page table. 
-
-
+  ***Case Maximum***: If 10 bytes of data are split over 2 pages of data, for successful verification, 4 checks would be required - 2 checks for the boundaries of the 10 bytes of data, 1 check for the lower bound of the upper page the data is present in in the page table and 1 check for the upper bound of the lower page the data is present in in the page table. 
 
 
 
-b) Min(Unsuccessful): 1, Min(Successful): 2 Max: 4  
-
-  Case Minimum: For 1 page of data, the minimum number of inspections required for successful verification would be 2 checks which would occur when the page of data is lined up perfectly with pages already existing in the page table. In case of unsuccessful verification, only 1 check would be required as the inspection would not continue after the first unsuccessful verification.
-
-  Case Maximum: For 1 page of data, the maximum number of inspections required for successful verification would be 4 checks which would occur when the page of data is split over two pages in the page table - 2 checks for the bounds of the required data, 1 check for the lower bound of the upper page in the page table and 1 check for the upper bound of the lower page in the page table. 
 
 
-c) Min(Unsuccessful): 1, Min(Successful): 5 Max: 10
+**b) Min(Unsuccessful): 1, Min(Successful): 2 Max: 4**  
 
-  Case Minimum: For 4 pages of data, the minimum number of inspections required for successful verification is 5, when the 4 pages of data line up with the boundaries present in the page table. In case of unsuccessful verification, the minimum number of inspections is 1, as further inspections would not carry on after one unsuccessful verification. 
+  ***Case Minimum***: For 1 page of data, the minimum number of inspections required for successful verification would be 2 checks which would occur when the page of data is lined up perfectly with pages already existing in the page table. In case of unsuccessful verification, only 1 check would be required as the inspection would not continue after the first unsuccessful verification.
 
-  Case Maximum: For 4 pages of data, the maximum number of inspections required for successful verification is 10, when the 4 pages of data are offset from the boundaries present in the page table - 2 checks for the boundaries of the required data, and 8 checks for the boundaries present in the page table. 
+  ***Case Maximum***: For 1 page of data, the maximum number of inspections required for successful verification would be 4 checks which would occur when the page of data is split over two pages in the page table - 2 checks for the bounds of the required data, 1 check for the lower bound of the upper page in the page table and 1 check for the upper bound of the lower page in the page table. 
+
+
+**c) Min(Unsuccessful): 1, Min(Successful): 5 Max: 10**
+
+  ***Case Minimum***: For 4 pages of data, the minimum number of inspections required for successful verification is 5, when the 4 pages of data line up with the boundaries present in the page table. In case of unsuccessful verification, the minimum number of inspections is 1, as further inspections would not carry on after one unsuccessful verification. 
+
+  ***Case Maximum***: For 4 pages of data, the maximum number of inspections required for successful verification is 10, when the 4 pages of data are offset from the boundaries present in the page table - 2 checks for the boundaries of the required data, and 8 checks for the boundaries present in the page table. 
   
 
 > B4: (2 marks)
@@ -213,15 +213,15 @@ Once loading is complete, it stores the loading status in the setup member of th
 >
 > Additionally, how do you ensure that all resources are freed regardless of the above case?
 
-i) P will look through its list of children process structs, lock each child and check if that child has the tid we are looking for. When it finds C, it will check to see if C has exited, release the lock, and sema_down() to wait until C is done. Regardless of how C exits, it will always call sema_up() after storing its exit status. P will then reacquire the lock and store the status of C.
+**i)** P will look through its list of children process structs, lock each child and check if that child has the tid we are looking for. When it finds C, it will check to see if C has exited, release the lock, and sema_down() to wait until C is done. Regardless of how C exits, it will always call sema_up() after storing its exit status. P will then reacquire the lock and store the status of C.
 
 P then removes C from the list, and frees it before returning the status. 
 
-ii) P will look through its list of children process structs, lock each child and check if that child has the tid we are looking for. When it finds C, it checks to see if C has exited. It will then store the status of C, remove C from the list, free C and return the status.
+**ii)** P will look through its list of children process structs, lock each child and check if that child has the tid we are looking for. When it finds C, it checks to see if C has exited. It will then store the status of C, remove C from the list, free C and return the status.
 
-iii) When P terminates, it will iterate through all its children, locking at each child, until it finds C. As for all other children, in the case that C has not exited, it will set a flag showing that the parent has exited, and release the lock.
+**iii)** When P terminates, it will iterate through all its children, locking at each child, until it finds C. As for all other children, in the case that C has not exited, it will set a flag showing that the parent has exited, and release the lock.
 
-iv) When P terminates, it will iterate through all its children, locking at each child, until it finds C. As for all other children, in the case that C has exited, it will remove C from the list, and free C.
+**iv)** When P terminates, it will iterate through all its children, locking at each child, until it finds C. As for all other children, in the case that C has exited, it will remove C from the list, and free C.
 
 ### RATIONALE
 
@@ -237,6 +237,15 @@ and we also get rid of code duplication.
 > What advantages or disadvantages can you see to your design for file
 > descriptors?
 
-There will be an excessive number of file containers eventually formed with many of them pointing to the same file.
-Our implementation also requires iterating over the entire list of file descriptors to look for a particular file descriptor, which is not particularly efficient.
-An advantage of our design is that it is easy to understand and implement.
+**Advantages**
+
+\>As we use a pointer to a file within the file container sturct, there is not much duplication of data.
+
+\>Our design is intuitive and easy to work with, as any changes to design decisions can be carried out with minimal changes to the rest of the code base. 
+
+
+**Disadvantages**
+
+\>There will be an excessive number of file containers eventually formed with many of them pointing to the same file.
+
+\>Our implementation also requires iterating over the entire list of file descriptors to look for a particular file descriptor, which is not particularly efficient.
