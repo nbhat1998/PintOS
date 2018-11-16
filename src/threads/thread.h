@@ -95,10 +95,13 @@ struct thread
   struct list donations;    /* List of donated priorities */
   struct thread *recipient; /* Pointer to the thread who received a donation from thread 
                                  Only valid if thread has donated to another thread*/
-  struct list child_processes;
-  struct process *process;
+
+  struct list child_processes; /* List of child processes (struct process), which stores 
+                                  all the processes started by this thread */
+  struct process *process;     /* Current thread's own struct process */
 
   struct list_elem allelem; /* List element for all threads list. */
+
   /* Shared between thread.c and synch.c. */
   struct list_elem elem; /* List element. */
 
@@ -114,17 +117,19 @@ struct thread
   unsigned magic; /* Detects stack overflow. */
 };
 
+/* Struct that stores the necessary members for representing and synchronizing a process */
 struct process
 {
-  tid_t pid;
-  struct semaphore sema;
-  struct semaphore setup_sema;
-  struct lock lock;
-  int status;
-  struct list_elem elem;
-  bool first_done;
-  bool setup;
-  struct list file_containers;
+  tid_t pid;                   /* The process ID, which is the same as the tid */
+  struct semaphore sema;       /* Semaphore used when a parent thread waits for a child thread */
+  struct semaphore setup_sema; /* Semaphore that is upped when loading finishes */
+  struct lock lock;            /* Lock used to synchronize operations on struct process */
+  int status;                  /* Curret status of the process */
+  struct list_elem elem;       /* List element used to add it to the parent's list of children */
+  bool first_done;             /* True when either the parent or the child finish execution */
+  bool setup;                  /* True if the process loaded successfully, false otherwise */
+  struct list file_containers; /* List of file containers storing information about the files 
+                                  opened by this process. */
 };
 
 /* If false (default), use round-robin scheduler.
