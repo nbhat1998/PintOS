@@ -145,6 +145,21 @@ We use the get_user() and put_user() functions when writing and reading to and f
 >
 > You should briefly explain your checking tactic and how it applies to each case to generate your answers.
 
+a) Min: 1, Max: 4 
+
+  Case Minimum : If 10 bytes of data are present within the page, for successful verification, 2 inspections would be required. In case of unsuccessful verification, only 1 inspection would be required as after the first inspection fails, further checking would not proceed.
+
+  Case Maximum: If 10 bytes of data are split over 2 pages of data, for successful verification, 4 checks would be required - 2 checks for the boundaries of the 10 bytes of data, 1 check for the lower bound of the upper page the data is present in and 1 check for the upper bound of the lower page the data is present in. 
+
+
+
+
+
+b) Min: 1, Max: 4  
+
+
+c) Min: 1, Max: 10
+
 > B4: (2 marks)
 >
 > How do you keep the purpose of your user memory verification code clear and avoid obscuring the primary function of code in a morass of error-handling?
