@@ -136,7 +136,7 @@ If a string that contains two adjacent delimiting characters is passed to strtok
 >
 > Describe how your code ensures safe memory access of user provided data from within the kernel.
 
-We use the get_user() and put_user() functions when writing and reading to and from kernel memory and check wether they are successful before actually accessing the data.
+We use the get_user() and put_user() functions when writing and reading to and from kernel memory and check whether they are successful before actually accessing the data.
 
 > B3: (3 marks)
 >
@@ -185,7 +185,11 @@ Before returning from any function, we free every resource allocated in that fun
 >
 > Describe your implementation of the "wait" system call and how it interacts with process termination for both the parent and child.
 
-First, we iterate through the list of child processes to find the process with the corresponding pid (if the child process is not found in the list, we return -1). We check if the child process is not done, and if so, we sema_down to wait for it to terminate (the child process will call sema_up upon termination, regardless of how it terminated). Otherwise, we get the status of the child process, remove it from the list, free it, and finally return the status. If wait is called again on the same child, it will no longer be in the list, and the function will return -1.
+First, we iterate through the list of child processes to find the process with the corresponding pid (if the child process is not found in the list, we return -1). We check to see if the child process is finished, and if not, we sema_down to wait for it to terminate (the child process will call sema_up upon termination, regardless of how it terminates).
+
+ Otherwise, we retrieve the status of the child process, remove it from the list, free it, and finally return the status.
+ 
+  If wait is called again on the same child, it will no longer be in the list, and the function will return -1.
 
 ### SYNCHRONIZATION
 
@@ -193,7 +197,9 @@ First, we iterate through the list of child processes to find the process with t
 >
 > The "exec" system call returns -1 if loading the new executable fails, so it cannot return before the new executable has completed loading. How does your code ensure this? How is the load success/failure status passed back to the thread that calls "exec"?
 
-After calling process_execute(), the parent thread calls sema_down on the child process' setup_sema. It then waits until the child process finishes loading and once it does, it stores the loading status in the setup member of the child process, and then calls sema_up. This informs the parent wether the child laoded successfully or not, and returns the tid of the child process, or -1 respectively.
+After calling process_execute(), the parent thread calls sema_down on the child process' setup_sema, after which it waits until the child process finishes loading. 
+
+Once loading is complete, it stores the loading status in the setup member of the child process, and then calls sema_up. This informs the parent whether the child loaded successfully or not, and returns the tid of the child process, or -1 respectively.
 
 > B7: (5 marks)
 >
@@ -207,9 +213,11 @@ After calling process_execute(), the parent thread calls sema_down on the child 
 >
 > Additionally, how do you ensure that all resources are freed regardless of the above case?
 
-i) P will look through its list of children process structs, lock each child and check if that child has the tid we are looking for. When it finds C, it will check and see that C has not exited, then release the lock, and sema_down() to wait until C is done. Regardless of how C exits, it will always call sema_up() after storing its exit status. P will then reacquire the lock and store the status of C. Then P removes C from the list, frees C and returns the status.
+i) P will look through its list of children process structs, lock each child and check if that child has the tid we are looking for. When it finds C, it will check to see if C has exited, release the lock, and sema_down() to wait until C is done. Regardless of how C exits, it will always call sema_up() after storing its exit status. P will then reacquire the lock and store the status of C.
 
-ii) P will look through its list of children process structs, lock each child and check if that child has the tid we are looking for. When it finds C, it will then check and see that C has exited, it will then store the status of C, remove C from the list, free C and return the status.
+P then removes C from the list, and frees it before returning the status. 
+
+ii) P will look through its list of children process structs, lock each child and check if that child has the tid we are looking for. When it finds C, it checks to see if C has exited. It will then store the status of C, remove C from the list, free C and return the status.
 
 iii) When P terminates, it will iterate through all its children, locking at each child, until it finds C. As for all other children, in the case that C has not exited, it will set a flag showing that the parent has exited, and release the lock.
 
@@ -221,7 +229,7 @@ iv) When P terminates, it will iterate through all its children, locking at each
 >
 > Why did you choose to implement safe access of user memory from the kernel in the way that you did?
 
-Our implementation uses the helper functions get_word() and check_ptr . This provides abstration between the primary function and safe access of memory, it makes our code clearer,  
+Our implementation uses the helper functions get_word() and check_ptr() . This provides abstration between the primary function and safe access of memory, it makes our code clearer,  
 and we also get rid of code duplication.
 
 > B9: (2 marks)
