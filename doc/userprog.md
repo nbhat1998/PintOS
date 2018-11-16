@@ -120,6 +120,9 @@ If a string that contains two adjacent delimiting characters is passed to strtok
 
 [6]  #define WORD_LENGTH 4
 [7]  #define BYTE 8
+[8]  #define NUMBER_OF_FUNCTIONS 13
+[9]  #define ARBITRARY_LENGTH_LIMIT 500
+[10] #define FIRST_UNALLOCATED_FD 2
 ```
 
 `[1]` A struct used for storing information about files.  
@@ -128,7 +131,10 @@ If a string that contains two adjacent delimiting characters is passed to strtok
 `[4]` Struct list_elem used to add the struct to the list of file containers in struct process.  
 `[5]` A lock used to lock the file system when editing it.  
 `[6]` Defining a constant to represent the length of a word in bytes.  
-`[7]` Defining a constant to represent the length of a byte in bits.
+`[7]` Defining a constant to represent the length of a byte in bits.   
+`[8]` Defining the number of system calls present within Pintos  
+`[9]` An arbitrary limit set on the size of output to the buffer, as per the spec ("...not bigger than a few hundred bytes")   
+`[10]` Smallest possible file descriptor in the program, as file descriptors have to be non-negative, and values 0 and 1 are reserved for STDIN and STDOUT respectively.
 
 ### ALGORITHMS
 
