@@ -37,12 +37,16 @@ tid_t process_execute(const char *file_name)
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page(0);
   if (fn_copy == NULL)
+  {
     return TID_ERROR;
+  }
   strlcpy(fn_copy, file_name, PGSIZE);
 
   file_name_kernel = palloc_get_page(0);
   if (file_name_kernel == NULL)
+  {
     return TID_ERROR;
+  }
   strlcpy(file_name_kernel, file_name, PGSIZE);
 
   /* Create a new thread to execute FILE_NAME. */
@@ -111,6 +115,9 @@ start_process(void *args)
 int process_wait(tid_t child_tid)
 {
   struct list_elem *child;
+  /*  Iterate through the list of child processes to find 
+      the process with the corresponding pid (if the child process
+      is not found in the list, we return -1) */
   for (child = list_begin(&thread_current()->child_processes);
        child != list_end(&thread_current()->child_processes);
        child = list_next(child))
@@ -119,12 +126,17 @@ int process_wait(tid_t child_tid)
     lock_acquire(&child_process->lock);
     if (child_process->pid == child_tid)
     {
+      /* Check if the child process is not done, and if so, sema_down 
+         to wait for it to terminate (the child process will call sema_up 
+         upon termination, regardless of how it terminated) */
       if (!child_process->first_done)
       {
         lock_release(&child_process->lock);
         sema_down(&child_process->sema);
         lock_acquire(&child_process->lock);
       }
+      /* Otherwise, get the status of the child process,
+         remove it from the list, free it, and finally return the status */
       int status = child_process->status;
       list_remove(&child_process->elem);
       lock_release(&child_process->lock);
@@ -142,9 +154,7 @@ void process_exit(void)
   struct thread *cur = thread_current();
   uint32_t *pd;
 
-  // printf("Size of file_container list: %d\n", list_size(&cur->process->file_containers));
-
-  /* Iterate through children */
+  /* Iterate through the list of child processes */
   struct list_elem *child = list_begin(&cur->child_processes);
   while (child != list_end(&cur->child_processes))
   {
@@ -152,12 +162,16 @@ void process_exit(void)
     lock_acquire(&child_process->lock);
     if (!child_process->first_done)
     {
+      /* Check if the child process is not done, and if so,
+         set the first_done attribute to true to indicate that
+         the parent thread (which is the current thread) is done */
       child_process->first_done = true;
       child = list_next(child);
       lock_release(&child_process->lock);
     }
     else
     {
+      /* Otherwise, remove it from the lsit and free it */
       struct list_elem *temp = child;
       child = list_next(child);
       list_remove(temp);
@@ -168,7 +182,7 @@ void process_exit(void)
 
   lock_acquire(&cur->process->lock);
 
-  /* Close all files */
+  /* Close all files opened by this process */
   struct list_elem *file_elem = list_begin(&cur->process->file_containers);
   while (file_elem != list_end(&cur->process->file_containers))
   {
@@ -183,12 +197,16 @@ void process_exit(void)
   /* Edit current process */
   if (!cur->process->first_done)
   {
+    /* Check if the parent thread is not done. If so,
+       set the first_done member to true (so the parent 
+       can see that the child is done), and then sema_up */
     cur->process->first_done = true;
     sema_up(&cur->process->sema);
     lock_release(&cur->process->lock);
   }
   else
   {
+    /* Otherwise just free the process */
     lock_release(&cur->process->lock);
     free(cur->process);
   }
@@ -312,7 +330,9 @@ bool load(const char *argv, void (**eip)(void), void **esp)
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create();
   if (t->pagedir == NULL)
+  {
     goto done;
+  }
   process_activate();
 
   /* Open executable file. */
@@ -435,31 +455,43 @@ validate_segment(const struct Elf32_Phdr *phdr, struct file *file)
 {
   /* p_offset and p_vaddr must have the same page offset. */
   if ((phdr->p_offset & PGMASK) != (phdr->p_vaddr & PGMASK))
+  {
     return false;
+  }
 
   /* p_offset must point within FILE. */
   if (phdr->p_offset > (Elf32_Off)file_length(file))
+  {
     return false;
+  }
 
   /* p_memsz must be at least as big as p_filesz. */
   if (phdr->p_memsz < phdr->p_filesz)
+  {
     return false;
-
+  }
   /* The segment must not be empty. */
   if (phdr->p_memsz == 0)
+  {
     return false;
+  }
 
   /* The virtual memory region must both start and end within the
      user address space range. */
   if (!is_user_vaddr((void *)phdr->p_vaddr))
+  {
     return false;
+  }
   if (!is_user_vaddr((void *)(phdr->p_vaddr + phdr->p_memsz)))
+  {
     return false;
-
+  }
   /* The region cannot "wrap around" across the kernel virtual
      address space. */
   if (phdr->p_vaddr + phdr->p_memsz < phdr->p_vaddr)
+  {
     return false;
+  }
 
   /* Disallow mapping page 0.
      Not only is it a bad idea to map page 0, but if we allowed
@@ -467,7 +499,9 @@ validate_segment(const struct Elf32_Phdr *phdr, struct file *file)
      could quite likely panic the kernel by way of null pointer
      assertions in memcpy(), etc. */
   if (phdr->p_vaddr < PGSIZE)
+  {
     return false;
+  }
 
   /* It's okay. */
   return true;
@@ -507,7 +541,9 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
     /* Get a page of memory. */
     uint8_t *kpage = palloc_get_page(PAL_USER);
     if (kpage == NULL)
+    {
       return false;
+    }
 
     /* Load this page. */
     if (file_read(file, kpage, page_read_bytes) != (int)page_read_bytes)
@@ -556,6 +592,9 @@ setup_stack(void **esp, const char *argv)
 
   uint8_t *sp = PHYS_BASE;
 
+  /* Tokenize argv to get the arguments and write then to stack.
+  /* If writing an argument would overflow the stack page,
+       call thread_exit() */
   char *token, *save_ptr;
   int argc = 0;
   for (token = strtok_r(argv, " ", &save_ptr); token != NULL;
@@ -571,7 +610,7 @@ setup_stack(void **esp, const char *argv)
     strlcpy(sp, token, token_length);
   }
 
-  /* word align */
+  /* Word align */
   int8_t *argv_ptr = sp;
   if (sp - ((uint8_t)sp % 4) <= PHYS_BASE - PGSIZE)
   {
@@ -579,7 +618,7 @@ setup_stack(void **esp, const char *argv)
   }
   sp -= (uint8_t)sp % 4;
 
-  /* add null pointer(end) of argv) */
+  /* Add null pointer (end of argv) */
   if (sp - 4 <= PHYS_BASE - PGSIZE)
   {
     thread_exit();
@@ -587,8 +626,8 @@ setup_stack(void **esp, const char *argv)
   sp -= 4;
   *sp = NULL;
 
-  /* adding argv addresses,address of ar0gv array, argc, and return address
-      to stack */
+  /* Adding argv addresses,address of ar0gv array, argc,
+     and the return address to stack */
   int32_t *sp32 = (int32_t *)sp;
   for (int i = 0; i <= argc; i++)
   {
@@ -610,6 +649,9 @@ setup_stack(void **esp, const char *argv)
   {
     thread_exit();
   }
+
+  /* Add the address of the last argument added and
+     the number of arguments */
   *(--sp32) = sp32 + 1;
   *(--sp32) = argc;
   *(--sp32) = 0;
