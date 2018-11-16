@@ -52,7 +52,7 @@ with strtok() would lead to undefined behaviour.
 > Identify two advantages of the Unix approach.
 
 1. It prevents malicious code injection into the kernel space.
-2. ? ? ? ? ? same but accidental? ? ?
+2. There is less coupling between the shell and the kernel implementations.
 
 ## SYSTEM CALLS
 
@@ -181,7 +181,7 @@ Before returning from any function, we free every resource allocated in that fun
 >
 > Describe your implementation of the "wait" system call and how it interacts with process termination for both the parent and child.
 
-First, we iterate through the list of child processes to find the process with the corresponding pid (if the child process if not found in the list, we return -1). We check if the child process is not done, and if so, we sema_down to wait for it to terminate (the child process will call sema_up upon termination, regardless of how it terminated). Otherwise, we get the status of the child process, remove it from the list, free it, and finally return the status. If wait is called again on the same child, it will no longer be in the list, and the function will return -1.
+First, we iterate through the list of child processes to find the process with the corresponding pid (if the child process is not found in the list, we return -1). We check if the child process is not done, and if so, we sema_down to wait for it to terminate (the child process will call sema_up upon termination, regardless of how it terminated). Otherwise, we get the status of the child process, remove it from the list, free it, and finally return the status. If wait is called again on the same child, it will no longer be in the list, and the function will return -1.
 
 ### SYNCHRONIZATION
 
