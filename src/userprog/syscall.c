@@ -37,6 +37,8 @@ uint32_t sys_write(uint32_t *args);
 uint32_t sys_seek(uint32_t *args);
 uint32_t sys_tell(uint32_t *args);
 uint32_t sys_close(uint32_t *args);
+uint32_t sys_mmap(uint32_t *args);
+uint32_t sys_munmap(uint32_t *args);
 
 uint32_t (*syscalls[NUMBER_OF_FUNCTIONS])(uint32_t *) = {
     sys_halt,
@@ -51,7 +53,9 @@ uint32_t (*syscalls[NUMBER_OF_FUNCTIONS])(uint32_t *) = {
     sys_write,
     sys_seek,
     sys_tell,
-    sys_close
+    sys_close,
+    sys_mmap,
+    sys_munmap
 };
 
 void 
@@ -421,6 +425,15 @@ sys_close(uint32_t *args)
   }
   return;
 }
+
+uint32_t sys_mmap(uint32_t *args) {
+  return 0;
+}
+
+uint32_t sys_munmap(uint32_t *args) {
+  return 0;
+}
+
 
 /* Reads a byte at user virtual address UADDR. UADDR must be below PHYS_BASE.
    Returns the byte value if successful, -1 if a segfault occurred. */

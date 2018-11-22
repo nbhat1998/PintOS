@@ -78,7 +78,6 @@ start_process(void *args)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
 
-  /* Get filesys lock */
   /* Load File and setup stack */
   success = load(file_name, &if_.eip, &if_.esp);
 
@@ -604,7 +603,8 @@ setup_stack(void **esp, const char *argv)
     size_t token_length = strlen(token) + 1;
     if (sp - 1 <= PHYS_BASE - PGSIZE)
     {
-      thread_exit();
+      palloc_free_page(kpage);
+      return false;
     }
     sp -= (int8_t)(token_length);
     strlcpy(sp, token, token_length);
@@ -614,14 +614,16 @@ setup_stack(void **esp, const char *argv)
   int8_t *argv_ptr = sp;
   if (sp - ((uint8_t)sp % 4) <= PHYS_BASE - PGSIZE)
   {
-    thread_exit();
+    palloc_free_page(kpage);
+    return false;
   }
   sp -= (uint8_t)sp % 4;
 
   /* Add null pointer (end of argv) */
   if (sp - 4 <= PHYS_BASE - PGSIZE)
   {
-    thread_exit();
+    palloc_free_page(kpage);
+    return false;
   }
   sp -= 4;
   *sp = NULL;
@@ -633,7 +635,8 @@ setup_stack(void **esp, const char *argv)
   {
     if (sp32 - 1 <= PHYS_BASE - PGSIZE)
     {
-      thread_exit();
+      palloc_free_page(kpage);
+      return false;
     }
 
     *(--sp32) = argv_ptr;
@@ -647,7 +650,8 @@ setup_stack(void **esp, const char *argv)
 
   if (sp - 3 <= PHYS_BASE - PGSIZE)
   {
-    thread_exit();
+    palloc_free_page(kpage);
+    return false;
   }
 
   /* Add the address of the last argument added and
