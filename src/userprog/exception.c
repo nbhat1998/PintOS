@@ -6,6 +6,8 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/palloc.h"
+#include "threads/pte.h"
+#include "devices/block.h"
 #include "syscall.h"
 #include "pagedir.h"
 #include "vm/frame.h"
@@ -159,16 +161,23 @@ page_fault(struct intr_frame *f)
    int max_size;
    if (fault_addr > PHYS_BASE - max_size && fault_addr < PHYS_BASE && !user)
    {
+      // TODO : Ask about the stack pointer & if we need to store in struct thread
       if (swapped)
       {
          uint32_t pdi = pd_no(fault_addr);
          uint32_t pti = pt_no(fault_addr);
-         uint32_t pte = (thread_current()->pagedir[pdi])[pti];
-         int32_t swap_mask = ((1 << 8) - 1) << 24;
-         int8_t swap_index = (swap_mask & pte) >> 24;
-      }
+         uint32_t* pte = ptov((thread_current()->pagedir[pdi]) & PTE_ADDR) + pti;
+         int32_t swap_index = (PTE_ADDR & *pte);
+         // TODO: check if always init
+         struct block* swap = block_get_role(BLOCK_SWAP);
+         // TODO: Figure out how to get the sector
+         // TODO: Check if you need to do an actual swap, not just read
+         //block_read(swap, )
+
+      } else {
       void *kpage = palloc_get_page(PAL_USER);
       bool success = (pagedir_get_page(thread_current()->pagedir, fault_addr) == NULL && pagedir_set_page(thread_current()->pagedir, fault_addr, kpage, true));
+      }
       return;
    }
 
