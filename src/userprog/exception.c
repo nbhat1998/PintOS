@@ -8,6 +8,7 @@
 #include "threads/palloc.h"
 #include "syscall.h"
 #include "pagedir.h"
+#include "vm/frame.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -151,19 +152,23 @@ page_fault(struct intr_frame *f)
    not_present = (f->error_code & PF_P) == 0;
    write = (f->error_code & PF_W) != 0;
    user = (f->error_code & PF_U) != 0;
-   swapped = (f->error_code & PF_S) !=0;
+   swapped = (f->error_code & PF_S) != 0;
 
    /* If the kernel gets a fault_addr in user space, and the fault_addr
    is in stak bounds, allocate a new page for stack */
    int max_size;
    if (fault_addr > PHYS_BASE - max_size && fault_addr < PHYS_BASE && !user)
    {
-      if(swapped) {
-         // TODO: Check frame table & swap
+      if (swapped)
+      {
+         uint32_t pdi = pd_no(fault_addr);
+         uint32_t pti = pt_no(fault_addr);
+         uint32_t pte = (thread_current()->pagedir[pdi])[pti];
+         int32_t swap_mask = ((1 << 8) - 1) << 24;
+         int8_t swap_index = (swap_mask & pte) >> 24;
       }
       void *kpage = palloc_get_page(PAL_USER);
-      bool success = (pagedir_get_page(thread_current()->pagedir, fault_addr) == NULL 
-                     && pagedir_set_page(thread_current()->pagedir, fault_addr, kpage, true));
+      bool success = (pagedir_get_page(thread_current()->pagedir, fault_addr) == NULL && pagedir_set_page(thread_current()->pagedir, fault_addr, kpage, true));
       return;
    }
 
