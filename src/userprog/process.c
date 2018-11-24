@@ -591,9 +591,7 @@ setup_stack(void **esp, const char *argv)
 
   uint8_t *sp = PHYS_BASE;
 
-  /* Tokenize argv to get the arguments and write then to stack.
-  /* If writing an argument would overflow the stack page,
-       call thread_exit() */
+  /* Tokenize argv to get the arguments and write then to stack. */
   char *token, *save_ptr;
   int argc = 0;
   for (token = strtok_r(argv, " ", &save_ptr); token != NULL;
@@ -601,30 +599,15 @@ setup_stack(void **esp, const char *argv)
   {
     argc++;
     size_t token_length = strlen(token) + 1;
-    if (sp - 1 <= PHYS_BASE - PGSIZE)
-    {
-      palloc_free_page(kpage);
-      return false;
-    }
     sp -= (int8_t)(token_length);
     strlcpy(sp, token, token_length);
   }
 
   /* Word align */
   int8_t *argv_ptr = sp;
-  if (sp - ((uint8_t)sp % 4) <= PHYS_BASE - PGSIZE)
-  {
-    palloc_free_page(kpage);
-    return false;
-  }
   sp -= (uint8_t)sp % 4;
 
   /* Add null pointer (end of argv) */
-  if (sp - 4 <= PHYS_BASE - PGSIZE)
-  {
-    palloc_free_page(kpage);
-    return false;
-  }
   sp -= 4;
   *sp = NULL;
 
@@ -633,12 +616,6 @@ setup_stack(void **esp, const char *argv)
   int32_t *sp32 = (int32_t *)sp;
   for (int i = 0; i <= argc; i++)
   {
-    if (sp32 - 1 <= PHYS_BASE - PGSIZE)
-    {
-      palloc_free_page(kpage);
-      return false;
-    }
-
     *(--sp32) = argv_ptr;
 
     while (*argv_ptr != '\0')
@@ -646,12 +623,6 @@ setup_stack(void **esp, const char *argv)
       argv_ptr++;
     }
     argv_ptr++;
-  }
-
-  if (sp - 3 <= PHYS_BASE - PGSIZE)
-  {
-    palloc_free_page(kpage);
-    return false;
   }
 
   /* Add the address of the last argument added and
