@@ -164,19 +164,12 @@ page_fault(struct intr_frame *f)
       // TODO : Ask about the stack pointer & if we need to store in struct thread
       if (swapped)
       {
-         uint32_t pdi = pd_no(fault_addr);
-         uint32_t pti = pt_no(fault_addr);
-         uint32_t* pte = ptov((thread_current()->pagedir[pdi]) & PTE_ADDR) + pti;
-         int32_t swap_index = (PTE_ADDR & *pte);
-         // TODO: check if always init
-         struct block* swap = block_get_role(BLOCK_SWAP);
-         // TODO: Figure out how to get the sector
-         // TODO: Check if you need to do an actual swap, not just read
-         //block_read(swap, )
-
-      } else {
-      void *kpage = palloc_get_page(PAL_USER);
-      bool success = (pagedir_get_page(thread_current()->pagedir, fault_addr) == NULL && pagedir_set_page(thread_current()->pagedir, fault_addr, kpage, true));
+      }
+      else
+      {
+         void *kpage = palloc_get_page(PAL_USER);
+         bool success = (pagedir_get_page(thread_current()->pagedir, fault_addr) == NULL
+                      && pagedir_set_page(thread_current()->pagedir, fault_addr, kpage, true));
       }
       return;
    }
