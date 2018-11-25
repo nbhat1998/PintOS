@@ -5,8 +5,8 @@
 #include <bitmap.h>
 #include "../devices/block.h"
 
-struct bitmap swap_map;
+struct bitmap *swap_map;
 
-void swap_read(void*);
+void swap_read(void *);
 
 #endif
