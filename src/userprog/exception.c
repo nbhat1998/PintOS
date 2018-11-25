@@ -12,6 +12,8 @@
 #include "pagedir.h"
 #include "vm/frame.h"
 
+#define MAX_STACK_SIZE 1 << 20
+
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
@@ -158,8 +160,7 @@ page_fault(struct intr_frame *f)
 
    /* If the kernel gets a fault_addr in user space, and the fault_addr
    is in stak bounds, allocate a new page for stack */
-   int max_size;
-   if (fault_addr > PHYS_BASE - max_size && fault_addr < PHYS_BASE && !user)
+   if (fault_addr > (uint32_t)PHYS_BASE - (uint32_t)MAX_STACK_SIZE && fault_addr < PHYS_BASE && !user)
    {
       // TODO : Ask about the stack pointer & if we need to store in struct thread
       if (swapped)
