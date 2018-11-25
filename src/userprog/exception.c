@@ -164,10 +164,14 @@ page_fault(struct intr_frame *f)
       // TODO : Ask about the stack pointer & if we need to store in struct thread
       if (swapped)
       {
+         //some function from swap
       }
       else
       {
          void *kpage = palloc_get_page(PAL_USER);
+         if(kpage == NULL) {
+            // eviction
+         }
          bool success = (pagedir_get_page(thread_current()->pagedir, fault_addr) == NULL
                       && pagedir_set_page(thread_current()->pagedir, fault_addr, kpage, true));
       }
