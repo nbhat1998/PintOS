@@ -6,6 +6,7 @@
 #define PF_W 0x2 /* 0: read, 1: write. */
 #define PF_U 0x4 /* 0: kernel, 1: user process. */
 #define PF_S 0x9 /* 0: not in swap table, 1: in swap table */
+#define PF_F 0xA /* 0: not a file, 1: file */
 
 void exception_init(void);
 void exception_print_stats(void);

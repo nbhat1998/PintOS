@@ -19,6 +19,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+#include "threads/pte.h"
 
 static thread_func start_process NO_RETURN;
 static bool load(const char *cmdline, void (**eip)(void), void **esp);
@@ -310,7 +311,7 @@ static bool setup_stack(void **esp, const char *argv);
 static bool validate_segment(const struct Elf32_Phdr *, struct file *);
 static bool load_segment(struct file *file, off_t ofs, uint8_t *upage,
                          uint32_t read_bytes, uint32_t zero_bytes,
-                         bool writable);
+                         bool writable, int fd);
 
 /* Loads an ELF executable from FILE_NAME into the current thread.
    Stores the executable's entry point into *EIP
@@ -355,7 +356,7 @@ bool load(const char *argv, void (**eip)(void), void **esp)
   }
 
   /* Add file to list of file containers and deny write */
-  new_file_container(file);
+  int fd = new_file_container(file);
   file_deny_write(file);
 
   /* Read and verify executable header. */
@@ -417,7 +418,7 @@ bool load(const char *argv, void (**eip)(void), void **esp)
           zero_bytes = ROUND_UP(page_offset + phdr.p_memsz, PGSIZE);
         }
         if (!load_segment(file, file_page, (void *)mem_page,
-                          read_bytes, zero_bytes, writable))
+                          read_bytes, zero_bytes, writable, fd))
           goto done;
       }
       else
@@ -522,7 +523,7 @@ validate_segment(const struct Elf32_Phdr *phdr, struct file *file)
    or disk read error occurs. */
 static bool
 load_segment(struct file *file, off_t ofs, uint8_t *upage,
-             uint32_t read_bytes, uint32_t zero_bytes, bool writable)
+             uint32_t read_bytes, uint32_t zero_bytes, bool writable, int fd)
 {
   ASSERT((read_bytes + zero_bytes) % PGSIZE == 0);
   ASSERT(pg_ofs(upage) == 0);
@@ -537,26 +538,44 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
     size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
     size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-    /* Get a page of memory. */
-    uint8_t *kpage = palloc_get_page(PAL_USER);
-    if (kpage == NULL)
+    if (page_read_bytes < PGSIZE && page_read_bytes > 0)
     {
-      return false;
-    }
+      /* Get a page of memory. */
+      uint8_t *kpage = palloc_get_page(PAL_USER);
+      if (kpage == NULL)
+      {
+        return false;
+      }
 
-    /* Load this page. */
-    if (file_read(file, kpage, page_read_bytes) != (int)page_read_bytes)
-    {
-      palloc_free_page(kpage);
-      return false;
-    }
-    memset(kpage + page_read_bytes, 0, page_zero_bytes);
+      /* Load this page. */
+      if (file_read(file, kpage, page_read_bytes) != (int)page_read_bytes)
+      {
+        palloc_free_page(kpage);
+        return false;
+      }
+      memset(kpage + page_read_bytes, 0, page_zero_bytes);
 
-    /* Add the page to the process's address space. */
-    if (!install_page(upage, kpage, writable))
+      /* Add the page to the process's address space. */
+      if (!install_page(upage, kpage, writable))
+      {
+        palloc_free_page(kpage);
+        return false;
+      }
+    }
+    else if (page_read_bytes == PGSIZE)
     {
-      palloc_free_page(kpage);
-      return false;
+      uint32_t pdi = pd_no(upage);
+      uint32_t pti = pt_no(upage);
+      uint32_t *pte = ptov((thread_current()->pagedir[pdi]) & PTE_ADDR) + pti;
+      *pte = 0;
+      *pte += (1 << 9); // TODO: make this nice
+      *pte += (fd << 11); // TODO: make this nice
+    } else {
+      uint32_t pdi = pd_no(upage);
+      uint32_t pti = pt_no(upage);
+      uint32_t *pte = ptov((thread_current()->pagedir[pdi]) & PTE_ADDR) + pti;
+      *pte = 0;
+      *pte += (1 << 9); // TODO: make this nice
     }
 
     /* Advance. */
