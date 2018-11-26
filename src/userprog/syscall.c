@@ -14,13 +14,12 @@
 #include "filesys/filesys.h"
 #include "lib/string.h"
 
-
-static int get_user(const uint8_t*);
-static int32_t get_word(uint8_t*);
+static int get_user(const uint8_t *);
+static int32_t get_word(uint8_t *);
 static bool check_ptr(uint8_t *uaddr);
 static bool put_user(uint8_t *udst, uint8_t byte);
 int allocate_fd();
-int new_file_container(struct file*);
+int new_file_container(struct file *);
 
 static void syscall_handler(struct intr_frame *);
 
@@ -55,11 +54,9 @@ uint32_t (*syscalls[NUMBER_OF_FUNCTIONS])(uint32_t *) = {
     sys_tell,
     sys_close,
     sys_mmap,
-    sys_munmap
-};
+    sys_munmap};
 
-void 
-syscall_init(void)
+void syscall_init(void)
 {
   intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
@@ -79,7 +76,7 @@ syscall_handler(struct intr_frame *f)
   f->eax = syscalls[function](args);
 }
 
-uint32_t 
+uint32_t
 sys_halt(uint32_t *args)
 {
   shutdown_power_off();
@@ -87,15 +84,14 @@ sys_halt(uint32_t *args)
   return 0;
 }
 
-void 
-sys_exit_failure()
+void sys_exit_failure()
 {
   printf("%s: exit(%d)\n", thread_current()->name, thread_current()->process->status);
   thread_exit();
   NOT_REACHED();
 }
 
-uint32_t 
+uint32_t
 sys_exit(uint32_t *args)
 {
   thread_current()->process->status = get_word(args);
@@ -105,7 +101,7 @@ sys_exit(uint32_t *args)
   return 0;
 }
 
-uint32_t 
+uint32_t
 sys_exec(uint32_t *args)
 {
   char *name = get_word(args);
@@ -119,7 +115,7 @@ sys_exec(uint32_t *args)
   {
     return -1;
   }
-  
+
   /* Wait until setup is done */
   struct list_elem *child;
   for (child = list_begin(&thread_current()->child_processes);
@@ -148,14 +144,14 @@ sys_exec(uint32_t *args)
   }
 }
 
-uint32_t 
+uint32_t
 sys_wait(uint32_t *args)
 {
   tid_t param_pid = (tid_t)get_word(args);
   return process_wait(param_pid);
 }
 
-uint32_t 
+uint32_t
 sys_create(uint32_t *args)
 {
   char *file = get_word(args);
@@ -175,7 +171,7 @@ sys_create(uint32_t *args)
   return success;
 }
 
-uint32_t 
+uint32_t
 sys_remove(uint32_t *args)
 {
   char *file = get_word(args);
@@ -197,7 +193,7 @@ sys_remove(uint32_t *args)
   return success;
 }
 
-uint32_t 
+uint32_t
 sys_open(uint32_t *args)
 {
   char *file = get_word(args);
@@ -230,7 +226,7 @@ sys_open(uint32_t *args)
   return fd;
 }
 
-uint32_t 
+uint32_t
 sys_filesize(uint32_t *args)
 {
   int param_fd = (int)get_word(args);
@@ -249,7 +245,7 @@ sys_filesize(uint32_t *args)
   return -1;
 }
 
-uint32_t 
+uint32_t
 sys_seek(uint32_t *args)
 {
   int param_fd = (int)get_word(args);
@@ -273,7 +269,7 @@ sys_seek(uint32_t *args)
   return;
 }
 
-uint32_t 
+uint32_t
 sys_tell(uint32_t *args)
 {
   int param_fd = (int)get_word(args);
@@ -296,7 +292,7 @@ sys_tell(uint32_t *args)
   return -1;
 }
 
-uint32_t 
+uint32_t
 sys_read(uint32_t *args)
 {
   int param_fd = (int)get_word(args);
@@ -355,7 +351,7 @@ sys_read(uint32_t *args)
   return actually_read;
 }
 
-uint32_t 
+uint32_t
 sys_write(uint32_t *args)
 {
   int param_fd = (int)get_word(args);
@@ -404,7 +400,7 @@ sys_write(uint32_t *args)
   }
 }
 
-uint32_t 
+uint32_t
 sys_close(uint32_t *args)
 {
   int param_fd = (int)get_word(args);
@@ -426,14 +422,15 @@ sys_close(uint32_t *args)
   return;
 }
 
-uint32_t sys_mmap(uint32_t *args) {
+uint32_t sys_mmap(uint32_t *args)
+{
   return 0;
 }
 
-uint32_t sys_munmap(uint32_t *args) {
+uint32_t sys_munmap(uint32_t *args)
+{
   return 0;
 }
-
 
 /* Reads a byte at user virtual address UADDR. UADDR must be below PHYS_BASE.
    Returns the byte value if successful, -1 if a segfault occurred. */
@@ -492,7 +489,7 @@ check_ptr(uint8_t *uaddr)
 
 /* Writes BYTE to user address UDST. UDST must be below PHYS_BASE.
    Returns true if successful, false if a segfault occurred. */
-static bool 
+static bool
 put_user(uint8_t *udst, uint8_t byte)
 {
   int error_code;
@@ -503,8 +500,7 @@ put_user(uint8_t *udst, uint8_t byte)
 }
 
 /* Atomically returns a unique file descriptor for each new file */
-int 
-allocate_fd()
+int allocate_fd()
 {
   static int next_fd = FIRST_UNALLOCATED_FD;
   int fd;
@@ -518,8 +514,7 @@ allocate_fd()
 
 /* Get a file and stores it in a file container which is then added to the process's
    list of file containers */
-int 
-new_file_container(struct file *file)
+int new_file_container(struct file *file)
 {
   struct file_container *new_file = malloc(sizeof(struct file_container));
   if (new_file == NULL)

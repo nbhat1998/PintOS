@@ -5,10 +5,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
+#include <stddef.h>
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
 #include "userprog/syscall.h"
+#include "userprog/pagedir.h"
 #include "filesys/directory.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
@@ -530,6 +533,9 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
   ASSERT(ofs % PGSIZE == 0);
 
   file_seek(file, ofs);
+
+  bool first_page = true;
+
   while (read_bytes > 0 || zero_bytes > 0)
   {
     /* Calculate how to fill this page.
@@ -538,46 +544,18 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
     size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
     size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-    if (page_read_bytes < PGSIZE && page_read_bytes > 0)
-    {
-      /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page(PAL_USER);
-      if (kpage == NULL)
-      {
-        return false;
-      }
-
-      /* Load this page. */
-      if (file_read(file, kpage, page_read_bytes) != (int)page_read_bytes)
-      {
-        palloc_free_page(kpage);
-        return false;
-      }
-      memset(kpage + page_read_bytes, 0, page_zero_bytes);
-
-      /* Add the page to the process's address space. */
-      if (!install_page(upage, kpage, writable))
-      {
-        palloc_free_page(kpage);
-        return false;
-      }
-    }
-    else if (page_read_bytes == PGSIZE)
-    {
-      uint32_t pdi = pd_no(upage);
-      uint32_t pti = pt_no(upage);
-      uint32_t *pte = ptov((thread_current()->pagedir[pdi]) & PTE_ADDR) + pti;
-      *pte = 0;
-      *pte += (1 << 9); // TODO: make this nice
-      *pte += (fd << 11); // TODO: make this nice
-    } else {
-      uint32_t pdi = pd_no(upage);
-      uint32_t pti = pt_no(upage);
-      uint32_t *pte = ptov((thread_current()->pagedir[pdi]) & PTE_ADDR) + pti;
-      *pte = 0;
-      *pte += (1 << 9); // TODO: make this nice
-    }
-
+    //if (page_read_bytes == PGSIZE)
+    //{
+    uint32_t *pte = get_pte(thread_current()->pagedir, upage, true);
+    *pte = (fd << 12) + 0x200; // TODO: make this nice
+    // printf("This is the pte in process: 0x%08x, and the upage is: 0x%08x\n", *pte, upage);
+    //}
+    //else
+    //{
+    //  uint32_t *pte = get_pte(thread_current()->pagedir, upage, true);
+    //  *pte = 0x200; // TODO: make this nice
+    //}
+    //
     /* Advance. */
     read_bytes -= page_read_bytes;
     zero_bytes -= page_zero_bytes;
