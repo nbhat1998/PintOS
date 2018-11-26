@@ -160,7 +160,7 @@ page_fault(struct intr_frame *f)
 
   /* If the kernel gets a fault_addr in user space, and the fault_addr
      is in stack bounds, allocate a new page for stack */
-  if (fault_addr > STACK_LIMIT && fault_addr < PHYS_BASE)
+  if (fault_addr > STACK_LIMIT && fault_addr < PHYS_BASE && fault_addr > f->esp - PGSIZE)
   {
     // TODO : Ask about the stack pointer & if we need to store in struct thread
     if (swapped)
@@ -176,7 +176,8 @@ page_fault(struct intr_frame *f)
         // eviction
         return;
       }
-      bool success = (pagedir_get_page(thread_current()->pagedir, fault_addr) == NULL && pagedir_set_page(thread_current()->pagedir, pg_round_down(fault_addr), kpage, true));
+      bool success = (pagedir_get_page(thread_current()->pagedir, fault_addr) == NULL 
+                   && pagedir_set_page(thread_current()->pagedir, pg_round_down(fault_addr), kpage, true));
     }
     return;
   }
