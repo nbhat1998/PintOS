@@ -185,44 +185,46 @@ page_fault(struct intr_frame *f)
 
   /* Lazy loading */
   uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, true);
+  printf("2. This is the pte in exception: 0x%010x\n", *pte);
 
   if (((*pte) & PF_F) != 0 && fault_addr < PHYS_BASE)
   {
-    printf("2. This is the pte in exception: 0x%010x\n", *pte);
-    int fd = (*pte) >> 12;
-    int off = ((uint32_t)fault_addr & PTE_ADDR) - 0x08048000;
-    printf("3. offset : 0x%010x\n", off);
-
-    struct file *file;
-
-    // if (fd == 0)
-    // {
-    //   void *kpage = palloc_get_page(PAL_USER);
-    //   if (kpage == NULL)
-    //   {
-    //     // TODO: eviction
-    //     return;
-    //   }
-    //   bool success = (pagedir_get_page(thread_current()->pagedir, fault_addr) == NULL && pagedir_set_page(thread_current()->pagedir, pg_round_down(fault_addr), kpage, true));
-    //   memset(kpage, 0, PGSIZE);
-    // }
-    // else
-    // {
-    int file_size;
-    struct list curr = thread_current()->process->file_containers;
-    for (struct list_elem *e = list_begin(&curr);
-         e != list_end(&curr); e = list_next(e))
-    {
-      struct file_container *this_container = list_entry(e, struct file_container, elem);
-      if (fd == this_container->fd)
-      {
-        lock_acquire(&filesys_lock);
-        file = this_container->f;
-        file_size = file_length(file);
-        lock_release(&filesys_lock);
-        break;
+    uint32_t start_read, read_bytes;
+    if ((*pte & 0x400) != 0)
+    { // Middle of a page
+      start_read = (*pte) >> 12;
+      read_bytes = PGSIZE - (start_read % PGSIZE);
+    }
+    else
+    { // Start of page
+      start_read = (*pte) >> 12;
+      if (((*pte) >> 12) % PGSIZE == 0)
+      { // increment of page size
+        if ((*pte & 0x100) != 0)
+        { // Read all of it
+          read_bytes = PGSIZE;
+        }
+        else
+        { // read none of it
+          read_bytes = 0;
+        }
+      }
+      else
+      { // read amount is mod PGSIZE
+        read_bytes = ((*pte) >> 12) % PGSIZE;
       }
     }
+
+    printf("Intr:: start_read: %d, read_bytes: %d\n", start_read, read_bytes);
+    // int offset_and_size = (*pte) >> 12;
+    // printf("3. offset : 0x%010x\n", offset_and_size);
+
+    lock_acquire(&thread_current()->process->lock);
+    struct file *file = thread_current()->process->executable;
+    lock_release(&thread_current()->process->lock);
+
+    int file_size = file_length(file);
+
     void *kpage = palloc_get_page(PAL_USER);
     if (kpage == NULL)
     {
@@ -231,15 +233,36 @@ page_fault(struct intr_frame *f)
       return;
     }
 
-    int actually_read;
-    if (file_size - off < PGSIZE)
+    // int off, read_bytes;
+    // if (((uint32_t)fault_addr & 0x400) != 0)
+    // {
+    //   off = offset_and_size;
+    //   read_bytes = PGSIZE;
+    // }
+    // else
+    // {
+    //   read_bytes = offset_and_size % PGSIZE;
+    //   off = offset_and_size - read_bytes;
+    // }
+    // printf("%d\n", read_bytes);
+    int actually_read = 0;
+    memset(kpage, 0, PGSIZE);
+    if (read_bytes != 0)
     {
-      memset(kpage, 0, PGSIZE);
-      actually_read = file_read_at(file, kpage, file_size - off, off);
+      if ((*pte & 0x400) != 0)
+      {
+        actually_read = file_read_at(file, kpage + (start_read % PGSIZE), read_bytes, start_read);
+      }
+      else
+      {
+        actually_read = file_read_at(file, kpage, read_bytes, start_read);
+      }
     }
-    else
+
+    if (actually_read != read_bytes)
     {
-      actually_read = file_read_at(file, kpage, PGSIZE, off);
+      // printf("bad\n");
+      // TODO: BAD
     }
 
     bool success = (pagedir_get_page(thread_current()->pagedir, fault_addr) == NULL && pagedir_set_page(thread_current()->pagedir, pg_round_down(fault_addr), kpage, true));
@@ -248,12 +271,12 @@ page_fault(struct intr_frame *f)
       // printf("bad\n");
       // TODO: BAD
     }
-    printf("Actually read %d\n", actually_read);
-    // hex_dump(0, kpage, PGSIZE, true);
+    printf("4. Actually read %d\n", actually_read);
+    hex_dump(0, kpage, PGSIZE, true);
 
-    printf("4. kernel page: 0x%010x\n", kpage);
-    // }
-    printf("5. This is the pte in exception after: 0x%010x\n", *pte);
+    // printf("5. kernel page: 0x%010p\n", kpage);
+    // // }
+    // printf("6. This is the pte in exception after: 0x%010x\n", *pte);
     return;
   }
 
@@ -263,7 +286,6 @@ page_fault(struct intr_frame *f)
   {
     f->eip = f->eax;
     f->eax = 0xFFFFFFFF;
-    //return;
     sys_exit_failure();
     NOT_REACHED();
   }

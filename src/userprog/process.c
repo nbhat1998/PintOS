@@ -314,7 +314,7 @@ static bool setup_stack(void **esp, const char *argv);
 static bool validate_segment(const struct Elf32_Phdr *, struct file *);
 static bool load_segment(struct file *file, off_t ofs, uint8_t *upage,
                          uint32_t read_bytes, uint32_t zero_bytes,
-                         bool writable, int fd);
+                         bool writable);
 
 /* Loads an ELF executable from FILE_NAME into the current thread.
    Stores the executable's entry point into *EIP
@@ -358,7 +358,11 @@ bool load(const char *argv, void (**eip)(void), void **esp)
     goto done;
   }
 
+  /* add executable to process */
+  lock_acquire(&thread_current()->process->lock);
   thread_current()->process->executable = file;
+  lock_release(&thread_current()->process->lock);
+
   /* Add file to list of file containers and deny write */
   int fd = new_file_container(file);
   file_deny_write(file);
@@ -422,7 +426,7 @@ bool load(const char *argv, void (**eip)(void), void **esp)
           zero_bytes = ROUND_UP(page_offset + phdr.p_memsz, PGSIZE);
         }
         if (!load_segment(file, file_page, (void *)mem_page,
-                          read_bytes, zero_bytes, writable, fd))
+                          read_bytes, zero_bytes, writable))
           goto done;
       }
       else
@@ -529,7 +533,7 @@ validate_segment(const struct Elf32_Phdr *phdr, struct file *file)
    or disk read error occurs. */
 static bool
 load_segment(struct file *file, off_t ofs, uint8_t *upage,
-             uint32_t read_bytes, uint32_t zero_bytes, bool writable, int fd)
+             uint32_t read_bytes, uint32_t zero_bytes, bool writable)
 {
   ASSERT((read_bytes + zero_bytes) % PGSIZE == 0);
   ASSERT(pg_ofs(upage) == 0);
@@ -539,8 +543,12 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 
   bool first_page = true;
 
+  uint32_t start_read = ofs;
+
+  printf("ofs %d\n", ofs / PGSIZE);
   while (read_bytes > 0 || zero_bytes > 0)
   {
+
     /* Calculate how to fill this page.
          We will read PAGE_READ_BYTES bytes from FILE
          and zero the final PAGE_ZERO_BYTES bytes. */
@@ -550,7 +558,32 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
     //if (page_read_bytes == PGSIZE)
     //{
     uint32_t *pte = get_pte(thread_current()->pagedir, upage, true);
-    *pte = (fd << 12) + 0x200; // TODO: make this nice
+
+    //printf("page_read_bytes %d read_bytes %d\n", page_read_bytes, read_bytes);
+
+    // TODO: make this nice
+    if (page_read_bytes == 0)
+    {
+      /* If you don't need to read anything */
+      printf("don't read shit\n");
+      *pte = 0x200;
+    }
+    else if (start_read % PGSIZE != 0)
+    {
+      /* If you need to start reading from inside a page, also set 0x400 */
+      *pte = (start_read << 12) + 0x600;
+      printf("start_read: 0x%08x, read from inside page %d bytes\n", start_read, page_read_bytes);
+    }
+    else
+    {
+      /* If you need to start reading something from the start of a page,
+         also set 0x100 */
+      printf("start_read: 0x%08x, read from start of page %d bytes\n", start_read, page_read_bytes);
+      *pte = ((start_read + page_read_bytes) << 12) + 0x300;
+    }
+
+    //printf("* for PTE: %08x \n off_t ofs: %d\n uint8_t *upage: 0x%08x\n uint32_t read_bytes: %d\n uint32_t zero_bytes: %d\n bool writable %d\n", *pte, ofs, upage, page_read_bytes, page_zero_bytes, writable);
+
     // printf("This is the pte in process: 0x%08x, and the upage is: 0x%08x\n", *pte, upage);
     //}
     //else
@@ -563,6 +596,7 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
     read_bytes -= page_read_bytes;
     zero_bytes -= page_zero_bytes;
     upage += PGSIZE;
+    start_read += page_read_bytes;
   }
   // printf("%s: load_segment\n", thread_current()->name);
 
