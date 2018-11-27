@@ -160,15 +160,13 @@ page_fault(struct intr_frame *f)
   not_present = (f->error_code & PF_P) == 0;
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
-  swapped = (f->error_code & PF_S) != 0;
-  file = (f->error_code & PF_F) != 0;
 
   /* If the kernel gets a fault_addr in user space, and the fault_addr
      is in stack bounds, allocate a new page for stack */
   if (fault_addr > STACK_LIMIT && fault_addr < PHYS_BASE && fault_addr > f->esp - PGSIZE)
   {
     // TODO : Ask about the stack pointer & if we need to store in struct thread
-    if (swapped)
+    if (false) //fix with PTE and PFF
     {
       // TODO: some function from swap
     }
@@ -188,11 +186,11 @@ page_fault(struct intr_frame *f)
   /* Lazy loading */
   uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, true);
 
-  if (((*pte) & PF_F) != 0)
+  if (((*pte) & PF_F) != 0 && fault_addr < PHYS_BASE)
   {
     printf("2. This is the pte in exception: 0x%010x\n", *pte);
     int fd = (*pte) >> 12;
-    int off = ((int32_t)fault_addr & PTE_ADDR) - 0x08048000;
+    int off = ((uint32_t)fault_addr & PTE_ADDR) - 0x08048000;
     printf("3. offset : 0x%010x\n", off);
 
     struct file *file;
@@ -210,6 +208,7 @@ page_fault(struct intr_frame *f)
     // }
     // else
     // {
+    int file_size;
     struct list curr = thread_current()->process->file_containers;
     for (struct list_elem *e = list_begin(&curr);
          e != list_end(&curr); e = list_next(e))
@@ -219,6 +218,7 @@ page_fault(struct intr_frame *f)
       {
         lock_acquire(&filesys_lock);
         file = this_container->f;
+        file_size = file_length(file);
         lock_release(&filesys_lock);
         break;
       }
@@ -226,27 +226,34 @@ page_fault(struct intr_frame *f)
     void *kpage = palloc_get_page(PAL_USER);
     if (kpage == NULL)
     {
+      // printf("bad\n");
       // TODO: eviction
       return;
     }
+
+    int actually_read;
+    if (file_size - off < PGSIZE)
+    {
+      memset(kpage, 0, PGSIZE);
+      actually_read = file_read_at(file, kpage, file_size - off, off);
+    }
+    else
+    {
+      actually_read = file_read_at(file, kpage, PGSIZE, off);
+    }
+
     bool success = (pagedir_get_page(thread_current()->pagedir, fault_addr) == NULL && pagedir_set_page(thread_current()->pagedir, pg_round_down(fault_addr), kpage, true));
     if (!success)
     {
+      // printf("bad\n");
       // TODO: BAD
     }
-
-    int actually_read = file_read_at(file, kpage, PGSIZE, off);
-    if (actually_read != PGSIZE)
-    {
-      memset(kpage + actually_read, 0, PGSIZE - actually_read);
-    }
-
+    printf("Actually read %d\n", actually_read);
     // hex_dump(0, kpage, PGSIZE, true);
 
     printf("4. kernel page: 0x%010x\n", kpage);
     // }
-    printf("5. This is the pte in exception: 0x%010x\n", *pte);
-
+    printf("5. This is the pte in exception after: 0x%010x\n", *pte);
     return;
   }
 
@@ -256,8 +263,8 @@ page_fault(struct intr_frame *f)
   {
     f->eip = f->eax;
     f->eax = 0xFFFFFFFF;
-    return;
-    //sys_exit_failure();
+    //return;
+    sys_exit_failure();
     NOT_REACHED();
   }
   /* To implement virtual memory, delete the rest of the function

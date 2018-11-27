@@ -444,6 +444,8 @@ bool load(const char *argv, void (**eip)(void), void **esp)
 done:
   /* We arrive here whether the load is successful or not. */
   free(argv_cpy);
+  // printf("done: %d\n", success);
+
   return success;
 }
 
@@ -561,6 +563,8 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
     zero_bytes -= page_zero_bytes;
     upage += PGSIZE;
   }
+  // printf("%s: load_segment\n", thread_current()->name);
+
   return true;
 }
 
