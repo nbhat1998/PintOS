@@ -358,6 +358,7 @@ bool load(const char *argv, void (**eip)(void), void **esp)
     goto done;
   }
 
+  thread_current()->process->executable = file;
   /* Add file to list of file containers and deny write */
   int fd = new_file_container(file);
   file_deny_write(file);

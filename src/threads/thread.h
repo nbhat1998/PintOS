@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "synch.h"
+#include "filesys/file.h"
 
 #include "../userprog/syscall.h"
 
@@ -130,6 +131,7 @@ struct process
   bool setup;                  /* True if the process loaded successfully, false otherwise */
   struct list file_containers; /* List of file containers storing information about the files 
                                   opened by this process. */
+  struct file *executable;
 };
 
 /* If false (default), use round-robin scheduler.
