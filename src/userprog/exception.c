@@ -5,7 +5,14 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/palloc.h"
+#include "threads/pte.h"
+#include "devices/block.h"
 #include "syscall.h"
+#include "pagedir.h"
+#include "vm/frame.h"
+
+#define STACK_LIMIT 0xbfe00000
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -125,6 +132,7 @@ page_fault(struct intr_frame *f)
   bool not_present; /* True: not-present page, false: writing r/o page. */
   bool write;       /* True: access was write, false: access was read. */
   bool user;        /* True: access by user, false: access by kernel. */
+  bool swapped;     /* True: is in swap, false: is not in swap */
   void *fault_addr; /* Fault address. */
 
   /* Obtain faulting address, the virtual address that was
@@ -148,9 +156,34 @@ page_fault(struct intr_frame *f)
   not_present = (f->error_code & PF_P) == 0;
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
+  swapped = (f->error_code & PF_S) != 0;
+
+  /* If the kernel gets a fault_addr in user space, and the fault_addr
+     is in stack bounds, allocate a new page for stack */
+  if (fault_addr > STACK_LIMIT && fault_addr < PHYS_BASE && fault_addr > f->esp - PGSIZE)
+  {
+    // TODO : Ask about the stack pointer & if we need to store in struct thread
+    if (swapped)
+    {
+      //some function from swap
+    }
+    else
+    {
+      // TODO : pt-grow-bad
+      void *kpage = palloc_get_page(PAL_USER);
+      if (kpage == NULL)
+      {
+        // eviction
+        return;
+      }
+      bool success = (pagedir_get_page(thread_current()->pagedir, fault_addr) == NULL 
+                   && pagedir_set_page(thread_current()->pagedir, pg_round_down(fault_addr), kpage, true));
+    }
+    return;
+  }
 
   /* If the kernel gets a fault_addr that is in user space or the user receives 
-     a page fault then don't kill pintos, just end the user process */
+   a page fault then don't kill pintos, just end the user process */
   if (!user && fault_addr < PHYS_BASE || user)
   {
     f->eip = f->eax;
@@ -158,7 +191,6 @@ page_fault(struct intr_frame *f)
     sys_exit_failure();
     NOT_REACHED();
   }
-
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
