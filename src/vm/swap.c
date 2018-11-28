@@ -2,6 +2,8 @@
 #include "threads/thread.h"
 #include "pte.h"
 #include "vm/frame.h"
+#include "devices/block.h"
+
 
 void swap_read(void *fault_addr)
 {

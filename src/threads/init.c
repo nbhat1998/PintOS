@@ -36,6 +36,8 @@
 #include "devices/ide.h"
 #include "filesys/filesys.h"
 #include "filesys/fsutil.h"
+#endif
+#ifdef VM
 #include "vm/swap.h"
 #endif
 
@@ -398,7 +400,7 @@ locate_block_devices(void)
   locate_block_device(BLOCK_SCRATCH, scratch_bdev_name);
 #ifdef VM
   locate_block_device(BLOCK_SWAP, swap_bdev_name);
-  swap_map = bitmap_create(block_size(block_get_role(BLOCK_SWAP)));
+  swap_table = bitmap_create(block_size(block_get_role(BLOCK_SWAP)));
 #endif
 }
 
