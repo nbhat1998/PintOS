@@ -99,3 +99,17 @@ void remove_uaddr(uint32_t *uaddr)
     e = list_next(e);
   }
 }
+
+
+void evict() 
+{ 
+  // TODO 
+
+  // pick a random frame somehow to evict, so you have a struct frame* ypu want to get rid of 
+
+  // swap_write ( f ) // the frame you want to evict 
+  // free (f)
+  // remove it from the list as well 
+
+
+}

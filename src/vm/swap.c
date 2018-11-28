@@ -25,3 +25,20 @@ void swap_read(void *fault_addr)
   block_read(swap, swap_index, new_frame->page);
   // TODO: add additional info as well
 }
+
+
+void swap_write(struct frame* f)
+{
+    /* TODO: 
+
+
+    decide where in block swap to put the stuff ( using bitmap )
+    f->physicalmemorykey needs to be move to swap block at index decided above 
+        use f->physicalmemoryley as void* buffer ( the third param ) 
+        use PGSIZE as block_sector
+        
+    f->user_ptes : all of the ptes need to go into the pagedir->pagetable->pte 
+            and set preset bit to 0, swap bit to 1, addr = position in swap_table ( index decided above)
+
+    */
+}

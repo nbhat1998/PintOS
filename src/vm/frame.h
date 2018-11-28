@@ -26,4 +26,6 @@ struct list frame_table;
 struct frame *create_frame();
 void remove_frames(uint32_t *physical_memory_key);
 
+
+void evict(); 
 #endif /* vm/frame.h */
