@@ -72,9 +72,6 @@ void remove_uaddr(uint32_t *uaddr)
   while (e != list_end(&frame_table))
   {
     struct frame *curr = list_entry(e, struct frame, elem);
-
-    //if (curr->uaddr == physical_memory_key)
-
     struct list_elem *f = list_begin(&curr->user_ptes);
 
     while (f != list_end(&curr->user_ptes))
@@ -92,6 +89,11 @@ void remove_uaddr(uint32_t *uaddr)
       {
         f = list_next(f);
       }
+    }
+
+    if (list_empty(&curr->user_ptes))
+    {
+      // TODO : free frame and page in memory if no thread's uaddr is pointing to it
     }
 
     e = list_next(e);
