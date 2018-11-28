@@ -60,7 +60,40 @@ void remove_frames(uint32_t *physical_memory_key)
       free(curr);
       return;
     }
-    
+
+    e = list_next(e);
+  }
+}
+
+void remove_uaddr(uint32_t *uaddr)
+{
+  struct list_elem *e = list_begin(&frame_table);
+
+  while (e != list_end(&frame_table))
+  {
+    struct frame *curr = list_entry(e, struct frame, elem);
+
+    //if (curr->uaddr == physical_memory_key)
+
+    struct list_elem *f = list_begin(&curr->user_ptes);
+
+    while (f != list_end(&curr->user_ptes))
+    {
+      struct user_pte_ptr *current = list_entry(f, struct user_pte_ptr, elem);
+
+      if (current->uaddr == uaddr)
+      {
+        struct list_elem *temp = f;
+        f = list_next(f);
+        list_remove(temp);
+        free(current);
+      }
+      else
+      {
+        f = list_next(f);
+      }
+    }
+
     e = list_next(e);
   }
 }
