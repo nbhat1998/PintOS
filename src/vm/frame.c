@@ -5,7 +5,6 @@
 
 void create_frame(uint32_t *vaddr, uint32_t *uaddr)
 {
-
   struct user_pte_ptr *new_pte_ptr = malloc(sizeof(struct user_pte_ptr));
   new_pte_ptr->pagedir = thread_current()->pagedir;
   new_pte_ptr->uaddr = uaddr;

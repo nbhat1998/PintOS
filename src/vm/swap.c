@@ -7,8 +7,8 @@
 #include "lib/string.h"
 
 /* Helpers */
-void swap_page_read(block_sector_t start_sector, void *kvaddr);
-void swap_page_write(block_sector_t start_sector, void *kvaddr);
+void swap_page_read(block_sector_t sector, void *kvaddr);
+void swap_page_write(block_sector_t sector, void *kvaddr);
 
 void swap_read(struct frame *f)
 {
@@ -18,7 +18,12 @@ void swap_read(struct frame *f)
   struct block *swap = block_get_role(BLOCK_SWAP);
   /* Either gets freed if frame table is full, or when 
        the whole frame is freed */
-  struct frame *new_frame = palloc_get_page(PAL_USER);
+  void *new = palloc_get_page(PAL_USER);
+  struct frame *new_frame = malloc(sizeof(struct frame));
+  if (new_frame == NULL)
+  {
+    // panic or smth
+  }
 
   new_frame->page = malloc(PGSIZE);
   block_read(swap, swap_index, new_frame->page);
@@ -38,34 +43,33 @@ f->user_ptes : all of the ptes need to go into the pagedir->pagetable->pte
 
 void swap_write(struct frame *f)
 {
-  block_sector_t sector = bitmap_scan(swap_table, 0, 8, false);
-  swap_page_write(sector, fus->vaddr);
+  block_sector_t sector = bitmap_scan(swap_table, 0, 1, false);
+  swap_page_write(sector, f->vaddr);
   for (struct list_elem *e = list_begin(&f->user_ptes);
        e != list_end(&f->user_ptes); e = list_next(e))
   {
     struct user_pte_ptr *curr = list_entry(e, struct user_pte_ptr, elem);
-    uint32_t *pte =
+    uint32_t *pte = (sector << 12) + PTE_S;
   }
 }
 
-/* Helpers */
-
-void swap_page_read(block_sector_t start_sector, void *kaddr)
+void swap_page_read(block_sector_t sector, void *kaddr)
 {
   char *buffer = malloc(BLOCK_SECTOR_SIZE);
   int size = 0;
   struct block *swap = block_get_role(BLOCK_SWAP);
   for (int i = 0; i < 8; i++)
   {
-    block_read(swap, start_sector++, buffer);
+    block_read(swap, sector++, buffer);
     strlcpy((char *)kaddr + size, buffer, BLOCK_SECTOR_SIZE);
     size += BLOCK_SECTOR_SIZE;
   }
   free(buffer);
 }
 
-void swap_page_write(block_sector_t start_sector, void *kaddr)
+void swap_page_write(block_sector_t sector, void *kaddr)
 {
+  int start_sector = sector * 8;
   char *buffer = malloc(BLOCK_SECTOR_SIZE);
   int size = 0;
   struct block *swap = block_get_role(BLOCK_SWAP);
