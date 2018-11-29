@@ -8,7 +8,7 @@
 
 struct frame
 {
-  uint32_t *physical_memory_key;
+  uint32_t *vaddr;
   // TODO: maybe have a flag if it's a file and what file it is
   struct list user_ptes;
   struct list_elem elem;
@@ -24,8 +24,7 @@ struct user_pte_ptr
 struct list frame_table;
 
 struct frame *create_frame();
-void remove_frames(uint32_t *physical_memory_key);
+void remove_frames(uint32_t *vaddr);
 
-
-void evict(); 
+void evict();
 #endif /* vm/frame.h */

@@ -1,15 +1,12 @@
 #ifndef SWAP_TABLE_H
 #define SWAP_TABLE_H
 
+struct bitmap *swap_table;
 
-struct bitmap* swap_table; 
+void swap_read(struct frame *f);
+void swap_write(struct frame *f);
 
-void swap_read(void *fault_addr); 
-void swap_write(struct frame* f); 
-
-
-
-// swap write 
+// swap write
 /* 
 
     when user pool is full, 

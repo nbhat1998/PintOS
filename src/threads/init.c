@@ -400,7 +400,7 @@ locate_block_devices(void)
   locate_block_device(BLOCK_SCRATCH, scratch_bdev_name);
 #ifdef VM
   locate_block_device(BLOCK_SWAP, swap_bdev_name);
-  swap_table = bitmap_create(block_size(block_get_role(BLOCK_SWAP))/PGSIZE); // TODO: Check if size should be divided by pgsize here. logically it should be as we as many entries in the bitmap as there are sectors/ pages in the block 
+  swap_table = bitmap_create(block_size(block_get_role(BLOCK_SWAP))); // TODO: Check if size should be divided by pgsize here. logically it should be as we as many entries in the bitmap as there are sectors/ pages in the block
 #endif
 }
 

@@ -3,7 +3,7 @@
 #include "threads/thread.h"
 #include "userprog/pagedir.h"
 
-void create_frame(uint32_t *physical_memory_key, uint32_t *uaddr)
+void create_frame(uint32_t *vaddr, uint32_t *uaddr)
 {
 
   struct user_pte_ptr *new_pte_ptr = malloc(sizeof(struct user_pte_ptr));
@@ -14,7 +14,7 @@ void create_frame(uint32_t *physical_memory_key, uint32_t *uaddr)
        e != list_end(&frame_table); e = list_next(e))
   {
     struct frame *curr = list_entry(e, struct frame, elem);
-    if (curr->physical_memory_key == physical_memory_key)
+    if (curr->vaddr == vaddr)
     {
       list_push_back(&curr->user_ptes, &new_pte_ptr->elem);
       return;
@@ -22,13 +22,13 @@ void create_frame(uint32_t *physical_memory_key, uint32_t *uaddr)
   }
 
   struct frame *new_frame = malloc(sizeof(struct frame));
-  new_frame->physical_memory_key = physical_memory_key;
+  new_frame->vaddr = vaddr;
   list_push_back(&new_frame->user_ptes, new_pte_ptr);
 
   list_push_back(&frame_table, &new_frame->elem);
 }
 
-void remove_frames(uint32_t *physical_memory_key)
+void remove_frames(uint32_t *vaddr)
 {
   struct list_elem *e = list_begin(&frame_table);
 
@@ -36,7 +36,7 @@ void remove_frames(uint32_t *physical_memory_key)
   {
     struct frame *curr = list_entry(e, struct frame, elem);
 
-    if (curr->physical_memory_key == physical_memory_key)
+    if (curr->vaddr == vaddr)
     {
       struct list_elem *f = list_begin(&curr->user_ptes);
 
@@ -100,16 +100,13 @@ void remove_uaddr(uint32_t *uaddr)
   }
 }
 
+void evict()
+{
+  // TODO
 
-void evict() 
-{ 
-  // TODO 
+  // pick a random frame somehow to evict, so you have a struct frame* ypu want to get rid of
 
-  // pick a random frame somehow to evict, so you have a struct frame* ypu want to get rid of 
-
-  // swap_write ( f ) // the frame you want to evict 
+  // swap_write ( f ) // the frame you want to evict
   // free (f)
-  // remove it from the list as well 
-
-
+  // remove it from the list as well
 }
