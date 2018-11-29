@@ -151,8 +151,6 @@ page_fault(struct intr_frame *f)
      be assured of reading CR2 before it changed). */
   intr_enable();
 
-  printf("1. This is the fault addr be: 0x%08x\n", fault_addr);
-
   /* Count page faults. */
   page_fault_cnt++;
 
@@ -161,11 +159,20 @@ page_fault(struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
+  /* If the kernel gets a fault_addr that is in user space or the user receives 
+   a page fault then don't kill pintos, just end the user process */
+  if (!user && fault_addr < PHYS_BASE)
+  {
+    f->eip = f->eax;
+    f->eax = 0xFFFFFFFF;
+    sys_exit_failure();
+    NOT_REACHED();
+  }
+
   /* If the kernel gets a fault_addr in user space, and the fault_addr
      is in stack bounds, allocate a new page for stack */
   if (fault_addr > STACK_LIMIT && fault_addr < PHYS_BASE && fault_addr > f->esp - PGSIZE)
   {
-    // TODO : Ask about the stack pointer & if we need to store in struct thread
     if (false) //fix with PTE and PFF
     {
       // TODO: some function from swap
@@ -184,8 +191,7 @@ page_fault(struct intr_frame *f)
   }
 
   /* Lazy loading */
-  uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, true);
-  printf("2. This is the pte in exception: 0x%010x\n", *pte);
+  uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, false);
 
   if (((*pte) & PF_F) != 0 && fault_addr < PHYS_BASE)
   {
@@ -203,6 +209,7 @@ page_fault(struct intr_frame *f)
         if ((*pte & 0x100) != 0)
         { // Read all of it
           read_bytes = PGSIZE;
+          start_read -= PGSIZE;
         }
         else
         { // read none of it
@@ -212,12 +219,9 @@ page_fault(struct intr_frame *f)
       else
       { // read amount is mod PGSIZE
         read_bytes = ((*pte) >> 12) % PGSIZE;
+        start_read -= read_bytes;
       }
     }
-
-    printf("Intr:: start_read: %d, read_bytes: %d\n", start_read, read_bytes);
-    // int offset_and_size = (*pte) >> 12;
-    // printf("3. offset : 0x%010x\n", offset_and_size);
 
     lock_acquire(&thread_current()->process->lock);
     struct file *file = thread_current()->process->executable;
@@ -233,18 +237,6 @@ page_fault(struct intr_frame *f)
       return;
     }
 
-    // int off, read_bytes;
-    // if (((uint32_t)fault_addr & 0x400) != 0)
-    // {
-    //   off = offset_and_size;
-    //   read_bytes = PGSIZE;
-    // }
-    // else
-    // {
-    //   read_bytes = offset_and_size % PGSIZE;
-    //   off = offset_and_size - read_bytes;
-    // }
-    // printf("%d\n", read_bytes);
     int actually_read = 0;
     memset(kpage, 0, PGSIZE);
     if (read_bytes != 0)
@@ -271,24 +263,17 @@ page_fault(struct intr_frame *f)
       // printf("bad\n");
       // TODO: BAD
     }
-    printf("4. Actually read %d\n", actually_read);
-    hex_dump(0, kpage, PGSIZE, true);
-
-    // printf("5. kernel page: 0x%010p\n", kpage);
-    // // }
-    // printf("6. This is the pte in exception after: 0x%010x\n", *pte);
     return;
   }
 
-  /* If the kernel gets a fault_addr that is in user space or the user receives 
-   a page fault then don't kill pintos, just end the user process */
-  if (!user && fault_addr < PHYS_BASE || user)
+  if (user)
   {
     f->eip = f->eax;
     f->eax = 0xFFFFFFFF;
     sys_exit_failure();
     NOT_REACHED();
   }
+
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */

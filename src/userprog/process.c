@@ -545,7 +545,7 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 
   uint32_t start_read = ofs;
 
-  printf("ofs %d\n", ofs / PGSIZE);
+  //printf("ofs %d\n", ofs / PGSIZE);
   while (read_bytes > 0 || zero_bytes > 0)
   {
 
@@ -559,29 +559,28 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
     //{
     uint32_t *pte = get_pte(thread_current()->pagedir, upage, true);
 
-    //printf("page_read_bytes %d read_bytes %d\n", page_read_bytes, read_bytes);
+    //printf("page_read_bytes %d off %d\n", page_read_bytes, start_read);
 
     // TODO: make this nice
     if (page_read_bytes == 0)
     {
       /* If you don't need to read anything */
-      printf("don't read shit\n");
+      // printf("don't read shit\n");
       *pte = 0x200;
     }
     else if (start_read % PGSIZE != 0)
     {
       /* If you need to start reading from inside a page, also set 0x400 */
       *pte = (start_read << 12) + 0x600;
-      printf("start_read: 0x%08x, read from inside page %d bytes\n", start_read, page_read_bytes);
+      //printf("start_read: 0x%08x, read from inside page %d bytes\n", start_read, page_read_bytes);
     }
     else
     {
       /* If you need to start reading something from the start of a page,
          also set 0x100 */
-      printf("start_read: 0x%08x, read from start of page %d bytes\n", start_read, page_read_bytes);
+      //printf("start_read: 0x%08x, read from start of page %d bytes\n", start_read, page_read_bytes);
       *pte = ((start_read + page_read_bytes) << 12) + 0x300;
     }
-
     //printf("* for PTE: %08x \n off_t ofs: %d\n uint8_t *upage: 0x%08x\n uint32_t read_bytes: %d\n uint32_t zero_bytes: %d\n bool writable %d\n", *pte, ofs, upage, page_read_bytes, page_zero_bytes, writable);
 
     // printf("This is the pte in process: 0x%08x, and the upage is: 0x%08x\n", *pte, upage);
