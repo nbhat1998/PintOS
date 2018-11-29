@@ -5,10 +5,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
+#include <stddef.h>
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
 #include "userprog/syscall.h"
+#include "userprog/pagedir.h"
 #include "filesys/directory.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
@@ -19,6 +22,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+#include "threads/pte.h"
 
 static thread_func start_process NO_RETURN;
 static bool load(const char *cmdline, void (**eip)(void), void **esp);
@@ -354,8 +358,13 @@ bool load(const char *argv, void (**eip)(void), void **esp)
     goto done;
   }
 
+  /* add executable to process */
+  lock_acquire(&thread_current()->process->lock);
+  thread_current()->process->executable = file;
+  lock_release(&thread_current()->process->lock);
+
   /* Add file to list of file containers and deny write */
-  new_file_container(file);
+  int fd = new_file_container(file);
   file_deny_write(file);
 
   /* Read and verify executable header. */
@@ -440,6 +449,8 @@ bool load(const char *argv, void (**eip)(void), void **esp)
 done:
   /* We arrive here whether the load is successful or not. */
   free(argv_cpy);
+  // printf("done: %d\n", success);
+
   return success;
 }
 
@@ -529,41 +540,65 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
   ASSERT(ofs % PGSIZE == 0);
 
   file_seek(file, ofs);
+
+  bool first_page = true;
+
+  uint32_t start_read = ofs;
+
+  //printf("ofs %d\n", ofs / PGSIZE);
   while (read_bytes > 0 || zero_bytes > 0)
   {
+
     /* Calculate how to fill this page.
          We will read PAGE_READ_BYTES bytes from FILE
          and zero the final PAGE_ZERO_BYTES bytes. */
     size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
     size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-    /* Get a page of memory. */
-    uint8_t *kpage = palloc_get_page(PAL_USER);
-    if (kpage == NULL)
-    {
-      return false;
-    }
+    //if (page_read_bytes == PGSIZE)
+    //{
+    uint32_t *pte = get_pte(thread_current()->pagedir, upage, true);
 
-    /* Load this page. */
-    if (file_read(file, kpage, page_read_bytes) != (int)page_read_bytes)
-    {
-      palloc_free_page(kpage);
-      return false;
-    }
-    memset(kpage + page_read_bytes, 0, page_zero_bytes);
+    //printf("page_read_bytes %d off %d\n", page_read_bytes, start_read);
 
-    /* Add the page to the process's address space. */
-    if (!install_page(upage, kpage, writable))
+    // TODO: make this nice
+    if (page_read_bytes == 0)
     {
-      palloc_free_page(kpage);
-      return false;
+      /* If you don't need to read anything */
+      // printf("don't read shit\n");
+      *pte = 0x200;
     }
+    else if (start_read % PGSIZE != 0)
+    {
+      /* If you need to start reading from inside a page, also set 0x400 */
+      *pte = (start_read << 12) + 0x600;
+      //printf("start_read: 0x%08x, read from inside page %d bytes\n", start_read, page_read_bytes);
+    }
+    else
+    {
+      /* If you need to start reading something from the start of a page,
+         also set 0x100 */
+      //printf("start_read: 0x%08x, read from start of page %d bytes\n", start_read, page_read_bytes);
+      *pte = ((start_read + page_read_bytes) << 12) + 0x300;
+    }
+    //printf("* for PTE: %08x \n off_t ofs: %d\n uint8_t *upage: 0x%08x\n uint32_t read_bytes: %d\n uint32_t zero_bytes: %d\n bool writable %d\n", *pte, ofs, upage, page_read_bytes, page_zero_bytes, writable);
 
+    // printf("This is the pte in process: 0x%08x, and the upage is: 0x%08x\n", *pte, upage);
+    //}
+    //else
+    //{
+    //  uint32_t *pte = get_pte(thread_current()->pagedir, upage, true);
+    //  *pte = 0x200; // TODO: make this nice
+    //}
+    //
     /* Advance. */
     read_bytes -= page_read_bytes;
     zero_bytes -= page_zero_bytes;
     upage += PGSIZE;
+    start_read += page_read_bytes;
   }
+  // printf("%s: load_segment\n", thread_current()->name);
+
   return true;
 }
 

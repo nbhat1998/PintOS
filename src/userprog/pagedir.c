@@ -89,7 +89,6 @@ uint32_t *get_pte(uint32_t *pd, const void *vaddr, bool create)
   return lookup_page(pd, vaddr, create);
 }
 
-
 /* Adds a mapping in page directory PD from user virtual page
    UPAGE to the physical frame identified by kernel virtual
    address KPAGE.
