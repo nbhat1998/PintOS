@@ -159,15 +159,15 @@ page_fault(struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  /* If the kernel gets a fault_addr that is in user space or the user receives 
-   a page fault then don't kill pintos, just end the user process */
-  if (!user && fault_addr < PHYS_BASE)
-  {
-    f->eip = f->eax;
-    f->eax = 0xFFFFFFFF;
-    sys_exit_failure();
-    NOT_REACHED();
-  }
+  // /* If the kernel gets a fault_addr that is in user space or the user receives
+  //  a page fault then don't kill pintos, just end the user process */
+  // if (fault_addr < PHYS_BASE)
+  // {
+  //   f->eip = f->eax;
+  //   f->eax = 0xFFFFFFFF;
+  //   sys_exit_failure();
+  //   NOT_REACHED();
+  // }
 
   /* If the kernel gets a fault_addr in user space, and the fault_addr
      is in stack bounds, allocate a new page for stack */
@@ -193,7 +193,7 @@ page_fault(struct intr_frame *f)
   /* Lazy loading */
   uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, false);
 
-  if (((*pte) & PF_F) != 0 && fault_addr < PHYS_BASE)
+  if (pte != NULL && ((*pte) & PF_F) != 0 && fault_addr < PHYS_BASE)
   {
     uint32_t start_read, read_bytes;
     if ((*pte & 0x400) != 0)
@@ -223,9 +223,7 @@ page_fault(struct intr_frame *f)
       }
     }
 
-    //lock_acquire(&thread_current()->process->lock);
     struct file *file = thread_current()->process->executable;
-    //lock_release(&thread_current()->process->lock);
 
     int file_size = file_length(file);
 
@@ -266,12 +264,16 @@ page_fault(struct intr_frame *f)
     return;
   }
 
-  if (user)
+  if (fault_addr < PHYS_BASE && !user)
   {
     f->eip = f->eax;
     f->eax = 0xFFFFFFFF;
+    return;
+  }
+
+  if (user)
+  {
     sys_exit_failure();
-    NOT_REACHED();
   }
 
   /* To implement virtual memory, delete the rest of the function
