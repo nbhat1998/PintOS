@@ -223,9 +223,9 @@ page_fault(struct intr_frame *f)
       }
     }
 
-    lock_acquire(&thread_current()->process->lock);
+    //lock_acquire(&thread_current()->process->lock);
     struct file *file = thread_current()->process->executable;
-    lock_release(&thread_current()->process->lock);
+    //lock_release(&thread_current()->process->lock);
 
     int file_size = file_length(file);
 
