@@ -663,7 +663,7 @@ setup_stack(void **esp, const char *argv)
 
   return success;
 }
-
+bool link_page(void *upage, void *kpage, bool writable);
 /* Adds a mapping from user virtual address UPAGE to kernel
    virtual address KPAGE to the page table.
    If WRITABLE is true, the user process may modify the page;
@@ -681,4 +681,10 @@ install_page(void *upage, void *kpage, bool writable)
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
   return (pagedir_get_page(t->pagedir, upage) == NULL && pagedir_set_page(t->pagedir, upage, kpage, writable));
+}
+
+bool link_page(void *upage, void *kpage, bool writable)
+{
+  bool success = install_page(upage, kpage, writable);
+  return success;
 }

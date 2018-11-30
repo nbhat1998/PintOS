@@ -2,8 +2,19 @@
 #include "threads/malloc.h"
 #include "threads/thread.h"
 #include "userprog/pagedir.h"
+#include "lib/random.h"
+#include "lib/kernel/list.h"
 
-void create_frame(uint32_t *vaddr, uint32_t *uaddr)
+void create_frame(void *vaddr)
+{
+  struct frame *new_frame = malloc(sizeof(struct frame));
+  new_frame->vaddr = vaddr;
+  list_init(&new_frame->user_ptes);
+
+  list_push_back(&frame_table, &new_frame->elem);
+}
+
+void set_frame(void *vaddr, void *uaddr)
 {
   struct user_pte_ptr *new_pte_ptr = malloc(sizeof(struct user_pte_ptr));
   new_pte_ptr->pagedir = thread_current()->pagedir;
@@ -19,12 +30,7 @@ void create_frame(uint32_t *vaddr, uint32_t *uaddr)
       return;
     }
   }
-
-  struct frame *new_frame = malloc(sizeof(struct frame));
-  new_frame->vaddr = vaddr;
-  list_push_back(&new_frame->user_ptes, new_pte_ptr);
-
-  list_push_back(&frame_table, &new_frame->elem);
+  NOT_REACHED();
 }
 
 void remove_frames(uint32_t *vaddr)
@@ -99,13 +105,16 @@ void remove_uaddr(uint32_t *uaddr)
   }
 }
 
-void evict()
+void *evict()
 {
-  // TODO
-
-  // pick a random frame somehow to evict, so you have a struct frame* ypu want to get rid of
-
-  // swap_write ( f ) // the frame you want to evict
-  // free (f)
-  // remove it from the list as well
+  int index_to_evict = random_ulong() % list_size(&frame_table);
+  int index = 0;
+  struct list_elem *curr = list_begin(&frame_table);
+  while (index < index_to_evict)
+  {
+    curr = list_next(&curr);
+    index++;
+  }
+  struct frame *frame_to_evict = list_entry(curr, struct frame, elem);
+  // TODO: Evict this frame!!!
 }

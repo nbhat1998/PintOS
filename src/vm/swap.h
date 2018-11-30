@@ -3,7 +3,7 @@
 
 struct bitmap *swap_table;
 
-void swap_read(struct frame *f);
+void swap_read();
 void swap_write(struct frame *f);
 
 // swap write

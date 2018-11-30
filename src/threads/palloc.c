@@ -112,12 +112,7 @@ palloc_get_page(enum palloc_flags flags)
   // TODO : add the wrapper here, capture the return value
   // if null, eviction
 
-  void *kvaddr = palloc_get_multiple(flags, 1);
-  if (kvaddr == NULL)
-  {
-    kvaddr = evict();
-  }
-  return kvaddr;
+  return palloc_get_multiple(flags, 1);
 }
 
 /* Frees the PAGE_CNT pages starting at PAGES. */

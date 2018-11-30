@@ -23,8 +23,9 @@ struct user_pte_ptr
 
 struct list frame_table;
 
-struct frame *create_frame();
+void create_frame(void *vaddr);
+void set_frame(void *vaddr, void *uaddr);
 void remove_frames(uint32_t *vaddr);
 
-void evict();
+void *evict();
 #endif /* vm/frame.h */
