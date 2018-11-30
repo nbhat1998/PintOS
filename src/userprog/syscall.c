@@ -358,10 +358,13 @@ sys_write(uint32_t *args)
   args++;
 
   char *param_buffer = get_word(args);
-
   args++;
 
   unsigned param_size = (unsigned)get_word(args);
+  if (param_size == 0)
+  {
+    return 0;
+  }
   int32_t actually_written = 0;
 
   if (param_buffer + param_size >= PHYS_BASE)
@@ -369,14 +372,31 @@ sys_write(uint32_t *args)
     return 0;
   }
 
+  char *kernel_buffer = malloc(param_size);
+  if (kernel_buffer == NULL)
+  {
+    sys_exit_failure();
+  }
+  for (int i = 0; i < param_size; i++)
+  {
+    int c = get_user(param_buffer++);
+    if (c == -1)
+    {
+      free(kernel_buffer);
+      return 0;
+    }
+    kernel_buffer[i] = (char)c;
+  }
+
   if (param_fd == 1)
   {
-    if (strlen(param_buffer) < ARBITRARY_LENGTH_LIMIT)
+    if (param_size < ARBITRARY_LENGTH_LIMIT)
     {
       lock_acquire(&filesys_lock);
-      putbuf(param_buffer, strlen(param_buffer));
+      putbuf(kernel_buffer, param_size);
+      actually_written = param_size;
+      free(kernel_buffer);
       lock_release(&filesys_lock);
-      actually_written = strlen(param_buffer);
       return actually_written;
     }
   }
@@ -390,11 +410,13 @@ sys_write(uint32_t *args)
       struct file_container *this_container = list_entry(e, struct file_container, elem);
       if (param_fd == this_container->fd)
       {
-        actually_written = file_write(this_container->f, param_buffer, param_size);
+        actually_written = file_write(this_container->f, kernel_buffer, param_size);
+        free(kernel_buffer);
         lock_release(&filesys_lock);
         return actually_written;
       }
     }
+    free(kernel_buffer);
     lock_release(&filesys_lock);
     return 0;
   }
