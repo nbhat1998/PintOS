@@ -52,11 +52,14 @@ void swap_write(struct frame *f)
 {
   size_t index_in_swap = bitmap_scan_and_flip(swap_table, 0, 1, false);
   swap_page_write(index_in_swap, f->vaddr);
-  for (struct list_elem *e = list_begin(&f->user_ptes);
-       e != list_end(&f->user_ptes); e = list_next(e))
+
+  while (!list_empty(&f->user_ptes))
   {
-    struct user_pte_ptr *curr = list_entry(e, struct user_pte_ptr, elem);
-    uint32_t *pte = ((index_in_swap << 12) + PTE_S) & (~PTE_P);
+    struct list_elem *curr = list_pop_front(&f->user_ptes);
+    struct user_pte_ptr *current = list_entry(curr, struct user_pte_ptr, elem);
+    uint32_t *pte = get_pte(current->pagedir, current->uaddr, false);
+    *pte = ((index_in_swap << 12) + PTE_S) & (~PTE_P);
+    free(current);
   }
 }
 

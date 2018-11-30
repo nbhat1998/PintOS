@@ -1,16 +1,22 @@
 #include "vm/frame.h"
+#include <string.h>
+#include <random.h>
+#include <list.h>
+#include "userprog/pagedir.h"
 #include "threads/malloc.h"
 #include "threads/thread.h"
-#include "userprog/pagedir.h"
-#include "lib/random.h"
-#include "lib/kernel/list.h"
+#include "threads/palloc.h"
+#include "threads/vaddr.h"
+#include "vm/swap.h"
+
+// TODO: set pin to false in install_page
 
 void create_frame(void *vaddr)
 {
   struct frame *new_frame = malloc(sizeof(struct frame));
   new_frame->vaddr = vaddr;
   list_init(&new_frame->user_ptes);
-
+  // TODO: set pint to true
   list_push_back(&frame_table, &new_frame->elem);
 }
 
@@ -73,7 +79,7 @@ void remove_frames(uint32_t *vaddr)
 void remove_uaddr(uint32_t *uaddr)
 {
   struct list_elem *e = list_begin(&frame_table);
-
+  // TODO: set pin to true
   while (e != list_end(&frame_table))
   {
     struct frame *curr = list_entry(e, struct frame, elem);
@@ -116,5 +122,7 @@ void *evict()
     index++;
   }
   struct frame *frame_to_evict = list_entry(curr, struct frame, elem);
-  // TODO: Evict this frame!!!
+  swap_write(frame_to_evict);
+  memset(frame_to_evict->vaddr, 0, PGSIZE);
+  return frame_to_evict->vaddr;
 }
