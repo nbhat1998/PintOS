@@ -1,4 +1,5 @@
 #include "vm/frame.h"
+#include "vm/swap.h"
 #include <string.h>
 #include <random.h>
 #include <list.h>
@@ -7,7 +8,6 @@
 #include "threads/thread.h"
 #include "threads/palloc.h"
 #include "threads/vaddr.h"
-#include "vm/swap.h"
 
 // TODO: set pin to false in install_page
 

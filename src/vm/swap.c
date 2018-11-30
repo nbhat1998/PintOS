@@ -1,13 +1,13 @@
 #include "vm/swap.h"
 #include "vm/frame.h"
-#include "pte.h"
+#include <bitmap.h>
+#include <string.h>
 #include "devices/block.h"
-#include "lib/string.h"
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
 #include "threads/palloc.h"
 #include "threads/thread.h"
-#include "lib/kernel/bitmap.h"
+#include "threads/pte.h"
 
 /* Helpers */
 void swap_page_read(size_t index, void *kvaddr);
@@ -16,7 +16,7 @@ void swap_page_write(size_t index, void *kvaddr);
 void swap_read(void *fault_addr)
 {
   uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, false);
-  block_sector_t swap_index = (PTE_ADDR & *pte);
+  size_t swap_index = (PTE_ADDR & *pte) >> 12;
   bool writable = (*pte & PTE_W) != 0;
   // TODO: check if always init
   /* Either gets freed if frame table is full, or when 
@@ -33,6 +33,9 @@ void swap_read(void *fault_addr)
 
   set_frame(kvaddr, fault_addr);
   bool success = link_page(fault_addr, kvaddr, writable);
+
+  *pte &= (~PTE_S);
+  *pte += PTE_P;
 
   swap_page_read(swap_index, kvaddr);
 }

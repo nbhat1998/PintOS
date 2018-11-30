@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <bitmap.h>
 #include "devices/kbd.h"
 #include "devices/input.h"
 #include "devices/serial.h"

@@ -2,6 +2,8 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include "userprog/gdt.h"
+#include "userprog/process.h"
+
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
@@ -11,6 +13,7 @@
 #include "syscall.h"
 #include "pagedir.h"
 #include "vm/frame.h"
+#include "vm/swap.h"
 #include "filesys/file.h"
 
 #define STACK_LIMIT 0xbfe00000
@@ -159,31 +162,35 @@ page_fault(struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
+  uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, false);
+
+  /* Swapped page */
+  if (not_present && is_user_vaddr(fault_addr) && pte != NULL && ((*pte) & PF_S) != 0)
+  { // In SWAP
+    swap_read(fault_addr);
+    return;
+  }
+
   /* If the kernel gets a fault_addr in user space, and the fault_addr
      is in stack bounds, allocate a new page for stack */
-  if (not_present && is_user_vaddr(fault_addr) && fault_addr > STACK_LIMIT && fault_addr < PHYS_BASE && fault_addr >= f->esp - 32)
+  if (not_present && is_user_vaddr(fault_addr) && fault_addr > STACK_LIMIT &&
+      fault_addr >= f->esp - 32)
   {
-    if (false) //fix with PTE and PFF
+    void *kvaddr = palloc_get_page(PAL_USER);
+    if (kvaddr == NULL)
     {
-      // TODO: some function from swap
+      kvaddr = evict();
     }
     else
     {
-      void *kpage = palloc_get_page(PAL_USER);
-      if (kpage == NULL)
-      {
-        // TODO: eviction
-        return;
-      }
-      bool success = (pagedir_get_page(thread_current()->pagedir, fault_addr) == NULL && pagedir_set_page(thread_current()->pagedir, pg_round_down(fault_addr), kpage, true));
+      create_frame(kvaddr);
     }
+    bool success = link_page(fault_addr, kvaddr, true);
     return;
   }
 
   /* Lazy loading */
-  uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, false);
-
-  if (not_present && is_user_vaddr(fault_addr) && pte != NULL && ((*pte) & PF_F) != 0 && fault_addr < PHYS_BASE)
+  if (not_present && is_user_vaddr(fault_addr) && pte != NULL && ((*pte) & PF_F) != 0)
   {
     uint32_t start_read, read_bytes;
     if ((*pte & 0x400) != 0)
@@ -220,9 +227,11 @@ page_fault(struct intr_frame *f)
     void *kpage = palloc_get_page(PAL_USER);
     if (kpage == NULL)
     {
-      // printf("bad\n");
-      // TODO: eviction
-      return;
+      kpage = evict();
+    }
+    else
+    {
+      create_frame(kpage);
     }
 
     int actually_read = 0;

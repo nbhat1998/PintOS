@@ -23,6 +23,7 @@
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 #include "threads/pte.h"
+#include "vm/frame.h"
 
 static thread_func start_process NO_RETURN;
 static bool load(const char *cmdline, void (**eip)(void), void **esp);
@@ -604,17 +605,22 @@ setup_stack(void **esp, const char *argv)
   bool success = false;
 
   kpage = palloc_get_page(PAL_USER | PAL_ZERO);
-  if (kpage != NULL)
+  if (kpage == NULL)
   {
-    success = install_page(((uint8_t *)PHYS_BASE) - PGSIZE, kpage, true);
-    if (success)
-    {
-      *esp = PHYS_BASE;
-    }
-    else
-    {
-      palloc_free_page(kpage);
-    }
+    kpage = evict();
+  }
+  else
+  {
+    create_frame(kpage);
+  }
+  success = install_page(((uint8_t *)PHYS_BASE) - PGSIZE, kpage, true);
+  if (success)
+  {
+    *esp = PHYS_BASE;
+  }
+  else
+  {
+    palloc_free_page(kpage);
   }
 
   uint8_t *sp = PHYS_BASE;
@@ -685,6 +691,5 @@ install_page(void *upage, void *kpage, bool writable)
 
 bool link_page(void *upage, void *kpage, bool writable)
 {
-  bool success = install_page(upage, kpage, writable);
-  return success;
+  return install_page(pg_round_down(upage), kpage, writable);
 }
