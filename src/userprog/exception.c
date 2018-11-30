@@ -139,7 +139,7 @@ page_fault(struct intr_frame *f)
 
   /* Obtain faulting address, the virtual address that was
      accessed to cause the fault.  It may point to code or to
-     data.  It is not necessarily the address of the instruction
+     data.  It is not necessarily the address of the instructioxn
      that caused the fault (that's f->eip).
      See [IA32-v2a] "MOV--Move to/from Control Registers" and
      [IA32-v3a] 5.15 "Interrupt 14--Page Fault Exception
@@ -159,19 +159,9 @@ page_fault(struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  // /* If the kernel gets a fault_addr that is in user space or the user receives
-  //  a page fault then don't kill pintos, just end the user process */
-  // if (fault_addr < PHYS_BASE)
-  // {
-  //   f->eip = f->eax;
-  //   f->eax = 0xFFFFFFFF;
-  //   sys_exit_failure();
-  //   NOT_REACHED();
-  // }
-
   /* If the kernel gets a fault_addr in user space, and the fault_addr
      is in stack bounds, allocate a new page for stack */
-  if (fault_addr > STACK_LIMIT && fault_addr < PHYS_BASE && fault_addr > f->esp - PGSIZE)
+  if (not_present && is_user_vaddr(fault_addr) && fault_addr > STACK_LIMIT && fault_addr < PHYS_BASE && fault_addr >= f->esp - 32)
   {
     if (false) //fix with PTE and PFF
     {
@@ -193,7 +183,7 @@ page_fault(struct intr_frame *f)
   /* Lazy loading */
   uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, false);
 
-  if (pte != NULL && ((*pte) & PF_F) != 0 && fault_addr < PHYS_BASE)
+  if (not_present && is_user_vaddr(fault_addr) && pte != NULL && ((*pte) & PF_F) != 0 && fault_addr < PHYS_BASE)
   {
     uint32_t start_read, read_bytes;
     if ((*pte & 0x400) != 0)
@@ -251,28 +241,24 @@ page_fault(struct intr_frame *f)
 
     if (actually_read != read_bytes)
     {
-      // printf("bad\n");
-      // TODO: BAD
+      sys_exit_failure();
     }
 
-    bool success = (pagedir_get_page(thread_current()->pagedir, fault_addr) == NULL && pagedir_set_page(thread_current()->pagedir, pg_round_down(fault_addr), kpage, true));
+    bool rw = (*pte & PTE_W) != 0;
+    //printf("faddr: %p, rw: %d\n", fault_addr, rw);
+
+    bool success = (pagedir_get_page(thread_current()->pagedir, fault_addr) == NULL && pagedir_set_page(thread_current()->pagedir, pg_round_down(fault_addr), kpage, rw));
     if (!success)
     {
-      // printf("bad\n");
-      // TODO: BAD
+      sys_exit_failure();
     }
     return;
   }
 
-  if (fault_addr < PHYS_BASE && !user)
+  if (fault_addr < PHYS_BASE && !user || user)
   {
     f->eip = f->eax;
     f->eax = 0xFFFFFFFF;
-    return;
-  }
-
-  if (user)
-  {
     sys_exit_failure();
   }
 
