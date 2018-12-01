@@ -34,6 +34,7 @@ void swap_read(void *fault_addr)
   set_frame(kvaddr, fault_addr);
   bool success = link_page(fault_addr, kvaddr, writable);
 
+  *pte &= (~0x700); 
   *pte &= (~PTE_S);
   *pte += PTE_P;
 
@@ -61,7 +62,11 @@ void swap_write(struct frame *f)
     struct list_elem *curr = list_pop_front(&f->user_ptes);
     struct user_pte_ptr *current = list_entry(curr, struct user_pte_ptr, elem);
     uint32_t *pte = get_pte(current->pagedir, current->uaddr, false);
-    *pte = ((index_in_swap << 12) + PTE_S) & (~PTE_P);
+    bool is_file = (*pte & 0x200) != 0;
+    *pte = (((index_in_swap << 12) + PTE_S) & (~PTE_P));
+    if(is_file) {
+      *pte |= 0x700;
+    }
     free(current);
   }
 }
@@ -70,14 +75,15 @@ void swap_page_read(size_t index, void *kaddr)
 {
   char *buffer = malloc(BLOCK_SECTOR_SIZE);
   int size = 0;
+  size_t start_sector = ((index / PGSIZE) -1 )* 8;
   struct block *swap = block_get_role(BLOCK_SWAP);
   for (int i = 0; i < 8; i++)
   {
-    block_read(swap, index++, buffer);
+    block_read(swap, start_sector++, buffer);
     strlcpy((char *)kaddr + size, buffer, BLOCK_SECTOR_SIZE);
     size += BLOCK_SECTOR_SIZE;
   }
-  bitmap_flip(swap_table, index);
+  bitmap_flip(swap_table, (index / PGSIZE));
   free(buffer);
 }
 

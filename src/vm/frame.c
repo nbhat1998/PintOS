@@ -122,6 +122,7 @@ void *evict()
     index++;
   }
   struct frame *frame_to_evict = list_entry(curr, struct frame, elem);
+  // TODO: check if dirty, and only write to swap if true. Also pinning.
   swap_write(frame_to_evict);
   memset(frame_to_evict->vaddr, 0, PGSIZE);
   return frame_to_evict->vaddr;

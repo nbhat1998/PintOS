@@ -613,6 +613,7 @@ setup_stack(void **esp, const char *argv)
   {
     create_frame(kpage);
   }
+  set_frame(kpage, ((uint8_t *)PHYS_BASE) - PGSIZE);
   success = install_page(((uint8_t *)PHYS_BASE) - PGSIZE, kpage, true);
   if (success)
   {

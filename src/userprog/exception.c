@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include "userprog/gdt.h"
 #include "userprog/process.h"
-
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
@@ -15,6 +14,8 @@
 #include "vm/frame.h"
 #include "vm/swap.h"
 #include "filesys/file.h"
+#include "threads/synch.h"
+#include "userprog/syscall.h"
 
 #define STACK_LIMIT 0xbfe00000
 
@@ -164,11 +165,15 @@ page_fault(struct intr_frame *f)
 
   uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, false);
 
-  /* If the kernel gets a fault_addr in user space, and the fault_addr
+   /* If the kernel gets a fault_addr in user space, and the fault_addr
      is in stack bounds, allocate a new page for stack */
   if (not_present && is_user_vaddr(fault_addr) && fault_addr > STACK_LIMIT &&
       fault_addr >= f->esp - 32)
   {
+    if(((*pte) & PF_S) != 0) {
+      swap_read(fault_addr);
+      return;
+    }
     void *kvaddr = palloc_get_page(PAL_USER);
     if (kvaddr == NULL)
     {
@@ -178,13 +183,24 @@ page_fault(struct intr_frame *f)
     {
       create_frame(kvaddr);
     }
+
+
+    set_frame(kvaddr, fault_addr);
     bool success = link_page(fault_addr, kvaddr, true);
+    if (!success)
+    {
+      sys_exit_failure();
+    }
     return;
   }
 
   /* Lazy loading */
   if (not_present && is_user_vaddr(fault_addr) && pte != NULL && ((*pte) & PF_F) != 0)
   {
+    if((*pte) & (~0x700) == (*pte)) {
+      swap_read(fault_addr);
+      return;
+    }
     uint32_t start_read, read_bytes;
     if ((*pte & 0x400) != 0)
     { // Middle of a page
@@ -214,7 +230,6 @@ page_fault(struct intr_frame *f)
     }
 
     struct file *file = thread_current()->process->executable;
-
     int file_size = file_length(file);
 
     void *kpage = palloc_get_page(PAL_USER);
@@ -226,6 +241,8 @@ page_fault(struct intr_frame *f)
     {
       create_frame(kpage);
     }
+
+    set_frame(kpage, fault_addr);
 
     int actually_read = 0;
     memset(kpage, 0, PGSIZE);
@@ -249,7 +266,7 @@ page_fault(struct intr_frame *f)
     bool rw = (*pte & PTE_W) != 0;
     //printf("faddr: %p, rw: %d\n", fault_addr, rw);
 
-    bool success = (pagedir_get_page(thread_current()->pagedir, fault_addr) == NULL && pagedir_set_page(thread_current()->pagedir, pg_round_down(fault_addr), kpage, rw));
+    bool success = link_page(fault_addr, kpage, rw);
     if (!success)
     {
       sys_exit_failure();
@@ -266,7 +283,7 @@ page_fault(struct intr_frame *f)
   }
 
 
-  if (fault_addr < PHYS_BASE && !user || user)
+  if ((fault_addr < PHYS_BASE && !user) || user)
   {
     f->eip = f->eax;
     f->eax = 0xFFFFFFFF;
