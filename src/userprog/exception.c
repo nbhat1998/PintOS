@@ -164,13 +164,6 @@ page_fault(struct intr_frame *f)
 
   uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, false);
 
-  /* Swapped page */
-  if (not_present && is_user_vaddr(fault_addr) && pte != NULL && ((*pte) & PF_S) != 0)
-  { // In SWAP
-    swap_read(fault_addr);
-    return;
-  }
-
   /* If the kernel gets a fault_addr in user space, and the fault_addr
      is in stack bounds, allocate a new page for stack */
   if (not_present && is_user_vaddr(fault_addr) && fault_addr > STACK_LIMIT &&
@@ -263,6 +256,15 @@ page_fault(struct intr_frame *f)
     }
     return;
   }
+  
+
+  /* Swapped page */
+  if (not_present && is_user_vaddr(fault_addr) && pte != NULL && ((*pte) & PF_S) != 0)
+  { // In SWAP
+    swap_read(fault_addr);
+    return;
+  }
+
 
   if (fault_addr < PHYS_BASE && !user || user)
   {
