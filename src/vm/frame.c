@@ -33,6 +33,7 @@ void set_frame(void *vaddr, void *uaddr)
     if (curr->vaddr == vaddr)
     {
       list_push_back(&curr->user_ptes, &new_pte_ptr->elem);
+      curr->pin = false;
       return;
     }
   }
@@ -113,16 +114,26 @@ void remove_uaddr(uint32_t *uaddr)
 
 void *evict()
 {
-  int index_to_evict = random_ulong() % list_size(&frame_table);
-  int index = 0;
-  struct list_elem *curr = list_begin(&frame_table);
-  while (index < index_to_evict)
+  struct frame *frame_to_evict;
+  do
   {
-    curr = list_next(&curr);
-    index++;
-  }
-  struct frame *frame_to_evict = list_entry(curr, struct frame, elem);
+    int index_to_evict = random_ulong() % list_size(&frame_table);
+    int index = 0;
+
+    for (struct list_elem *e = list_begin(&frame_table);
+         e != list_end(&frame_table); e = list_next(e))
+    {
+      frame_to_evict = list_entry(e, struct frame, elem);
+      if (index == index_to_evict)
+      {
+        break;
+      }
+      index++;
+    }
+  } while (frame_to_evict->pin);
+  frame_to_evict->pin = true;
   // TODO: check if dirty, and only write to swap if true. Also pinning.
+
   swap_write(frame_to_evict);
   memset(frame_to_evict->vaddr, 0, PGSIZE);
   return frame_to_evict->vaddr;

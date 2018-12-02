@@ -165,15 +165,12 @@ page_fault(struct intr_frame *f)
 
   uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, false);
 
-   /* If the kernel gets a fault_addr in user space, and the fault_addr
+  /* If the kernel gets a fault_addr in user space, and the fault_addr
      is in stack bounds, allocate a new page for stack */
-  if (not_present && is_user_vaddr(fault_addr) && fault_addr > STACK_LIMIT &&
-      fault_addr >= f->esp - 32)
+  if (not_present & is_user_vaddr(fault_addr) && fault_addr > STACK_LIMIT &&
+      fault_addr >= f->esp - 32 && (((*pte) & PF_S) == 0))
   {
-    if(((*pte) & PF_S) != 0) {
-      swap_read(fault_addr);
-      return;
-    }
+
     void *kvaddr = palloc_get_page(PAL_USER);
     if (kvaddr == NULL)
     {
@@ -183,7 +180,6 @@ page_fault(struct intr_frame *f)
     {
       create_frame(kvaddr);
     }
-
 
     set_frame(kvaddr, fault_addr);
     bool success = link_page(fault_addr, kvaddr, true);
@@ -197,10 +193,6 @@ page_fault(struct intr_frame *f)
   /* Lazy loading */
   if (not_present && is_user_vaddr(fault_addr) && pte != NULL && ((*pte) & PF_F) != 0)
   {
-    if((*pte) & (~0x700) == (*pte)) {
-      swap_read(fault_addr);
-      return;
-    }
     uint32_t start_read, read_bytes;
     if ((*pte & 0x400) != 0)
     { // Middle of a page
@@ -264,7 +256,6 @@ page_fault(struct intr_frame *f)
     }
 
     bool rw = (*pte & PTE_W) != 0;
-    //printf("faddr: %p, rw: %d\n", fault_addr, rw);
 
     bool success = link_page(fault_addr, kpage, rw);
     if (!success)
@@ -273,18 +264,18 @@ page_fault(struct intr_frame *f)
     }
     return;
   }
-  
 
   /* Swapped page */
   if (not_present && is_user_vaddr(fault_addr) && pte != NULL && ((*pte) & PF_S) != 0)
   { // In SWAP
     swap_read(fault_addr);
-    return;
+    if (pte != NULL)
+      return;
   }
 
-
-  if ((fault_addr < PHYS_BASE && !user) || user)
+  if (((not_present) && (fault_addr < PHYS_BASE && !user)) || user)
   {
+
     f->eip = f->eax;
     f->eax = 0xFFFFFFFF;
     sys_exit_failure();
