@@ -456,7 +456,7 @@ uint32_t sys_mmap(uint32_t *args)
 
   uint32_t *uaddr = get_word(args);
 
-  if (uaddr == 0 || ((uint32_t)uaddr % PGSIZE) != 0) // TODO : check if % pgsize is proper
+  if (uaddr == 0 || ((uint32_t)uaddr % PGSIZE) != 0)
   {
     return -1;
   }
@@ -476,16 +476,11 @@ uint32_t sys_mmap(uint32_t *args)
       lock_acquire(&filesys_lock);
       file_size = file_length(this_container->f);
       lock_release(&filesys_lock);
-
-      if (file_size == 0)
-      {
-        return -1;
-      }
       break;
     }
   }
 
-  if (this_container == NULL)
+  if (file_size == 0)
   {
     return -1;
   }
@@ -496,7 +491,8 @@ uint32_t sys_mmap(uint32_t *args)
   {
     number_of_pages++;
   }
-  for (int i = 0; i < number_of_pages; ++i)
+
+  for (int i = 0; i < number_of_pages; i++)
   {
     uint32_t *current_pte = get_pte(thread_current()->pagedir, uaddr + i * PGSIZE, false);
 
@@ -507,7 +503,7 @@ uint32_t sys_mmap(uint32_t *args)
   }
 
   int new_mapId = allocate_fd();
-  for (int i = 0; i < number_of_pages; ++i)
+  for (int i = 0; i < number_of_pages; i++)
   {
     uint32_t *current_pte = get_pte(thread_current()->pagedir, uaddr + i * PGSIZE, true);
 

@@ -165,7 +165,8 @@ page_fault(struct intr_frame *f)
 
   uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, false);
 
-  if (not_present && is_user_vaddr(fault_addr) && pte != NULL && ((*pte) & 0x500) != 0)
+  if (not_present && is_user_vaddr(fault_addr) && pte != NULL &&
+      ((*pte) & 0x500) == 0x500)
   {
     void *kpage = palloc_get_page(PAL_USER);
     if (kpage == NULL)
@@ -177,15 +178,19 @@ page_fault(struct intr_frame *f)
       create_frame(kpage);
     }
     set_frame(kpage, fault_addr);
-    for (struct list_elem *e = list_begin(&thread_current()->process->mmap_containers);
+    for (struct list_elem *e = list_begin(
+             &thread_current()->process->mmap_containers);
          e != list_end(&thread_current()->process->mmap_containers);
          e = list_next(e))
     {
-      struct mmap_container *this_container = list_entry(e, struct mmap_container, elem);
+      struct mmap_container *this_container =
+          list_entry(e, struct mmap_container, elem);
       if (this_container->uaddr == fault_addr)
       {
         memset(kpage, 0, PGSIZE);
-        file_read_at(this_container->f, kpage, this_container->size_used_within_page, this_container->offset_within_file);
+        file_read_at(this_container->f, kpage,
+                     this_container->size_used_within_page,
+                     this_container->offset_within_file);
         bool success = link_page(fault_addr, kpage, true);
         if (!success)
         {
@@ -195,6 +200,8 @@ page_fault(struct intr_frame *f)
         return;
       }
     }
+    sys_exit_failure();
+    NOT_REACHED();
   }
 
   /* If the kernel gets a fault_addr in user space, and the fault_addr
@@ -302,7 +309,9 @@ page_fault(struct intr_frame *f)
   { // In SWAP
     swap_read(fault_addr);
     if (pte != NULL)
+    {
       return;
+    }
   }
 
   if (((not_present) && (fault_addr < PHYS_BASE && !user)) || user)
