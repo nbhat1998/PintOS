@@ -548,20 +548,19 @@ uint32_t sys_munmap(uint32_t *args)
         return -1;
       }
 
-      if ((*pte) & PTE_D != 0)
+      if ((*pte) & PTE_D != 0 && ((*pte) & 0x500) != 0x500)
       {
         lock_acquire(&filesys_lock);
-        file_write_at(this_container->f, this_container->vaddr,
+        file_write_at(this_container->f, ptov((*pte) & PTE_ADDR),
                       this_container->size_used_within_page,
                       this_container->offset_within_file);
         lock_release(&filesys_lock);
       }
-      struct list_elem* temp = e; 
-      e = list_next(e); 
-      list_remove(temp); 
-      free(this_container); 
+      struct list_elem *temp = e;
+      e = list_next(e);
+      list_remove(temp);
+      free(this_container);
       // TODO : look into removing frame from frame table to free up kvm
-
     }
     else
     {

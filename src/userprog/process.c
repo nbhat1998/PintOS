@@ -158,6 +158,31 @@ void process_exit(void)
   struct thread *cur = thread_current();
   uint32_t *pd;
 
+  struct list_elem *e = list_begin(&thread_current()->process->mmap_containers);
+  while (e != list_end(&thread_current()->process->mmap_containers))
+  {
+
+    struct mmap_container *this_container = list_entry(e, struct mmap_container, elem);
+    uint32_t *pte = get_pte(thread_current()->pagedir, this_container->uaddr, false);
+    if (pte != NULL && *pte != 0)
+    {
+      if ((*pte) & PTE_D != 0 && ((*pte) & 0x500) != 0x500)
+      {
+        lock_acquire(&filesys_lock);
+        file_write_at(this_container->f, ptov((*pte) & PTE_ADDR),
+                      this_container->size_used_within_page,
+                      this_container->offset_within_file);
+        lock_release(&filesys_lock);
+      }
+      struct list_elem *temp = e;
+      e = list_next(e);
+      list_remove(temp);
+      free(this_container);
+      // TODO : look into removing frame from frame table to free up kvm\
+    }
+    }
+  }
+
   /* Iterate through the list of child processes */
   struct list_elem *child = list_begin(&cur->child_processes);
   while (child != list_end(&cur->child_processes))
