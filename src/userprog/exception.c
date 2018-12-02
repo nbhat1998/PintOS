@@ -187,6 +187,8 @@ page_fault(struct intr_frame *f)
           list_entry(e, struct mmap_container, elem);
       if (this_container->uaddr == fault_addr)
       {
+        // TODO : lock and unlock here with filesys_lock? not sure if this part will be called within a syscall, in which case there will be a deadlock 
+    
         memset(kpage, 0, PGSIZE);
         file_read_at(this_container->f, kpage,
                      this_container->size_used_within_page,

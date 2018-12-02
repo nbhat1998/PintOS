@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
+#include "threads/pte.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "filesys/filesys.h"
@@ -532,7 +533,41 @@ uint32_t sys_mmap(uint32_t *args)
 
 uint32_t sys_munmap(uint32_t *args)
 {
-  return 0;
+  mapid_t id = get_word(args);
+
+  struct list_elem *e = list_begin(&thread_current()->process->mmap_containers);
+  while (e != list_end(&thread_current()->process->mmap_containers))
+  {
+
+    struct mmap_container *this_container = list_entry(e, struct mmap_container, elem);
+    if (id == this_container->mapid)
+    {
+      uint32_t *pte = get_pte(thread_current()->pagedir, this_container->uaddr, false);
+      if (pte == NULL || *pte == 0)
+      {
+        return -1;
+      }
+
+      if ((*pte) & PTE_D != 0)
+      {
+        lock_acquire(&filesys_lock);
+        file_write_at(this_container->f, this_container->vaddr,
+                      this_container->size_used_within_page,
+                      this_container->offset_within_file);
+        lock_release(&filesys_lock);
+      }
+      struct list_elem* temp = e; 
+      e = list_next(e); 
+      list_remove(temp); 
+      free(this_container); 
+      // TODO : look into removing frame from frame table to free up kvm
+
+    }
+    else
+    {
+      e = list_next(e);
+    }
+  }
 }
 
 /* Reads a byte at user virtual address UADDR. UADDR must be below PHYS_BASE.
