@@ -167,7 +167,7 @@ page_fault(struct intr_frame *f)
 
   /* If the kernel gets a fault_addr in user space, and the fault_addr
      is in stack bounds, allocate a new page for stack */
-  if (not_present & is_user_vaddr(fault_addr) && fault_addr > STACK_LIMIT &&
+  if (not_present && is_user_vaddr(fault_addr) && fault_addr > STACK_LIMIT &&
       fault_addr >= f->esp - 32 && (((*pte) & PF_S) == 0))
   {
 
