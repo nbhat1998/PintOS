@@ -448,23 +448,24 @@ sys_close(uint32_t *args)
 uint32_t sys_mmap(uint32_t *args)
 {
   int param_fd = (int)get_word(args);
-  if ( param_fd < 2)
+  args++;
+  if (param_fd < 2)
   {
-    return -1; 
-  }
-  
-  uint32_t *uaddr = get_word(args); 
-
-  if (uaddr == 0 || (uint32_t)uaddr % PGSIZE != 0) // TODO : check if % pgsize is proper
-  {
-    return -1; 
+    return -1;
   }
 
-  uint32_t file_size = 0; 
-  
-  uint32_t* pte = get_pte(thread_current()->pagedir, uaddr, true); 
+  uint32_t *uaddr = get_word(args);
 
-  struct file_container *this_container = NULL;  
+  if (uaddr == 0 || ((uint32_t)uaddr % PGSIZE) != 0) // TODO : check if % pgsize is proper
+  {
+    return -1;
+  }
+
+  uint32_t file_size = 0;
+
+  uint32_t *pte = get_pte(thread_current()->pagedir, uaddr, true);
+
+  struct file_container *this_container = NULL;
   for (struct list_elem *e = list_begin(&thread_current()->process->file_containers);
        e != list_end(&thread_current()->process->file_containers);
        e = list_next(e))
@@ -476,62 +477,61 @@ uint32_t sys_mmap(uint32_t *args)
       file_size = file_length(this_container->f);
       lock_release(&filesys_lock);
 
-      if ( file_size == 0)
+      if (file_size == 0)
       {
-        return -1; 
+        return -1;
       }
-      break; 
+      break;
     }
   }
 
-  if ( this_container == NULL )
+  if (this_container == NULL)
   {
-    return -1; 
+    return -1;
   }
 
-  uint32_t number_of_pages = file_size/PGSIZE; 
+  uint32_t number_of_pages = file_size / PGSIZE;
 
-  if ( file_size % PGSIZE )
+  if (file_size % PGSIZE)
   {
-    number_of_pages++; 
+    number_of_pages++;
   }
-  for ( int i = 0 ; i < number_of_pages ; ++i )
+  for (int i = 0; i < number_of_pages; ++i)
   {
-    uint32_t* current_pte = get_pte(thread_current()->pagedir, uaddr + i*PGSIZE, false); 
+    uint32_t *current_pte = get_pte(thread_current()->pagedir, uaddr + i * PGSIZE, false);
 
-    if ( current_pte != NULL && (*current_pte) != 0 )
-    { 
+    if (current_pte != NULL && (*current_pte) != 0)
+    {
       return -1;
-    } 
+    }
   }
 
-  int new_mapId = allocate_fd();     
-  for ( int i = 0 ; i < number_of_pages ; ++i )
+  int new_mapId = allocate_fd();
+  for (int i = 0; i < number_of_pages; ++i)
   {
-    uint32_t* current_pte = get_pte(thread_current()->pagedir, uaddr + i*PGSIZE, true); 
+    uint32_t *current_pte = get_pte(thread_current()->pagedir, uaddr + i * PGSIZE, true);
 
     (*current_pte) = 0x500;
-    struct mmap_container* mmap_container = malloc(sizeof(struct mmap_container));
+    struct mmap_container *mmap_container = malloc(sizeof(struct mmap_container));
     mmap_container->f = this_container->f;
-    mmap_container->mapid = new_mapId; 
+    mmap_container->mapid = new_mapId;
     mmap_container->uaddr = uaddr;
-    mmap_container->offset_within_file = PGSIZE*i ; 
-    
+    mmap_container->offset_within_file = PGSIZE * i;
 
-    if ( file_size < PGSIZE )
+    if (file_size < PGSIZE)
     {
-      mmap_container->size_used_within_page = file_size; 
-    } else 
+      mmap_container->size_used_within_page = file_size;
+    }
+    else
     {
-      mmap_container->size_used_within_page = PGSIZE; 
-      file_size -= PGSIZE; 
+      mmap_container->size_used_within_page = PGSIZE;
+      file_size -= PGSIZE;
     }
 
-    list_push_back(&thread_current()->process->mmap_containers,&mmap_container->elem); 
+    list_push_back(&thread_current()->process->mmap_containers, &mmap_container->elem);
   }
 
-  return new_mapId; 
-
+  return new_mapId;
 }
 
 uint32_t sys_munmap(uint32_t *args)
