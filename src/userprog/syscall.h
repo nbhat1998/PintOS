@@ -11,6 +11,7 @@
 #define ARBITRARY_LENGTH_LIMIT 500
 #define FIRST_UNALLOCATED_FD 2
 
+typedef int mapid_t; 
 void syscall_init(void);
 
 struct file_container
@@ -28,7 +29,7 @@ struct mmap_container
   void* vaddr; 
   uint32_t offset_within_file; 
   uint32_t size_used_within_page; 
-
+  struct list_elem elem
 }; 
 
 struct lock filesys_lock;
