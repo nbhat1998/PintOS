@@ -1,8 +1,10 @@
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
-#include "../lib/kernel/list.h"
-#include "../threads/synch.h"
 
+#include <syscall.h>
+#include <list.h>
+
+#include "threads/synch.h"
 #define WORD_LENGTH 4
 #define BYTE 8
 #define NUMBER_OF_FUNCTIONS 15
@@ -17,6 +19,17 @@ struct file_container
   struct file *f;
   struct list_elem elem;
 };
+
+struct mmap_container 
+{
+  struct file *f; 
+  mapid_t mapid; 
+  void* uaddr; 
+  void* vaddr; 
+  uint32_t offset_within_file; 
+  uint32_t size_used_within_page; 
+
+}; 
 struct lock filesys_lock;
 
 void sys_exit_failure(void);

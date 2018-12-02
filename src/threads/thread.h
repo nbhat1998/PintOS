@@ -131,6 +131,8 @@ struct process
   bool setup;                  /* True if the process loaded successfully, false otherwise */
   struct list file_containers; /* List of file containers storing information about the files 
                                   opened by this process. */
+  struct list mmap_containers; /* List of mmap containers storing informaiton about the pages of the file 
+                                  stored in physical memory by this process*/ 
   struct file *executable;
 };
 

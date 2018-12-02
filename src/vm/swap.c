@@ -15,7 +15,7 @@ void swap_page_write(size_t index, void *kvaddr);
 
 
 
-
+    
 void swap_read(void *fault_addr)
 {
   uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, false);
