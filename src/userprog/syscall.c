@@ -493,10 +493,9 @@ uint32_t sys_mmap(uint32_t *args)
     number_of_pages++;
   }
 
-  for (int i = 0; i < number_of_pages; i++)
+  for (int i = 0; i < file_size; i++)
   {
-    uint32_t *current_pte = get_pte(thread_current()->pagedir, uaddr + i * PGSIZE, false);
-
+    uint32_t *current_pte = get_pte(thread_current()->pagedir, uaddr + i, false);
     if (current_pte != NULL && (*current_pte) != 0)
     {
       return -1;
