@@ -13,6 +13,7 @@
 #include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "lib/string.h"
+#include "userprog/pagedir.h"
 
 static int get_user(const uint8_t *);
 static int32_t get_word(uint8_t *);
@@ -446,7 +447,74 @@ sys_close(uint32_t *args)
 
 uint32_t sys_mmap(uint32_t *args)
 {
-  return 0;
+  int param_fd = (int)get_word(args);
+  if ( param_fd < 2)
+  {
+    return -1; 
+  }
+  
+  uint32_t *uaddr = get_word(args); 
+
+  if (uaddr == 0 || (uint32_t)uaddr % PGSIZE != 0) // TODO : check if % pgsize is proper
+  {
+    return -1; 
+  }
+
+  uint32_t file_size = 0; 
+  
+  uint32_t* pte = get_pte(thread_current()->pagedir, uaddr, true); 
+
+  struct file_container *this_container = NULL;  
+  for (struct list_elem *e = list_begin(&thread_current()->process->file_containers);
+       e != list_end(&thread_current()->process->file_containers);
+       e = list_next(e))
+  {
+    this_container = list_entry(e, struct file_container, elem);
+    if (param_fd == this_container->fd)
+    {
+      lock_acquire(&filesys_lock);
+      file_size = file_length(this_container->f);
+      lock_release(&filesys_lock);
+
+      if ( file_size == 0)
+      {
+        return -1; 
+      }
+      break; 
+    }
+  }
+
+  if ( this_container == NULL )
+  {
+    return -1; 
+  }
+
+  uint32_t number_of_pages = file_size/PGSIZE; 
+
+  for ( int i = 0 ; i < number_of_pages ; ++i )
+  {
+    uint32_t* current_pte = get_pte(thread_current()->pagedir, uaddr + i*PGSIZE, false); 
+
+    if ( current_pte != NULL && (*current_pte) != 0 )
+    { 
+      return -1;
+    } 
+  }
+
+  // for ( int i = 0 ; i < number_of_pages ; ++i )
+  // {
+  //   uint32_t* current_pte = get_pte(thread_current()->pagedir, uaddr + i*PGSIZE, true); 
+
+  //   *current_pte 
+    
+  // }
+
+
+
+
+
+  
+
 }
 
 uint32_t sys_munmap(uint32_t *args)
