@@ -18,8 +18,8 @@ void create_frame(void *vaddr)
   new_frame->vaddr = vaddr;
   list_init(&new_frame->user_ptes);
   // TODO: set pint to true
-  list_push_back(&frame_table, &new_frame->elem);
   lock_init(&new_frame->lock);
+  list_push_back(&frame_table, &new_frame->elem);
 }
 
 void set_frame(void *vaddr, void *uaddr)
@@ -33,14 +33,15 @@ void set_frame(void *vaddr, void *uaddr)
        e != list_end(&frame_table); e = list_next(e))
   {
     struct frame *curr = list_entry(e, struct frame, elem);
+    lock_acquire(&curr->lock);
     if (curr->vaddr == vaddr)
     {
-      // lock_acquire(&curr->lock);
       list_push_back(&curr->user_ptes, &new_pte_ptr->elem);
       curr->pin = false;
-      // lock_release(&curr->lock);
+      lock_release(&curr->lock);
       return;
     }
+    lock_release(&curr->lock);
   }
   free(new_pte_ptr);
   NOT_REACHED();

@@ -24,6 +24,7 @@
 #include "threads/malloc.h"
 #include "threads/pte.h"
 #include "vm/frame.h"
+#include <list.h>
 
 static thread_func start_process NO_RETURN;
 static bool load(const char *cmdline, void (**eip)(void), void **esp);
@@ -240,24 +241,24 @@ void process_exit(void)
     free(cur->process);
   }
 
-  // struct list_elem *curr = list_begin(&frame_table);
-  // for (struct list_elem *curr = list_begin(&frame_table);
-  //      curr != list_end(&frame_table); curr = list_next(e))
-  // {
-  //   struct frame *frame = list_entry(curr, struct frame, elem);
-  //   struct list_elem *curr_pte = list_begin(&frame->user_ptes);
-  //   for (struct list_elem *curr_pte = list_begin(&(frame->user_ptes));
-  //        curr_pte != list_end(&(frame->user_ptes)); curr_pte = list_next(curr))
-  //   {
-  //     struct user_pte_ptr *user_pte = list_entry(curr_pte, struct user_pte_ptr, elem);
-  //     if (user_pte->pagedir == cur->pagedir)
-  //     {
-  //       list_remove(&curr_pte);
-  //       free(user_pte);
-  //       break;
-  //     }
-  //   }
-  // }
+  for (struct list_elem *curr = list_begin(&frame_table);
+       curr != list_end(&frame_table); curr = list_next(curr))
+  {
+    struct frame *frame = list_entry(curr, struct frame, elem);
+    lock_acquire(&frame->lock);
+    for (struct list_elem *curr_pte = list_begin(&(frame->user_ptes));
+         curr_pte != list_end(&(frame->user_ptes)); curr_pte = list_next(curr_pte))
+    {
+      struct user_pte_ptr *user_pte = list_entry(curr_pte, struct user_pte_ptr, elem);
+      if (user_pte->pagedir == cur->pagedir)
+      {
+        list_remove(curr_pte);
+        free(user_pte);
+        break;
+      }
+    }
+    lock_release(&frame->lock);
+  }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */

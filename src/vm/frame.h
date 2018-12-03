@@ -21,7 +21,6 @@ struct user_pte_ptr
 {
   uint32_t *pagedir;
   uint32_t *uaddr;
-  uint32_t *pte;
   struct list_elem elem;
 };
 
