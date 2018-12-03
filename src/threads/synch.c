@@ -207,7 +207,7 @@ void lock_acquire(struct lock *lock)
   ASSERT(!intr_context());
   ASSERT(!lock_held_by_current_thread(lock));
 
-  if (!thread_mlfqs)
+  /*if (!thread_mlfqs)
   {
     // Dissable interrupts
     enum intr_level old_level;
@@ -232,7 +232,7 @@ void lock_acquire(struct lock *lock)
       }
     }
     intr_set_level(old_level);
-  }
+  }*/
 
   sema_down(&lock->semaphore);
   lock->holder = thread_current();
@@ -271,7 +271,7 @@ void lock_release(struct lock *lock)
   ASSERT(lock != NULL);
   ASSERT(lock_held_by_current_thread(lock));
 
-  if (!thread_mlfqs)
+  /*if (!thread_mlfqs)
   {
     if (boot_complete)
     {
@@ -293,7 +293,7 @@ void lock_release(struct lock *lock)
       }
       intr_set_level(old_level);
     }
-  }
+  }*/
 
   lock->holder = NULL;
   sema_up(&lock->semaphore);

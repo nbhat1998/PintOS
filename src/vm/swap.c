@@ -64,7 +64,7 @@ void swap_write(struct frame *f)
     struct user_pte_ptr *current = list_entry(curr, struct user_pte_ptr, elem);
     uint32_t *pte = get_pte(current->pagedir, current->uaddr, false);
     bool is_file = (*pte & 0x200) != 0;
-    *pte = (((index_in_swap << 12) | PTE_S) & (~PTE_P));
+    *pte = (((index_in_swap << 12) | PTE_S) & (~PTE_P) & (*pte  & PTE_W));
     // if (is_file)
     // {
     //   *pte |= 0x700;

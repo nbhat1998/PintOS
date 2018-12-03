@@ -318,9 +318,17 @@ page_fault(struct intr_frame *f)
     }
   }
 
-  if (((not_present) && (fault_addr < PHYS_BASE && !user)) || user)
-  {
+  if ((fault_addr < PHYS_BASE && !not_present && write)) {
+    sys_exit_failure();
+  }
 
+  if (user) {
+    printf("faddr %p pte %p\n", fault_addr, *pte);
+    sys_exit_failure();
+  }
+
+  if (not_present && fault_addr < PHYS_BASE && !user)
+  {
     f->eip = f->eax;
     f->eax = 0xFFFFFFFF;
     sys_exit_failure();
