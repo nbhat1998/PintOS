@@ -164,14 +164,53 @@ page_fault(struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, false);
-  // if (pte != NULL)
-  // {
-  //   printf("faddr %p pte %p\n", fault_addr, *pte);
-  // }
-  // else
-  // {
-  //   printf("no pte\n");
-  // }
+
+  //printf("fault_addr: %p, pte: %p\n", fault_addr, *pte);
+  if (not_present && is_user_vaddr(fault_addr) && pte != NULL &&
+      ((*pte) & 0x500) == 0x500)
+  {
+    void *kpage = palloc_get_page(PAL_USER);
+
+    if (kpage == NULL)
+    {
+      kpage = evict();
+    }
+    else
+    {
+      create_frame(kpage);
+    }
+    set_frame(kpage, fault_addr);
+    bool success = link_page(fault_addr, kpage, true);
+    if (!success)
+    {
+      sys_exit_failure();
+      NOT_REACHED();
+    }
+    pagedir_set_dirty(thread_current()->pagedir, fault_addr, write);
+    // TODO: maybe set accessed bit
+    for (struct list_elem *e = list_begin(
+             &thread_current()->process->mmap_containers);
+         e != list_end(&thread_current()->process->mmap_containers);
+         e = list_next(e))
+    {
+      struct mmap_container *this_container =
+          list_entry(e, struct mmap_container, elem);
+      if (this_container->uaddr == fault_addr)
+      {
+        // TODO : lock and unlock here with filesys_lock? not sure if this part will be called within a syscall, in which case there will be a deadlock
+
+        memset(kpage, 0, PGSIZE);
+        file_read_at(this_container->f, kpage,
+                     this_container->size_used_within_page,
+                     this_container->offset_within_file);
+
+        return;
+      }
+    }
+    sys_exit_failure();
+    NOT_REACHED();
+  }
+
   /* If the kernel gets a fault_addr in user space, and the fault_addr
      is in stack bounds, allocate a new page for stack */
   if (not_present && is_user_vaddr(fault_addr) && fault_addr > STACK_LIMIT &&
@@ -277,18 +316,20 @@ page_fault(struct intr_frame *f)
   { // In SWAP
     swap_read(fault_addr);
     if (pte != NULL)
+    {
       return;
+    }
   }
 
   if ((fault_addr < PHYS_BASE && !not_present && write))
   {
-    //printf("s-o futut 282\n");
+
     sys_exit_failure();
   }
 
   if (user)
   {
-    //printf("s-o futut 287\n");
+
     sys_exit_failure();
   }
 

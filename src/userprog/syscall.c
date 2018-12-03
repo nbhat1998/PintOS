@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
+#include "threads/pte.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "filesys/filesys.h"
@@ -13,6 +14,7 @@
 #include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "lib/string.h"
+#include "userprog/pagedir.h"
 
 static int get_user(const uint8_t *);
 static int32_t get_word(uint8_t *);
@@ -435,7 +437,10 @@ sys_close(uint32_t *args)
     {
       lock_acquire(&filesys_lock);
       list_remove(e);
-      file_close(this_container->f);
+      if (!this_container->is_mmap)
+      {
+        file_close(this_container->f);
+      }
       free(this_container);
       lock_release(&filesys_lock);
       return;
@@ -446,12 +451,124 @@ sys_close(uint32_t *args)
 
 uint32_t sys_mmap(uint32_t *args)
 {
-  return 0;
+  int param_fd = (int)get_word(args);
+  args++;
+  if (param_fd < 2)
+  {
+    return -1;
+  }
+
+  uint32_t uaddr = get_word(args);
+
+  if (uaddr == 0 || uaddr % PGSIZE != 0)
+  {
+    return -1;
+  }
+
+  uint32_t file_size = 0;
+
+  uint32_t *pte = get_pte(thread_current()->pagedir, uaddr, true);
+
+  struct file_container *this_container = NULL;
+  for (struct list_elem *e = list_begin(&thread_current()->process->file_containers);
+       e != list_end(&thread_current()->process->file_containers);
+       e = list_next(e))
+  {
+    this_container = list_entry(e, struct file_container, elem);
+    if (param_fd == this_container->fd)
+    {
+      lock_acquire(&filesys_lock);
+      file_size = file_length(this_container->f);
+      lock_release(&filesys_lock);
+      this_container->is_mmap = true;
+      break;
+    }
+  }
+
+  if (file_size == 0)
+  {
+    return -1;
+  }
+
+  uint32_t number_of_pages = file_size / PGSIZE;
+
+  if (file_size % PGSIZE)
+  {
+    number_of_pages++;
+  }
+
+  for (int i = 0; i < file_size; i++)
+  {
+    uint32_t *current_pte = get_pte(thread_current()->pagedir, uaddr + (i * PGSIZE), false);
+    if (current_pte != NULL && (*current_pte) != 0)
+    {
+      return -1;
+    }
+  }
+
+  int new_mapId = allocate_fd();
+  for (int i = 0; i < number_of_pages; i++)
+  {
+    uint32_t *current_pte = get_pte(thread_current()->pagedir, uaddr + (i * PGSIZE), true);
+    (*current_pte) = 0x500;
+    struct mmap_container *mmap_container = malloc(sizeof(struct mmap_container));
+    mmap_container->f = this_container->f;
+    mmap_container->mapid = new_mapId;
+    mmap_container->uaddr = uaddr + (i * PGSIZE);
+    mmap_container->offset_within_file = PGSIZE * i;
+
+    if (file_size < PGSIZE)
+    {
+      mmap_container->size_used_within_page = file_size;
+    }
+    else
+    {
+      mmap_container->size_used_within_page = PGSIZE;
+      file_size -= PGSIZE;
+    }
+
+    list_push_back(&thread_current()->process->mmap_containers, &mmap_container->elem);
+  }
+
+  return new_mapId;
 }
 
 uint32_t sys_munmap(uint32_t *args)
 {
-  return 0;
+  mapid_t id = get_word(args);
+
+  struct list_elem *e = list_begin(&thread_current()->process->mmap_containers);
+  while (e != list_end(&thread_current()->process->mmap_containers))
+  {
+
+    struct mmap_container *this_container = list_entry(e, struct mmap_container, elem);
+    if (id == this_container->mapid)
+    {
+      uint32_t *pte = get_pte(thread_current()->pagedir, this_container->uaddr, false);
+      if (pte == NULL || *pte == 0)
+      {
+        return -1;
+      }
+
+      if (pagedir_is_dirty(thread_current()->pagedir, this_container->uaddr) && ((*pte) & 0x500) != 0x500)
+      {
+        lock_acquire(&filesys_lock);
+        file_write_at(this_container->f, ptov((*pte) & PTE_ADDR),
+                      this_container->size_used_within_page,
+                      this_container->offset_within_file);
+        lock_release(&filesys_lock);
+      }
+      struct list_elem *temp = e;
+      e = list_next(e);
+      list_remove(temp);
+      free(this_container);
+      // TODO : look into removing frame from frame table to free up kvm
+    }
+    else
+    {
+      e = list_next(e);
+    }
+  }
 }
 
 /* Reads a byte at user virtual address UADDR. UADDR must be below PHYS_BASE.
