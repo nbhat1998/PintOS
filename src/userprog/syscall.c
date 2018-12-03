@@ -551,7 +551,7 @@ uint32_t sys_munmap(uint32_t *args)
         return -1;
       }
 
-      if ((*pte) & PTE_D != 0 && ((*pte) & 0x500) != 0x500)
+      if (pagedir_is_dirty(thread_current()->pagedir, this_container->uaddr) && ((*pte) & 0x500) != 0x500)
       {
         lock_acquire(&filesys_lock);
         file_write_at(this_container->f, ptov((*pte) & PTE_ADDR),

@@ -185,6 +185,8 @@ page_fault(struct intr_frame *f)
       sys_exit_failure();
       NOT_REACHED();
     }
+    pagedir_set_dirty(thread_current()->pagedir, fault_addr, write);
+    // TODO: maybe set accessed bit
     for (struct list_elem *e = list_begin(
              &thread_current()->process->mmap_containers);
          e != list_end(&thread_current()->process->mmap_containers);
