@@ -8,6 +8,7 @@
 #include "threads/thread.h"
 #include "threads/palloc.h"
 #include "threads/vaddr.h"
+#include "threads/pte.h"
 
 // TODO: set pin to false in install_page
 
@@ -18,25 +19,30 @@ void create_frame(void *vaddr)
   list_init(&new_frame->user_ptes);
   // TODO: set pint to true
   list_push_back(&frame_table, &new_frame->elem);
+  lock_init(&new_frame->lock);
 }
 
 void set_frame(void *vaddr, void *uaddr)
 {
   struct user_pte_ptr *new_pte_ptr = malloc(sizeof(struct user_pte_ptr));
   new_pte_ptr->pagedir = thread_current()->pagedir;
-  new_pte_ptr->uaddr = uaddr;
+  new_pte_ptr->uaddr = pg_round_down(uaddr);
 
+  //printf("pd %p uaddr %p pte: %p\n", thread_current()->pagedir, uaddr, get_pte(thread_current()->pagedir, uaddr, false));
   for (struct list_elem *e = list_begin(&frame_table);
        e != list_end(&frame_table); e = list_next(e))
   {
     struct frame *curr = list_entry(e, struct frame, elem);
     if (curr->vaddr == vaddr)
     {
+      // lock_acquire(&curr->lock);
       list_push_back(&curr->user_ptes, &new_pte_ptr->elem);
       curr->pin = false;
+      // lock_release(&curr->lock);
       return;
     }
   }
+  free(new_pte_ptr);
   NOT_REACHED();
 }
 

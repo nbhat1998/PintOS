@@ -164,7 +164,14 @@ page_fault(struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, false);
-
+  // if (pte != NULL)
+  // {
+  //   printf("faddr %p pte %p\n", fault_addr, *pte);
+  // }
+  // else
+  // {
+  //   printf("no pte\n");
+  // }
   /* If the kernel gets a fault_addr in user space, and the fault_addr
      is in stack bounds, allocate a new page for stack */
   if (not_present && is_user_vaddr(fault_addr) && fault_addr > STACK_LIMIT &&
@@ -181,10 +188,11 @@ page_fault(struct intr_frame *f)
       create_frame(kvaddr);
     }
 
-    set_frame(kvaddr, fault_addr);
     bool success = link_page(fault_addr, kvaddr, true);
+    set_frame(kvaddr, fault_addr);
     if (!success)
     {
+      //printf("s-o futut 190\n");
       sys_exit_failure();
     }
     return;
@@ -233,7 +241,8 @@ page_fault(struct intr_frame *f)
     {
       create_frame(kpage);
     }
-
+    bool rw = (*pte & PTE_W) != 0;
+    bool success = link_page(fault_addr, kpage, rw);
     set_frame(kpage, fault_addr);
 
     int actually_read = 0;
@@ -252,14 +261,12 @@ page_fault(struct intr_frame *f)
 
     if (actually_read != read_bytes)
     {
+      //printf("s-o futut 258\n");
       sys_exit_failure();
     }
-
-    bool rw = (*pte & PTE_W) != 0;
-
-    bool success = link_page(fault_addr, kpage, rw);
     if (!success)
     {
+      //printf("s-o futut 267\n");
       sys_exit_failure();
     }
     return;
@@ -273,12 +280,15 @@ page_fault(struct intr_frame *f)
       return;
   }
 
-  if ((fault_addr < PHYS_BASE && !not_present && write)) {
+  if ((fault_addr < PHYS_BASE && !not_present && write))
+  {
+    //printf("s-o futut 282\n");
     sys_exit_failure();
   }
 
-  if (user) {
-    printf("faddr %p pte %p\n", fault_addr, *pte);
+  if (user)
+  {
+    //printf("s-o futut 287\n");
     sys_exit_failure();
   }
 
@@ -286,6 +296,7 @@ page_fault(struct intr_frame *f)
   {
     f->eip = f->eax;
     f->eax = 0xFFFFFFFF;
+    //printf("s-o futut 298\n");
     sys_exit_failure();
   }
 

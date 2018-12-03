@@ -16,6 +16,7 @@ void swap_page_write(size_t index, void *kvaddr);
 void swap_read(void *fault_addr)
 {
   uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, false);
+
   size_t swap_index = (*pte & PTE_ADDR) >> 12;
   bool writable = (*pte & PTE_W) != 0;
   // TODO: check if always init
@@ -31,11 +32,14 @@ void swap_read(void *fault_addr)
     create_frame(kvaddr);
   }
 
-  set_frame(kvaddr, fault_addr);
   bool success = link_page(fault_addr, kvaddr, writable);
+  set_frame(kvaddr, fault_addr);
 
   //  *pte &= (~0x700);
   *pte &= (~PTE_S);
+
+  //printf("read : (thread: %d ) UADDR %p, pte %p\n", thread_current()->tid, fault_addr, *pte);
+
   swap_page_read(swap_index, kvaddr);
 }
 
@@ -55,19 +59,20 @@ void swap_write(struct frame *f)
   size_t index_in_swap = bitmap_scan_and_flip(swap_table, 0, 1, false);
   swap_page_write(index_in_swap, f->vaddr);
 
+  //lock_acquire(&f->lock);
   while (!list_empty(&f->user_ptes))
   {
     struct list_elem *curr = list_pop_front(&f->user_ptes);
     struct user_pte_ptr *current = list_entry(curr, struct user_pte_ptr, elem);
+    //printf("swap pd %p uaddr %p\n", current->pagedir, current->uaddr);
+
     uint32_t *pte = get_pte(current->pagedir, current->uaddr, false);
     bool is_file = (*pte & 0x200) != 0;
-    *pte = (((index_in_swap << 12) | PTE_S) & (~PTE_P) & (*pte  & PTE_W));
-    // if (is_file)
-    // {
-    //   *pte |= 0x700;
-    // }
+    *pte = (((index_in_swap << 12) | PTE_S) & (~PTE_P) | (*pte & PTE_W));
+    //printf("write: (thread: %d ) UADDR %p, pte %p\n", thread_current()->tid, current->uaddr, *pte);
     free(current);
   }
+  // lock_release(&f->lock);
 }
 static int get_user(const uint8_t *uaddr);
 
@@ -110,7 +115,7 @@ void swap_page_write(size_t index, void *kaddr)
     {
       if (!put_user(buffer++, ((char *)kaddr + size)[j]))
       {
-        free(kaddr);
+        free(buffer);
         sys_exit_failure();
       }
     }

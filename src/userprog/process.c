@@ -175,7 +175,7 @@ void process_exit(void)
     }
     else
     {
-      /* Otherwise, remove it from the lsit and free it */
+      /* Otherwise, remove it from the list and free it */
       struct list_elem *temp = child;
       child = list_next(child);
       list_remove(temp);
@@ -214,6 +214,25 @@ void process_exit(void)
     lock_release(&cur->process->lock);
     free(cur->process);
   }
+
+  // struct list_elem *curr = list_begin(&frame_table);
+  // for (struct list_elem *curr = list_begin(&frame_table);
+  //      curr != list_end(&frame_table); curr = list_next(e))
+  // {
+  //   struct frame *frame = list_entry(curr, struct frame, elem);
+  //   struct list_elem *curr_pte = list_begin(&frame->user_ptes);
+  //   for (struct list_elem *curr_pte = list_begin(&(frame->user_ptes));
+  //        curr_pte != list_end(&(frame->user_ptes)); curr_pte = list_next(curr))
+  //   {
+  //     struct user_pte_ptr *user_pte = list_entry(curr_pte, struct user_pte_ptr, elem);
+  //     if (user_pte->pagedir == cur->pagedir)
+  //     {
+  //       list_remove(&curr_pte);
+  //       free(user_pte);
+  //       break;
+  //     }
+  //   }
+  // }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -584,7 +603,7 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
          also set 0x100 */
       *pte += ((start_read + page_read_bytes) << 12) + 0x300;
     }
-
+    //printf("upage %p\n", upage);
     /* Advance. */
     read_bytes -= page_read_bytes;
     zero_bytes -= page_zero_bytes;
@@ -613,8 +632,9 @@ setup_stack(void **esp, const char *argv)
   {
     create_frame(kpage);
   }
-  set_frame(kpage, ((uint8_t *)PHYS_BASE) - PGSIZE);
   success = install_page(((uint8_t *)PHYS_BASE) - PGSIZE, kpage, true);
+  set_frame(kpage, ((uint8_t *)PHYS_BASE) - PGSIZE);
+
   if (success)
   {
     *esp = PHYS_BASE;
