@@ -164,7 +164,7 @@ page_fault(struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, false);
-
+  //printf("fault_addr: %p, pte: %p\n", fault_addr, *pte);
   if (not_present && is_user_vaddr(fault_addr) && pte != NULL &&
       ((*pte) & 0x500) == 0x500)
   {
