@@ -18,6 +18,7 @@ struct file_container
   int fd;
   struct file *f;
   struct list_elem elem;
+  bool is_mmap;
 };
 
 struct mmap_container

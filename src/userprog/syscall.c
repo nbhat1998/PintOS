@@ -437,7 +437,10 @@ sys_close(uint32_t *args)
     {
       lock_acquire(&filesys_lock);
       list_remove(e);
-      file_close(this_container->f);
+      if (!this_container->is_mmap)
+      {
+        file_close(this_container->f);
+      }
       free(this_container);
       lock_release(&filesys_lock);
       return;
@@ -477,6 +480,7 @@ uint32_t sys_mmap(uint32_t *args)
       lock_acquire(&filesys_lock);
       file_size = file_length(this_container->f);
       lock_release(&filesys_lock);
+      this_container->is_mmap = true;
       break;
     }
   }

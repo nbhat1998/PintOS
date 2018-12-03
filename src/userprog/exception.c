@@ -318,12 +318,13 @@ page_fault(struct intr_frame *f)
     }
   }
 
-  if ((fault_addr < PHYS_BASE && !not_present && write)) {
+  if ((fault_addr < PHYS_BASE && !not_present && write))
+  {
     sys_exit_failure();
   }
 
-  if (user) {
-    printf("faddr %p pte %p\n", fault_addr, *pte);
+  if (user)
+  {
     sys_exit_failure();
   }
 
