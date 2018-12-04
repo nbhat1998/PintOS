@@ -46,12 +46,12 @@ DESIGN DOCUMENT
 
 `[1]`  Defining a constant to represent the maximum number of frames.  
 `[2]`  A struct used for storing information about individual frames.  
-`[3]`  The virtual address the frame manages.  
-`[4]`  List that stores the PTEs pointing to this frame  
+`[3]`  The kernel virtual address the frame manages.  
+`[4]`  List that stores the page table entries pointing to the kernel virtual address pointed to by this frame.  
 `[5]`  Struct list_elem used to add the struct to the list of frames in frame_table.  
 `[6]`  Boolean used for pinning while the frame is swapped.  
 `[7]`  A struct that acts as a pointer to a user page table entry.  
-`[8]`  The pagedir of the user; used to find the PTE  
+`[8]`  The pagedir of the user; used to find the page table entry.   
 `[9]`  Index in the page directory/ page table; used to find the PTE  
 `[10]` Struct list_elem used to add the struct to the list of user_ptes in struct frame  
 `[11]` List that holds the frames, our frame table.  
