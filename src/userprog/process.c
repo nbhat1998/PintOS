@@ -260,6 +260,26 @@ void process_exit(void)
     lock_release(&frame->lock);
   }
 
+  struct list_elem *frame_elem = list_begin(&frame_table);
+  while (frame_elem != list_end(&frame_table))
+  {
+    struct frame *frame = list_entry(frame_elem, struct frame, elem);
+    lock_acquire(&frame->lock);
+    if (list_empty(&frame->user_ptes))
+    {
+      struct list_elem *temp = list_next(frame_elem);
+      list_remove(frame_elem);
+      lock_release(&frame->lock);
+      free(frame);
+      frame_elem = temp;
+    }
+    else
+    {
+      lock_release(&frame->lock);
+      frame_elem = list_next(frame_elem);
+    }
+  }
+
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;

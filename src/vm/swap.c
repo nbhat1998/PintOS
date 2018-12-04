@@ -88,6 +88,7 @@ void swap_write(struct frame *f)
     //printf("write: (thread: %d ) UADDR %p, pte %p\n", thread_current()->tid, current->uaddr, *pte);
     free(current);
   }
+  //f->pin = false;
   lock_release(&f->lock);
 }
 

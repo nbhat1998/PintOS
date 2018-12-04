@@ -138,7 +138,7 @@ void *evict()
       index++;
     }
   } while (frame_to_evict->pin);
-  frame_to_evict->pin = true;
+  //frame_to_evict->pin = true;
   // TODO: check if dirty, and only write to swap if true. Also pinning.
 
   swap_write(frame_to_evict);
