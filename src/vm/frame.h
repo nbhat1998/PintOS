@@ -24,6 +24,8 @@ struct user_pte_ptr
   struct list_elem elem;
 };
 
+int32_t evict_cnt;
+
 struct list frame_table;
 
 void create_frame(void *vaddr);

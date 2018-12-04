@@ -84,7 +84,6 @@ start_process(void *args)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-
   /* Load File and setup stack */
   success = load(file_name, &if_.eip, &if_.esp);
 
@@ -275,6 +274,7 @@ void process_exit(void)
       {
         struct list_elem *temp = list_next(frame_elem);
         list_remove(frame_elem);
+        palloc_free_page(frame->vaddr);
         lock_release(&frame->lock);
         free(frame);
         frame_elem = temp;
@@ -431,6 +431,7 @@ bool load(const char *argv, void (**eip)(void), void **esp)
 
   /* Add file to list of file containers and deny write */
   int fd = new_file_container(file);
+  lock_acquire(&filesys_lock);
   file_deny_write(file);
 
   /* Read and verify executable header. */
@@ -440,8 +441,10 @@ bool load(const char *argv, void (**eip)(void), void **esp)
       ehdr.e_phentsize != sizeof(struct Elf32_Phdr) || ehdr.e_phnum > 1024)
   {
     printf("load: %s: error loading executable\n", file_name);
+    lock_release(&filesys_lock);
     goto done;
   }
+  lock_release(&filesys_lock);
 
   /* Read program headers. */
   file_ofs = ehdr.e_phoff;
@@ -470,6 +473,7 @@ bool load(const char *argv, void (**eip)(void), void **esp)
     case PT_SHLIB:
       goto done;
     case PT_LOAD:
+      lock_acquire(&filesys_lock);
       if (validate_segment(&phdr, file))
       {
         bool writable = (phdr.p_flags & PF_W) != 0;
@@ -493,10 +497,17 @@ bool load(const char *argv, void (**eip)(void), void **esp)
         }
         if (!load_segment(file, file_page, (void *)mem_page,
                           read_bytes, zero_bytes, writable))
+        {
+          lock_release(&filesys_lock);
           goto done;
+        }
       }
       else
+      {
+        lock_release(&filesys_lock);
         goto done;
+      }
+      lock_release(&filesys_lock);
       break;
     }
   }

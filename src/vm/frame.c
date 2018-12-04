@@ -125,7 +125,7 @@ void *evict()
   struct frame *frame_to_evict;
   do
   {
-    int index_to_evict = random_ulong() % list_size(&frame_table);
+    int index_to_evict = evict_cnt % list_size(&frame_table);
     int index = 0;
 
     for (struct list_elem *e = list_begin(&frame_table);
@@ -138,6 +138,7 @@ void *evict()
       }
       index++;
     }
+    evict_cnt++;
   } while (frame_to_evict->pin);
 
   frame_to_evict->pin = true;
