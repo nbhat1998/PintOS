@@ -80,15 +80,14 @@ void swap_write(struct frame *f)
   {
     struct list_elem *curr = list_pop_front(&f->user_ptes);
     struct user_pte_ptr *current = list_entry(curr, struct user_pte_ptr, elem);
-    //printf("swap pd %p uaddr %p\n", current->pagedir, current->uaddr);
 
     uint32_t *pte = get_pte(current->pagedir, current->uaddr, false);
     bool is_file = (*pte & 0x200) != 0;
     *pte = (((index_in_swap << 12) | PTE_S) & (~PTE_P) | (*pte & PTE_W));
-    //printf("write: (thread: %d ) UADDR %p, pte %p\n", thread_current()->tid, current->uaddr, *pte);
     free(current);
   }
-  //f->pin = false;
+  memset(f->vaddr, 0, PGSIZE);
+  f->pin = false;
   lock_release(&f->lock);
 }
 

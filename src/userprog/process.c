@@ -41,16 +41,17 @@ tid_t process_execute(const char *file_name)
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
-  fn_copy = palloc_get_page(0);
+  fn_copy = palloc_get_page(PAL_ZERO);
   if (fn_copy == NULL)
   {
     return TID_ERROR;
   }
   strlcpy(fn_copy, file_name, PGSIZE);
 
-  file_name_kernel = palloc_get_page(0);
+  file_name_kernel = palloc_get_page(PAL_ZERO);
   if (file_name_kernel == NULL)
   {
+    palloc_free_page(fn_copy);
     return TID_ERROR;
   }
   strlcpy(file_name_kernel, file_name, PGSIZE);
@@ -179,8 +180,6 @@ void process_exit(void)
       e = list_next(e);
       list_remove(temp);
       free(this_container);
-      // TODO : look into removing frame from frame table to free up kvm\
-    }
     }
   }
 
@@ -241,50 +240,51 @@ void process_exit(void)
     free(cur->process);
   }
 
-  for (struct list_elem *curr = list_begin(&frame_table);
-       curr != list_end(&frame_table); curr = list_next(curr))
-  {
-    struct frame *frame = list_entry(curr, struct frame, elem);
-    lock_acquire(&frame->lock);
-    for (struct list_elem *curr_pte = list_begin(&(frame->user_ptes));
-         curr_pte != list_end(&(frame->user_ptes)); curr_pte = list_next(curr_pte))
-    {
-      struct user_pte_ptr *user_pte = list_entry(curr_pte, struct user_pte_ptr, elem);
-      if (user_pte->pagedir == cur->pagedir)
-      {
-        list_remove(curr_pte);
-        free(user_pte);
-        break;
-      }
-    }
-    lock_release(&frame->lock);
-  }
-
-  struct list_elem *frame_elem = list_begin(&frame_table);
-  while (frame_elem != list_end(&frame_table))
-  {
-    struct frame *frame = list_entry(frame_elem, struct frame, elem);
-    lock_acquire(&frame->lock);
-    if (list_empty(&frame->user_ptes))
-    {
-      struct list_elem *temp = list_next(frame_elem);
-      list_remove(frame_elem);
-      lock_release(&frame->lock);
-      free(frame);
-      frame_elem = temp;
-    }
-    else
-    {
-      lock_release(&frame->lock);
-      frame_elem = list_next(frame_elem);
-    }
-  }
-
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
   if (pd != NULL)
   {
+
+    for (struct list_elem *curr = list_begin(&frame_table);
+         curr != list_end(&frame_table); curr = list_next(curr))
+    {
+      struct frame *frame = list_entry(curr, struct frame, elem);
+      lock_acquire(&frame->lock);
+
+      for (struct list_elem *curr_pte = list_begin(&(frame->user_ptes));
+           curr_pte != list_end(&(frame->user_ptes)); curr_pte = list_next(curr_pte))
+      {
+        struct user_pte_ptr *user_pte = list_entry(curr_pte, struct user_pte_ptr, elem);
+        if (user_pte->pagedir == cur->pagedir)
+        {
+          list_remove(curr_pte);
+          free(user_pte);
+          break;
+        }
+      }
+      lock_release(&frame->lock);
+    }
+
+    struct list_elem *frame_elem = list_begin(&frame_table);
+    while (frame_elem != list_end(&frame_table))
+    {
+      struct frame *frame = list_entry(frame_elem, struct frame, elem);
+      lock_acquire(&frame->lock);
+      if (list_empty(&frame->user_ptes))
+      {
+        struct list_elem *temp = list_next(frame_elem);
+        list_remove(frame_elem);
+        lock_release(&frame->lock);
+        free(frame);
+        frame_elem = temp;
+      }
+      else
+      {
+        lock_release(&frame->lock);
+        frame_elem = list_next(frame_elem);
+      }
+    }
     /* Correct ordering here is crucial.  We must set
          cur->pagedir to NULL before switching page directories,
          so that a timer interrupt can't switch back to the

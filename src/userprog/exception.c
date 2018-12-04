@@ -189,7 +189,7 @@ page_fault(struct intr_frame *f)
       sys_exit_failure();
       NOT_REACHED();
     }
-    pagedir_set_dirty(thread_current()->pagedir, fault_addr, write);
+    pagedir_set_dirty(thread_current()->pagedir, pg_round_down(fault_addr), write);
     // TODO: maybe set accessed bit
     for (struct list_elem *e = list_begin(
              &thread_current()->process->mmap_containers);
@@ -198,7 +198,7 @@ page_fault(struct intr_frame *f)
     {
       struct mmap_container *this_container =
           list_entry(e, struct mmap_container, elem);
-      if (this_container->uaddr == fault_addr)
+      if (this_container->uaddr == pg_round_down(fault_addr))
       {
         // TODO : lock and unlock here with filesys_lock? not sure if this part will be called within a syscall, in which case there will be a deadlock
 

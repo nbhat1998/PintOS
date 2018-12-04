@@ -108,12 +108,13 @@ uint32_t
 sys_exec(uint32_t *args)
 {
   char *name = get_word(args);
+
   if (!check_ptr(name))
   {
     return -1;
   }
-
   tid_t tid = process_execute(name);
+
   if (tid == -1)
   {
     return -1;

@@ -18,6 +18,7 @@ void create_frame(void *vaddr)
   new_frame->vaddr = vaddr;
   list_init(&new_frame->user_ptes);
   // TODO: set pint to true
+  new_frame->pin = false;
   lock_init(&new_frame->lock);
   list_push_back(&frame_table, &new_frame->elem);
 }
@@ -26,7 +27,7 @@ void set_frame(void *vaddr, void *uaddr)
 {
   struct user_pte_ptr *new_pte_ptr = malloc(sizeof(struct user_pte_ptr));
   new_pte_ptr->pagedir = thread_current()->pagedir;
-  new_pte_ptr->uaddr = pg_round_down(uaddr);
+  new_pte_ptr->uaddr = uaddr;
 
   //printf("pd %p uaddr %p pte: %p\n", thread_current()->pagedir, uaddr, get_pte(thread_current()->pagedir, uaddr, false));
   for (struct list_elem *e = list_begin(&frame_table);
@@ -138,10 +139,11 @@ void *evict()
       index++;
     }
   } while (frame_to_evict->pin);
-  //frame_to_evict->pin = true;
+
+  frame_to_evict->pin = true;
   // TODO: check if dirty, and only write to swap if true. Also pinning.
 
   swap_write(frame_to_evict);
-  memset(frame_to_evict->vaddr, 0, PGSIZE);
+
   return frame_to_evict->vaddr;
 }
