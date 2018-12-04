@@ -255,7 +255,7 @@ void process_exit(void)
            curr_pte != list_end(&(frame->user_ptes)); curr_pte = list_next(curr_pte))
       {
         struct user_pte_ptr *user_pte = list_entry(curr_pte, struct user_pte_ptr, elem);
-        if (user_pte->pagedir == cur->pagedir)
+        if (user_pte->pagedir != NULL && user_pte->pagedir == cur->pagedir)
         {
           list_remove(curr_pte);
           free(user_pte);
