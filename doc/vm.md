@@ -44,17 +44,17 @@ DESIGN DOCUMENT
 [11] struct list frame_table;
 ```
 
-`[1]`    
-`[2]`    
-`[3]`    
-`[4]`    
-`[5]`    
-`[6]`    
-`[7]`    
-`[8]`    
-`[9]`    
-`[10]`    
-`[11]`    
+`[1]`  Defining a constant to represent the maximum number of frames.  
+`[2]`  A struct used for storing information about individual frames.  
+`[3]`  The virtual address the frame manages.  
+`[4]`  List that stores the PTEs pointing to this frame  
+`[5]`  Struct list_elem used to add the struct to the list of frames in frame_table.  
+`[6]`  Boolean used for pinning while the frame is swapped.  
+`[7]`  A struct that acts as a pointer to a user page table entry.  
+`[8]`  The pagedir of the user; used to find the PTE  
+`[9]`  Index in the page directory/ page table; used to find the PTE  
+`[10]` Struct list_elem used to add the struct to the list of user_ptes in struct frame  
+`[11]` List that holds the frames, our frame table.  
 
 ### ALGORITHMS  
 
@@ -118,11 +118,12 @@ DESIGN DOCUMENT
 [5] #define PF_F 0x200 
 ```
 
-`[1]`   
-`[2]`   
-`[3]` 1=swapped, 0=not in swap  
-`[4]` 0: not in swap table, 1: in swap table  
-`[5]` 0: not a file, 1: file  
+`[1]` Pointer to the executable file used for lazy loading.  
+`[2]` A bitmap that records which sectors are currently storing swapped data.   
+`[3]` Bit that is set to 1 when the page table entry is swapped, and 0 when it's not in swap.  
+`[4]` Page fault error code bit that is 0 when it's not in swap table, and 1 when 
+it is in swap table.  
+`[5]` Page fault error code bit that is 0 when it's not a file, and 1 when it is a file.  
 
 ### ALGORITHMS  
 
@@ -188,7 +189,7 @@ DESIGN DOCUMENT
 [5]   void *uaddr;
 [6]   uint32_t offset_within_file;
 [7]   uint32_t size_used_within_page;
-[8]   struct list_elem elem
+[8]   struct list_elem elem;
     };
     
     struct file_container 
@@ -199,23 +200,25 @@ DESIGN DOCUMENT
     
     
 <<<<<< thread.h >>>>>>
-    struct process {
+
+    struct process 
+    {
       ...
 [10]  struct list mmap_containers;  
-}
+    };
 ```
 
-`[1]`    
-`[2]`    
-`[3]`    
-`[4]`    
-`[5]`    
-`[6]`    
-`[7]`    
-`[8]`    
-`[9]`    
+`[1]`  The map identifier.  
+`[2]`  A struct used for storing information about the container for a memory mapped page of a file. 
+`[3]`  A pointer to the file that is memory mapped.  
+`[4]`  The unique identifier of the container.   
+`[5]`  The address in user space that the page of the file is mapped to.   
+`[6]`  The offset within the file where this page starts.  
+`[7]`  How much of the page should be read (always less than or equal to PGSIZE).  
+`[8]`  Struct list_elem used to add the struct to the list of mmap_containers in struct process.  
+`[9]`  Boolean that acts as a flag and is true if that file is mapped to memory.  
 `[10]` List of mmap containers storing informaiton about the pages of the file 
-stored in physical memory by this process   
+stored in physical memory by this process.   
 
 ### ALGORITHMS  
 
