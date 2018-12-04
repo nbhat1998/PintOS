@@ -126,13 +126,14 @@ struct process
   struct semaphore setup_sema; /* Semaphore that is upped when loading finishes */
   struct lock lock;            /* Lock used to synchronize operations on struct process */
   int status;                  /* Curret status of the process */
+  void *esp;                   /* Current stack pointer*/
   struct list_elem elem;       /* List element used to add it to the parent's list of children */
   bool first_done;             /* True when either the parent or the child finish execution */
   bool setup;                  /* True if the process loaded successfully, false otherwise */
   struct list file_containers; /* List of file containers storing information about the files 
                                   opened by this process. */
   struct list mmap_containers; /* List of mmap containers storing informaiton about the pages of the file 
-                                  stored in physical memory by this process*/ 
+                                  stored in physical memory by this process*/
   struct file *executable;
 };
 

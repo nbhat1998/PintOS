@@ -164,7 +164,10 @@ page_fault(struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, false);
-
+  // if (pte != NULL)
+  // {
+  //   printf("faddr %p f->esp %p pte %p s-o futut\n", fault_addr, f->esp, *pte);
+  // }
   //printf("fault_addr: %p, pte: %p\n", fault_addr, *pte);
   if (not_present && is_user_vaddr(fault_addr) && pte != NULL &&
       ((*pte) & 0x500) == 0x500)
@@ -207,16 +210,23 @@ page_fault(struct intr_frame *f)
         return;
       }
     }
+    // printf("s-o futut 210\n");
     sys_exit_failure();
     NOT_REACHED();
   }
 
   /* If the kernel gets a fault_addr in user space, and the fault_addr
      is in stack bounds, allocate a new page for stack */
-  if (not_present && is_user_vaddr(fault_addr) && fault_addr > STACK_LIMIT &&
-      fault_addr >= f->esp - 32 && (((*pte) & PF_S) == 0))
-  {
+  //printf("f->esp %p sp %p\n", f->esp, thread_current()->stack);
 
+  void *esp = f->esp;
+  if (!is_user_vaddr(esp))
+  {
+    esp = thread_current()->process->esp;
+  }
+  if ((not_present && is_user_vaddr(fault_addr) && fault_addr > STACK_LIMIT &&
+       (fault_addr >= esp - 32) && (((*pte) & PF_S) == 0)))
+  {
     void *kvaddr = palloc_get_page(PAL_USER);
     if (kvaddr == NULL)
     {
@@ -231,7 +241,7 @@ page_fault(struct intr_frame *f)
     set_frame(kvaddr, fault_addr);
     if (!success)
     {
-      //printf("s-o futut 190\n");
+      // printf("s-o futut 235\n");
       sys_exit_failure();
     }
     return;
@@ -300,12 +310,12 @@ page_fault(struct intr_frame *f)
 
     if (actually_read != read_bytes)
     {
-      //printf("s-o futut 258\n");
+      //printf("s-o futut 304\n");
       sys_exit_failure();
     }
     if (!success)
     {
-      //printf("s-o futut 267\n");
+      //printf("s-o futut 309\n");
       sys_exit_failure();
     }
     return;
@@ -323,13 +333,13 @@ page_fault(struct intr_frame *f)
 
   if ((fault_addr < PHYS_BASE && !not_present && write))
   {
-
+    //("s-o futut 327\n");
     sys_exit_failure();
   }
 
   if (user)
   {
-
+    // printf("s-o futut 333\n");
     sys_exit_failure();
   }
 
@@ -337,7 +347,6 @@ page_fault(struct intr_frame *f)
   {
     f->eip = f->eax;
     f->eax = 0xFFFFFFFF;
-    //printf("s-o futut 298\n");
     sys_exit_failure();
   }
 

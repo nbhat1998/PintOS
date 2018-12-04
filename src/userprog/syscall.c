@@ -67,6 +67,7 @@ void syscall_init(void)
 static void
 syscall_handler(struct intr_frame *f)
 {
+  thread_current()->process->esp = f->esp;
   int function = get_word(f->esp);
   if (function == NULL)
   {
