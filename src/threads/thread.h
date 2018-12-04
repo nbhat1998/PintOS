@@ -126,7 +126,7 @@ struct process
   struct semaphore setup_sema; /* Semaphore that is upped when loading finishes */
   struct lock lock;            /* Lock used to synchronize operations on struct process */
   int status;                  /* Curret status of the process */
-  void *esp;                   /* Current stack pointer*/
+  void *esp;                   /* Current stack pointer */
   struct list_elem elem;       /* List element used to add it to the parent's list of children */
   bool first_done;             /* True when either the parent or the child finish execution */
   bool setup;                  /* True if the process loaded successfully, false otherwise */
