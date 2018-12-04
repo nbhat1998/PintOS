@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <bitmap.h>
 #include "devices/kbd.h"
 #include "devices/input.h"
 #include "devices/serial.h"
@@ -36,6 +37,10 @@
 #include "devices/ide.h"
 #include "filesys/filesys.h"
 #include "filesys/fsutil.h"
+#endif
+#ifdef VM
+#include "vm/swap.h"
+#include "vm/frame.h"
 #endif
 
 /* Page directory with kernel mappings only. */
@@ -126,6 +131,9 @@ int main(void)
   ide_init();
   locate_block_devices();
   filesys_init(format_filesys);
+#endif
+#ifdef VM
+  list_init(&frame_table);
 #endif
 
   printf("Boot complete.\n");
@@ -397,6 +405,7 @@ locate_block_devices(void)
   locate_block_device(BLOCK_SCRATCH, scratch_bdev_name);
 #ifdef VM
   locate_block_device(BLOCK_SWAP, swap_bdev_name);
+  swap_table = bitmap_create(block_size(block_get_role(BLOCK_SWAP)) / 8); // TODO: Check if size should be divided by pgsize here. logically it should be as we as many entries in the bitmap as there are sectors/ pages in the block
 #endif
 }
 

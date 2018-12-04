@@ -395,7 +395,7 @@ void update_priority(struct thread *cur, struct thread *caller, int new_priority
 {
   enum intr_level old_level;
   old_level = intr_disable();
-  // UPDATE PRIORITY
+  /* UPDATE PRIORITY */
   int max = 0;
   if (list_size(&cur->donations) != 0)
   {
@@ -409,15 +409,13 @@ void update_priority(struct thread *cur, struct thread *caller, int new_priority
   }
   cur->priority = max;
 
-  // Update recipient if it exist
-  //donation_recursive_update
+  /* Update recipient if it exists */
   if (cur->recipient)
   {
-    update_priority(cur->recipient, cur, new_priority);
+    // update_priority(cur->recipient, cur, new_priority);
   }
 
-  // Update list of donations and their locks
-  // also different function
+  /* Update list of donations and their locks */
   for (struct list_elem *e = list_begin(&cur->donations);
        e != list_end(&cur->donations); e = list_next(e))
   {
@@ -449,8 +447,6 @@ void thread_set_priority(int new_priority)
       new_priority = PRI_MIN;
     }
     cur->priority = new_priority;
-    //list_remove(&cur->elem);
-    //list_insert_ordered(&ready_list, &cur->elem, list_more_priority, NULL);
     list_sort(&ready_list, list_more_priority, NULL);
 
     if (list_size(&ready_list) != 0 &&
@@ -471,8 +467,6 @@ void thread_set_priority(int new_priority)
   else
   {
     cur->init_priority = new_priority;
-    //list_remove(&cur->elem);
-    //list_insert_ordered(&ready_list, &cur->elem, list_more_priority, NULL);
     list_sort(&ready_list, list_more_priority, NULL);
 
     int max = 0;
@@ -638,12 +632,12 @@ init_thread(struct thread *t, const char *name, int priority)
   t->init_priority = priority;
   t->recipient = NULL;
 
-  // INIT list of children
+  /* Initialises list of children */
   list_init(&t->child_processes);
 
   if (boot_complete)
-  { // For all threads other than main
-    // Create a new process struct
+  {
+    /* For all threads other than main, create a new process struct */
     struct process *p = (struct process *)malloc(sizeof(struct process));
     if (p == NULL)
     {
@@ -654,10 +648,11 @@ init_thread(struct thread *t, const char *name, int priority)
     sema_init(&p->setup_sema, 0);
     lock_init(&p->lock);
     list_init(&p->file_containers);
+    list_init(&p->mmap_containers); 
     p->status = -1;
     p->first_done = false;
 
-    // And add pointers so that both child and parent can access it
+    /* Add pointers so that both child and parent can access it */
     t->process = p;
     list_push_back(&thread_current()->child_processes, &p->elem);
   }

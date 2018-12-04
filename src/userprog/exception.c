@@ -2,10 +2,22 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include "userprog/gdt.h"
+#include "userprog/process.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/palloc.h"
+#include "threads/pte.h"
+#include "devices/block.h"
 #include "syscall.h"
+#include "pagedir.h"
+#include "vm/frame.h"
+#include "vm/swap.h"
+#include "filesys/file.h"
+#include "threads/synch.h"
+#include "userprog/syscall.h"
+
+#define STACK_LIMIT 0xbfe00000
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -125,11 +137,13 @@ page_fault(struct intr_frame *f)
   bool not_present; /* True: not-present page, false: writing r/o page. */
   bool write;       /* True: access was write, false: access was read. */
   bool user;        /* True: access by user, false: access by kernel. */
+  bool swapped;     /* True: is in swap, false: is not in swap */
+  bool file;        /* True: is file, false: is not file */
   void *fault_addr; /* Fault address. */
 
   /* Obtain faulting address, the virtual address that was
      accessed to cause the fault.  It may point to code or to
-     data.  It is not necessarily the address of the instruction
+     data.  It is not necessarily the address of the instructioxn
      that caused the fault (that's f->eip).
      See [IA32-v2a] "MOV--Move to/from Control Registers" and
      [IA32-v3a] 5.15 "Interrupt 14--Page Fault Exception
@@ -149,14 +163,178 @@ page_fault(struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  // TODO: if not user set eip to eax and clear eax and return?
-  // TODO: if not user and < what here >
-  if (!user && fault_addr < PHYS_BASE || user)
+  uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, false);
+  //printf("fault_addr: %p, pte: %p\n", fault_addr, *pte);
+  if (not_present && is_user_vaddr(fault_addr) && pte != NULL &&
+      ((*pte) & 0x500) == 0x500)
+  {
+    void *kpage = palloc_get_page(PAL_USER);
+
+    if (kpage == NULL)
+    {
+      kpage = evict();
+    }
+    else
+    {
+      create_frame(kpage);
+    }
+    set_frame(kpage, fault_addr);
+    bool success = link_page(fault_addr, kpage, true);
+    if (!success)
+    {
+      sys_exit_failure();
+      NOT_REACHED();
+    }
+    pagedir_set_dirty(thread_current()->pagedir, fault_addr, write);
+    // TODO: maybe set accessed bit
+    for (struct list_elem *e = list_begin(
+             &thread_current()->process->mmap_containers);
+         e != list_end(&thread_current()->process->mmap_containers);
+         e = list_next(e))
+    {
+      struct mmap_container *this_container =
+          list_entry(e, struct mmap_container, elem);
+      if (this_container->uaddr == fault_addr)
+      {
+        // TODO : lock and unlock here with filesys_lock? not sure if this part will be called within a syscall, in which case there will be a deadlock
+
+        memset(kpage, 0, PGSIZE);
+        file_read_at(this_container->f, kpage,
+                     this_container->size_used_within_page,
+                     this_container->offset_within_file);
+
+        return;
+      }
+    }
+    sys_exit_failure();
+    NOT_REACHED();
+  }
+
+  /* If the kernel gets a fault_addr in user space, and the fault_addr
+     is in stack bounds, allocate a new page for stack */
+  if (not_present && is_user_vaddr(fault_addr) && fault_addr > STACK_LIMIT &&
+      fault_addr >= f->esp - 32 && (((*pte) & PF_S) == 0))
+  {
+
+    void *kvaddr = palloc_get_page(PAL_USER);
+    if (kvaddr == NULL)
+    {
+      kvaddr = evict();
+    }
+    else
+    {
+      create_frame(kvaddr);
+    }
+
+    set_frame(kvaddr, fault_addr);
+    bool success = link_page(fault_addr, kvaddr, true);
+    if (!success)
+    {
+      sys_exit_failure();
+    }
+    return;
+  }
+
+  /* Lazy loading */
+  if (not_present && is_user_vaddr(fault_addr) && pte != NULL && ((*pte) & PF_F) != 0)
+  {
+    uint32_t start_read, read_bytes;
+    if ((*pte & 0x400) != 0)
+    { // Middle of a page
+      start_read = (*pte) >> 12;
+      read_bytes = PGSIZE - (start_read % PGSIZE);
+    }
+    else
+    { // Start of page
+      start_read = (*pte) >> 12;
+      if (((*pte) >> 12) % PGSIZE == 0)
+      { // increment of page size
+        if ((*pte & 0x100) != 0)
+        { // Read all of it
+          read_bytes = PGSIZE;
+          start_read -= PGSIZE;
+        }
+        else
+        { // read none of it
+          read_bytes = 0;
+        }
+      }
+      else
+      { // read amount is mod PGSIZE
+        read_bytes = ((*pte) >> 12) % PGSIZE;
+        start_read -= read_bytes;
+      }
+    }
+
+    struct file *file = thread_current()->process->executable;
+    int file_size = file_length(file);
+
+    void *kpage = palloc_get_page(PAL_USER);
+    if (kpage == NULL)
+    {
+      kpage = evict();
+    }
+    else
+    {
+      create_frame(kpage);
+    }
+
+    set_frame(kpage, fault_addr);
+
+    int actually_read = 0;
+    memset(kpage, 0, PGSIZE);
+    if (read_bytes != 0)
+    {
+      if ((*pte & 0x400) != 0)
+      {
+        actually_read = file_read_at(file, kpage + (start_read % PGSIZE), read_bytes, start_read);
+      }
+      else
+      {
+        actually_read = file_read_at(file, kpage, read_bytes, start_read);
+      }
+    }
+
+    if (actually_read != read_bytes)
+    {
+      sys_exit_failure();
+    }
+
+    bool rw = (*pte & PTE_W) != 0;
+
+    bool success = link_page(fault_addr, kpage, rw);
+    if (!success)
+    {
+      sys_exit_failure();
+    }
+    return;
+  }
+
+  /* Swapped page */
+  if (not_present && is_user_vaddr(fault_addr) && pte != NULL && ((*pte) & PF_S) != 0)
+  { // In SWAP
+    swap_read(fault_addr);
+    if (pte != NULL)
+    {
+      return;
+    }
+  }
+
+  if ((fault_addr < PHYS_BASE && !not_present && write))
+  {
+    sys_exit_failure();
+  }
+
+  if (user)
+  {
+    sys_exit_failure();
+  }
+
+  if (not_present && fault_addr < PHYS_BASE && !user)
   {
     f->eip = f->eax;
     f->eax = 0xFFFFFFFF;
     sys_exit_failure();
-    NOT_REACHED();
   }
 
   /* To implement virtual memory, delete the rest of the function
