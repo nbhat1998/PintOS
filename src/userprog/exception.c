@@ -333,7 +333,6 @@ page_fault(struct intr_frame *f)
 
   if ((fault_addr < PHYS_BASE && !not_present && write))
   {
-    //("s-o futut 327\n");
     sys_exit_failure();
   }
 
