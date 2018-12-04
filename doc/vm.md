@@ -11,9 +11,9 @@ DESIGN DOCUMENT
 - George Soteriou <gs2617@ic.ac.uk>  
 - Maria Teguiani <mt5217@ic.ac.uk>  
 
-#  PAGE TABLE/FRAME MANAGEMENT
+##  PAGE TABLE/FRAME MANAGEMENT
 
-## DATA STRUCTURES  
+### DATA STRUCTURES  
 
 > A1: (2 marks)
 > Copy here the declaration of each new or changed 'struct' or
@@ -23,30 +23,40 @@ DESIGN DOCUMENT
 
 ```
 <<<<<< frame.h >>>>>>
-
-#define MAX_FRAMES 1 << 16
-
-struct frame
-{
-  uint32_t *vaddr;
-  struct list user_ptes;
-  struct list_elem elem;
-  bool pin;
-};
-
-struct user_pte_ptr
-{
-  uint32_t *pagedir;
-  uint32_t *uaddr;
-  struct list_elem elem;
-};
-
-struct list frame_table;
-
+   
+[1]  #define MAX_FRAMES 1 << 16
+    
+[2]  struct frame
+     {
+[3]    uint32_t *vaddr;
+[4]    struct list user_ptes;
+[5]    struct list_elem elem;
+[6]    bool pin;
+     };
+     
+[7]  struct user_pte_ptr
+     {
+[8]    uint32_t *pagedir;
+[9]    uint32_t *uaddr;
+[10]   struct list_elem elem;
+     };
+    
+[11] struct list frame_table;
 ```
 
+`[1]`    
+`[2]`    
+`[3]`    
+`[4]`    
+`[5]`    
+`[6]`    
+`[7]`    
+`[8]`    
+`[9]`    
+`[10]`    
+`[11]`    
 
-## ALGORITHMS  
+### ALGORITHMS  
 
 > A2: (2 marks) 
 > Describe your code for finding the frame (if any) or other location that 
@@ -55,14 +65,14 @@ struct list frame_table;
 > A3: (2 marks)
 > How have you implemented sharing of read only pages?
 
-## SYNCHRONIZATION  
+### SYNCHRONIZATION  
 
 > A4: (2 marks) 
 > When two user processes both need a new frame at the same time,
 > how are races avoided? You should consider both when there are
 > and are not free frames available in memory.
 
-## RATIONALE  
+### RATIONALE  
 
 > A5: (2 marks)
 > Why did you choose the data structure(s) that you did for
@@ -71,9 +81,9 @@ struct list frame_table;
 
 
 
-#  PAGING TO AND FROM DISK
+##  PAGING TO AND FROM DISK
 
-## DATA STRUCTURES  
+### DATA STRUCTURES  
 
 > B1: (1 mark)
 > Copy here the declaration of each new or changed 'struct' or
@@ -85,33 +95,36 @@ struct list frame_table;
 ```
 <<<<<< thread.h >>>>>>
 
-struct process 
-{
-  ...
-  struct file *executable;
-};
-
-
+    struct process 
+    {
+      ...
+[1]   struct file *executable;
+    };
+    
+    
 <<<<<< swap.h >>>>>>
-
-struct bitmap *swap_table;
-
-
+    
+[2] struct bitmap *swap_table;
+    
+    
 <<<<<< pte.h >>>>>>
-
-#define PTE_S 0x100          /* 1=swapped, 0=not in swap */
-
-
+    
+[3] #define PTE_S 0x100 
+    
+    
 <<<<<< exception.h >>>>>>
-
-#define PF_S 0x100 /* 0: not in swap table, 1: in swap table */
-#define PF_F 0x200 /* 0: not a file, 1: file */
-
-
-
+    
+[4] #define PF_S 0x100 
+[5] #define PF_F 0x200 
 ```
 
-## ALGORITHMS  
+`[1]`   
+`[2]`   
+`[3]` 1=swapped, 0=not in swap  
+`[4]` 0: not in swap table, 1: in swap table  
+`[5]` 0: not a file, 1: file  
+
+### ALGORITHMS  
 
 > B2: (2 marks)
 > When a frame is required but none is free, some frame must be
@@ -122,7 +135,7 @@ struct bitmap *swap_table;
 > process Q, how do you adjust the page directory (and any other 
 > data structures) to reflect the frame Q no longer has?
 
-## SYNCHRONIZATION  
+### SYNCHRONIZATION  
 
 > B4: (2 marks)
 > Explain how your synchronization design prevents deadlock.  
@@ -142,7 +155,7 @@ struct bitmap *swap_table;
 > Explain how you handle access to paged-out user pages that 
 > occur during system calls. 
 
-## RATIONALE  
+### RATIONALE  
 
 > B8: (2 marks)
 > There is an obvious trade-off between parallelism and the complexity
@@ -152,9 +165,9 @@ struct bitmap *swap_table;
 
 
 
-#  MEMORY MAPPED FILES
+##  MEMORY MAPPED FILES
 
-## DATA STRUCTURES  
+### DATA STRUCTURES  
 
 > C1: (1 mark)
 > Copy here the declaration of each new or changed 'struct' or
@@ -166,43 +179,52 @@ struct bitmap *swap_table;
 ```
 <<<<<< syscall.h >>>>>>
 
-typedef int mapid_t;
-
-struct mmap_container
-{
-  struct file *f;
-  mapid_t mapid;
-  void *uaddr;
-  uint32_t offset_within_file;
-  uint32_t size_used_within_page;
-  struct list_elem elem
-};
-
-struct file_container 
-{
-  ...
-  bool is_mmap;
-};
-
-
-
+[1] typedef int mapid_t;
+    
+[2] struct mmap_container
+    {
+[3]   struct file *f;
+[4]   mapid_t mapid;
+[5]   void *uaddr;
+[6]   uint32_t offset_within_file;
+[7]   uint32_t size_used_within_page;
+[8]   struct list_elem elem
+    };
+    
+    struct file_container 
+    {
+      ...
+[9]    bool is_mmap;
+    };
+    
+    
 <<<<<< thread.h >>>>>>
-struct process {
-  ...
-  struct list mmap_containers; /* List of mmap containers storing informaiton about the pages of the file 
-                                stored in physical memory by this process*/ 
+    struct process {
+      ...
+[10]  struct list mmap_containers;  
 }
-
 ```
 
-## ALGORITHMS  
+`[1]`    
+`[2]`    
+`[3]`    
+`[4]`    
+`[5]`    
+`[6]`    
+`[7]`    
+`[8]`    
+`[9]`    
+`[10]` List of mmap containers storing informaiton about the pages of the file 
+stored in physical memory by this process   
+
+### ALGORITHMS  
 
 > C2: (3 marks)
 > Explain how you determine whether a new file mapping overlaps with
 > any existing segment and how you handle such a case. 
 > Additionally, how might this interact with stack growth?
 
-## RATIONALE  
+### RATIONALE  
 
 > C3: (1 mark)
 > Mappings created with "mmap" have similar semantics to those of
