@@ -4,14 +4,14 @@ TASK 3: VIRTUAL MEMORY
 DESIGN DOCUMENT
 </h1>
 
-# Pintos Group 13
+#  Pintos Group 13
 
 - Niranjan Bhat <nb1317@ic.ac.uk>  
 - Iulia Ivana <imi17@ic.ac.uk>  
 - George Soteriou <gs2617@ic.ac.uk>  
 - Maria Teguiani <mt5217@ic.ac.uk>  
 
-# PAGE TABLE/FRAME MANAGEMENT
+#  PAGE TABLE/FRAME MANAGEMENT
 
 ## DATA STRUCTURES  
 
@@ -20,6 +20,31 @@ DESIGN DOCUMENT
 > 'struct' member, global or static variable, 'typedef', or
 > enumeration that relates to your supplemental page table and
 > frame table. Identify the purpose of each in roughly 25 words.
+
+```
+<<<<<< frame.h >>>>>>
+
+#define MAX_FRAMES 1 << 16
+
+struct frame
+{
+  uint32_t *vaddr;
+  struct list user_ptes;
+  struct list_elem elem;
+  bool pin;
+};
+
+struct user_pte_ptr
+{
+  uint32_t *pagedir;
+  uint32_t *uaddr;
+  struct list_elem elem;
+};
+
+struct list frame_table;
+
+```
+
 
 ## ALGORITHMS  
 
@@ -43,7 +68,10 @@ DESIGN DOCUMENT
 > Why did you choose the data structure(s) that you did for
 > representing the supplemental page table and frame table?
 
-#    PAGING TO AND FROM DISK
+
+
+
+#  PAGING TO AND FROM DISK
 
 ## DATA STRUCTURES  
 
@@ -52,6 +80,36 @@ DESIGN DOCUMENT
 > 'struct' member, global or static variable, 'typedef', or
 > enumeration that relates to your swap table.  
 > Identify the purpose of each in roughly 25 words.
+
+
+```
+<<<<<< thread.h >>>>>>
+
+struct process 
+{
+  ...
+  struct file *executable;
+};
+
+
+<<<<<< swap.h >>>>>>
+
+struct bitmap *swap_table;
+
+
+<<<<<< pte.h >>>>>>
+
+#define PTE_S 0x100          /* 1=swapped, 0=not in swap */
+
+
+<<<<<< exception.h >>>>>>
+
+#define PF_S 0x100 /* 0: not in swap table, 1: in swap table */
+#define PF_F 0x200 /* 0: not a file, 1: file */
+
+
+
+```
 
 ## ALGORITHMS  
 
@@ -91,6 +149,9 @@ DESIGN DOCUMENT
 > of your synchronisation methods. Explain where your design falls
 > along this continuum and why you chose to design it this way.
 
+
+
+
 #  MEMORY MAPPED FILES
 
 ## DATA STRUCTURES  
@@ -100,6 +161,39 @@ DESIGN DOCUMENT
 > 'struct' member, global or static variable, 'typedef', or
 > enumeration that relates to your file mapping table.  
 > Identify the purpose of each in roughly 25 words.
+
+
+```
+<<<<<< syscall.h >>>>>>
+
+typedef int mapid_t;
+
+struct mmap_container
+{
+  struct file *f;
+  mapid_t mapid;
+  void *uaddr;
+  uint32_t offset_within_file;
+  uint32_t size_used_within_page;
+  struct list_elem elem
+};
+
+struct file_container 
+{
+  ...
+  bool is_mmap;
+};
+
+
+
+<<<<<< thread.h >>>>>>
+struct process {
+  ...
+  struct list mmap_containers; /* List of mmap containers storing informaiton about the pages of the file 
+                                stored in physical memory by this process*/ 
+}
+
+```
 
 ## ALGORITHMS  
 
