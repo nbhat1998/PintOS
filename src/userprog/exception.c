@@ -164,11 +164,12 @@ page_fault(struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, false);
-  // if (pte != NULL)
-  // {
-  //   printf("faddr %p f->esp %p pte %p s-o futut\n", fault_addr, f->esp, *pte);
-  // }
-  //printf("fault_addr: %p, pte: %p\n", fault_addr, *pte);
+
+  if (pte != NULL && is_user_vaddr(fault_addr)) {
+    pagedir_set_accessed(thread_current()->pagedir, fault_addr, true);
+  }
+  
+  /* For a memory mapped file */
   if (not_present && is_user_vaddr(fault_addr) && pte != NULL &&
       ((*pte) & 0x500) == 0x500)
   {
@@ -217,8 +218,6 @@ page_fault(struct intr_frame *f)
 
   /* If the kernel gets a fault_addr in user space, and the fault_addr
      is in stack bounds, allocate a new page for stack */
-  //printf("f->esp %p sp %p\n", f->esp, thread_current()->stack);
-
   void *esp = f->esp;
   if (!is_user_vaddr(esp))
   {

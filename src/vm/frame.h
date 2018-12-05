@@ -24,7 +24,7 @@ struct user_pte_ptr
   struct list_elem elem;
 };
 
-int32_t evict_cnt;
+struct list_elem* evict_ptr;
 
 struct list frame_table;
 
