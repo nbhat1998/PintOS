@@ -24,6 +24,7 @@
 #include "threads/malloc.h"
 #include "threads/pte.h"
 #include "vm/frame.h"
+#include "vm/share.h"
 #include <list.h>
 
 static thread_func start_process NO_RETURN;
@@ -274,6 +275,43 @@ void process_exit(void)
       {
         struct list_elem *temp = list_next(frame_elem);
         list_remove(frame_elem);
+
+        struct list_elem *shared_elem = list_begin(&shared_execs);
+        while (shared_elem != list_end(&shared_execs))
+        {
+          struct shared_exec *shared = list_entry(shared_elem, struct shared_exec, elem);
+          if (shared->kaddr == frame->kaddr)
+          {
+            while (!list_empty(&frame->user_ptes))
+            {
+              struct list_elem *curr_elem = list_pop_front(&frame->user_ptes);
+              struct user_pte_ptr *current = list_entry(curr_elem, struct user_pte_ptr, elem);
+              uint32_t *pte = get_pte(current->pagedir, current->uaddr, false);
+              *pte = 0;
+              if (shared->read_bytes == 0)
+              {
+                /* If you don't need to read anything */
+                *pte += 0x200;
+              }
+              else if (shared->start_read % PGSIZE != 0)
+              {
+                /* If you need to start reading from inside a page, also set 0x400 */
+                *pte += (shared->start_read << 12) + 0x600;
+              }
+              else
+              {
+                /* If you need to start reading something from the start of a page,
+                  also set 0x100 */
+                *pte += ((shared->start_read + shared->read_bytes) << 12) + 0x300;
+              }
+              free(current);
+            }
+
+            list_remove(shared_elem);
+            free(shared);
+            break;
+          }
+        }
         palloc_free_page(frame->kaddr);
         lock_release(&frame->lock);
         free(frame);

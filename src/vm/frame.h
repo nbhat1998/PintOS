@@ -5,8 +5,6 @@
 #include <stdint.h>
 #include "threads/synch.h"
 
-#define MAX_FRAMES 1 << 16
-
 struct frame
 {
   uint32_t *kaddr;
@@ -24,7 +22,7 @@ struct user_pte_ptr
   struct list_elem elem;
 };
 
-struct list_elem* evict_ptr;
+struct list_elem *evict_ptr;
 
 struct list frame_table;
 

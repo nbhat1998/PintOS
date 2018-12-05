@@ -168,10 +168,11 @@ page_fault(struct intr_frame *f)
 
   uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, false);
 
-  if (pte != NULL && is_user_vaddr(fault_addr)) {
+  if (pte != NULL && is_user_vaddr(fault_addr))
+  {
     pagedir_set_accessed(thread_current()->pagedir, fault_addr, true);
   }
-  
+
   /* For a memory mapped file */
   if (not_present && is_user_vaddr(fault_addr) && pte != NULL &&
       ((*pte) & 0x500) == 0x500)
@@ -304,6 +305,7 @@ page_fault(struct intr_frame *f)
       {
         //printf("hi\n");
         bool success = link_page(fault_addr, curr_exec->kaddr, rw);
+        //printf("curr_exec->kaddr: %p ", curr_exec->kaddr);
         set_frame(curr_exec->kaddr, fault_addr);
         if (!success)
         {
@@ -325,7 +327,6 @@ page_fault(struct intr_frame *f)
 
         struct shared_exec *new_exec = malloc(sizeof(struct shared_exec));
         new_exec->name = &thread_current()->name;
-        //printf("exception %p\n", kaddr);
         new_exec->kaddr = kaddr;
         new_exec->read_bytes = read_bytes;
         new_exec->start_read = start_read;
