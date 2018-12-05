@@ -1,6 +1,7 @@
 #include "userprog/exception.h"
 #include <inttypes.h>
 #include <stdio.h>
+#include <string.h>
 #include "userprog/gdt.h"
 #include "userprog/process.h"
 #include "threads/interrupt.h"
@@ -8,11 +9,13 @@
 #include "threads/vaddr.h"
 #include "threads/palloc.h"
 #include "threads/pte.h"
+#include "threads/malloc.h"
 #include "devices/block.h"
 #include "syscall.h"
 #include "pagedir.h"
 #include "vm/frame.h"
 #include "vm/swap.h"
+#include "vm/share.h"
 #include "filesys/file.h"
 #include "threads/synch.h"
 #include "userprog/syscall.h"
@@ -165,10 +168,11 @@ page_fault(struct intr_frame *f)
 
   uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, false);
 
-  if (pte != NULL && is_user_vaddr(fault_addr)) {
+  if (pte != NULL && is_user_vaddr(fault_addr))
+  {
     pagedir_set_accessed(thread_current()->pagedir, fault_addr, true);
   }
-  
+
   /* For a memory mapped file */
   if (not_present && is_user_vaddr(fault_addr) && pte != NULL &&
       ((*pte) & 0x500) == 0x500)
@@ -183,8 +187,8 @@ page_fault(struct intr_frame *f)
     {
       create_frame(kpage);
     }
-    set_frame(kpage, fault_addr);
     bool success = link_page(fault_addr, kpage, true);
+    set_frame(kpage, fault_addr);
     if (!success)
     {
       sys_exit_failure();
@@ -211,7 +215,6 @@ page_fault(struct intr_frame *f)
         return;
       }
     }
-    // printf("s-o futut 210\n");
     sys_exit_failure();
     NOT_REACHED();
   }
@@ -238,9 +241,9 @@ page_fault(struct intr_frame *f)
 
     bool success = link_page(fault_addr, kvaddr, true);
     set_frame(kvaddr, fault_addr);
+
     if (!success)
     {
-      // printf("s-o futut 235\n");
       sys_exit_failure();
     }
     return;
@@ -279,42 +282,94 @@ page_fault(struct intr_frame *f)
 
     struct file *file = thread_current()->process->executable;
     int file_size = file_length(file);
-
-    void *kpage = palloc_get_page(PAL_USER);
-    if (kpage == NULL)
+    bool rw = (*pte & PTE_W) != 0;
+    void *kaddr;
+    if (!rw)
     {
-      kpage = evict();
+      bool found = false;
+      struct shared_exec *curr_exec;
+      for (struct list_elem *e = list_begin(&shared_execs);
+           e != list_end(&shared_execs);
+           e = list_next(e))
+      {
+        curr_exec = list_entry(e, struct shared_exec, elem);
+        if (curr_exec->name == &thread_current()->name &&
+            curr_exec->start_read == start_read)
+        {
+          found = true;
+          break;
+        }
+      }
+      if (found)
+      {
+        //printf("hi\n");
+        bool success = link_page(fault_addr, curr_exec->kaddr, rw);
+        //printf("curr_exec->kaddr: %p ", curr_exec->kaddr);
+        set_frame(curr_exec->kaddr, fault_addr);
+        if (!success)
+        {
+          sys_exit_failure();
+        }
+        return;
+      }
+      else
+      {
+        kaddr = palloc_get_page(PAL_USER);
+        if (kaddr == NULL)
+        {
+          kaddr = evict();
+        }
+        else
+        {
+          create_frame(kaddr);
+        }
+
+        struct shared_exec *new_exec = malloc(sizeof(struct shared_exec));
+        new_exec->name = &thread_current()->name;
+        new_exec->kaddr = kaddr;
+        new_exec->read_bytes = read_bytes;
+        new_exec->start_read = start_read;
+        lock_init(&new_exec->lock);
+        list_push_back(&shared_execs, &new_exec->elem);
+        //printf("created: %p\n", new_exec);
+      }
     }
     else
     {
-      create_frame(kpage);
+      kaddr = palloc_get_page(PAL_USER);
+      if (kaddr == NULL)
+      {
+        kaddr = evict();
+      }
+      else
+      {
+        create_frame(kaddr);
+      }
     }
-    bool rw = (*pte & PTE_W) != 0;
-    bool success = link_page(fault_addr, kpage, rw);
-    set_frame(kpage, fault_addr);
+
+    bool success = link_page(fault_addr, kaddr, rw);
+    set_frame(kaddr, fault_addr);
 
     int actually_read = 0;
-    memset(kpage, 0, PGSIZE);
+    memset(kaddr, 0, PGSIZE);
     if (read_bytes != 0)
     {
       if ((*pte & 0x400) != 0)
       {
-        actually_read = file_read_at(file, kpage + (start_read % PGSIZE), read_bytes, start_read);
+        actually_read = file_read_at(file, kaddr + (start_read % PGSIZE), read_bytes, start_read);
       }
       else
       {
-        actually_read = file_read_at(file, kpage, read_bytes, start_read);
+        actually_read = file_read_at(file, kaddr, read_bytes, start_read);
       }
     }
 
     if (actually_read != read_bytes)
     {
-      //printf("s-o futut 304\n");
       sys_exit_failure();
     }
     if (!success)
     {
-      //printf("s-o futut 309\n");
       sys_exit_failure();
     }
     return;
@@ -337,7 +392,6 @@ page_fault(struct intr_frame *f)
 
   if (user)
   {
-    // printf("s-o futut 333\n");
     sys_exit_failure();
   }
 

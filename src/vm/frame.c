@@ -15,7 +15,7 @@
 void create_frame(void *vaddr)
 {
   struct frame *new_frame = malloc(sizeof(struct frame));
-  new_frame->vaddr = vaddr;
+  new_frame->kaddr = vaddr;
   list_init(&new_frame->user_ptes);
   // TODO: set pint to true
   new_frame->pin = false;
@@ -23,7 +23,7 @@ void create_frame(void *vaddr)
   list_push_back(&frame_table, &new_frame->elem);
 }
 
-void set_frame(void *vaddr, void *uaddr)
+void set_frame(void *kaddr, void *uaddr)
 {
   struct user_pte_ptr *new_pte_ptr = malloc(sizeof(struct user_pte_ptr));
   new_pte_ptr->pagedir = thread_current()->pagedir;
@@ -35,7 +35,7 @@ void set_frame(void *vaddr, void *uaddr)
   {
     struct frame *curr = list_entry(e, struct frame, elem);
     lock_acquire(&curr->lock);
-    if (curr->vaddr == vaddr)
+    if (curr->kaddr == kaddr)
     {
       list_push_back(&curr->user_ptes, &new_pte_ptr->elem);
       curr->pin = false;
@@ -50,7 +50,8 @@ void set_frame(void *vaddr, void *uaddr)
 
 void *evict()
 {
-  if (evict_ptr == NULL) {
+  if (evict_ptr == NULL)
+  {
     evict_ptr = list_begin(&frame_table);
   }
   struct frame *frame_to_evict;
@@ -64,12 +65,13 @@ void *evict()
          e != list_end(&frame_to_evict->user_ptes); e = list_next(e))
     {
       struct user_pte_ptr *user_page = list_entry(e, struct user_pte_ptr, elem);
-      if (pagedir_is_accessed(user_page->pagedir, user_page->uaddr)) {
+      if (pagedir_is_accessed(user_page->pagedir, user_page->uaddr))
+      {
         has_second_chance = true;
         pagedir_set_accessed(user_page->pagedir, user_page->uaddr, false);
       }
     }
-    
+
     /* Go to the next frame */
     if (evict_ptr->next == list_end(&frame_table))
     {
@@ -86,6 +88,5 @@ void *evict()
 
   swap_write(frame_to_evict);
 
-  //printf("evicting vaddr %p\n", frame_to_evict->vaddr);
-  return frame_to_evict->vaddr;
+  return frame_to_evict->kaddr;
 }
