@@ -136,7 +136,6 @@ int main(void)
 #ifdef VM
   list_init(&frame_table);
   list_init(&shared_execs);
-  evict_cnt = 0;
 #endif
 
   printf("Boot complete.\n");

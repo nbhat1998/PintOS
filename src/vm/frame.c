@@ -50,27 +50,41 @@ void set_frame(void *kaddr, void *uaddr)
 
 void *evict()
 {
+  if (evict_ptr == NULL)
+  {
+    evict_ptr = list_begin(&frame_table);
+  }
   struct frame *frame_to_evict;
+  bool has_second_chance;
   do
   {
-    int index_to_evict = evict_cnt % list_size(&frame_table);
-    int index = 0;
-
-    for (struct list_elem *e = list_begin(&frame_table);
-         e != list_end(&frame_table); e = list_next(e))
+    frame_to_evict = list_entry(evict_ptr, struct frame, elem);
+    lock_acquire(&frame_to_evict->lock);
+    has_second_chance = false;
+    for (struct list_elem *e = list_begin(&frame_to_evict->user_ptes);
+         e != list_end(&frame_to_evict->user_ptes); e = list_next(e))
     {
-      frame_to_evict = list_entry(e, struct frame, elem);
-      if (index == index_to_evict)
+      struct user_pte_ptr *user_page = list_entry(e, struct user_pte_ptr, elem);
+      if (pagedir_is_accessed(user_page->pagedir, user_page->uaddr))
       {
-        break;
+        has_second_chance = true;
+        pagedir_set_accessed(user_page->pagedir, user_page->uaddr, false);
       }
-      index++;
     }
-    evict_cnt++;
-  } while (frame_to_evict->pin);
+
+    /* Go to the next frame */
+    if (evict_ptr->next == list_end(&frame_table))
+    {
+      evict_ptr = list_begin(&frame_table);
+    }
+    else
+    {
+      evict_ptr = list_next(evict_ptr);
+    }
+    lock_release(&frame_to_evict->lock);
+  } while (frame_to_evict->pin && has_second_chance);
 
   frame_to_evict->pin = true;
-  // TODO: check if dirty, and only write to swap if true. Also pinning.
 
   swap_write(frame_to_evict);
 
