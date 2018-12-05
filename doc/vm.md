@@ -227,6 +227,12 @@ stored in physical memory by this process.
 > any existing segment and how you handle such a case. 
 > Additionally, how might this interact with stack growth?
 
+When a new file mapping is being created, the size of the file (let this be x) to be mapped is retrieved, and we make sure that x pages, starting from the user virtual address passed are elibile to be written to. We check this by doing the following: 
+    As the user virtual address to create a new mapping to changes by PGSIZE at every step, we retrieve the page table entry corresponding to the user virtual address by passing it to the get_pte(..., false) which is essentially just a wrapper around lookup_page(...) as lookup_page(...) is a static function which cannot be accessed outside of pagedir.c 
+    Using false as the last parameter ensures that the a value is returned iff the page table entry exists. If no page table entry exists, a NULL value is returned.
+    For every page table entry that falls in the range of (user virtual address) to (user virtual address + number of pages), if it has a non-NULL value and if the contents are non-zero, it means that there is some data already present at that page table entry, which means that overlapping will occur. In this case, we return -1, which crashes the program. It is not necessary to return -1 if no page table entry exists, beause if no page table entry exists, there will be no data, and overlapping is not a concern. 
+
+
 ### RATIONALE  
 
 > C3: (1 mark)
