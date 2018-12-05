@@ -82,6 +82,7 @@ void swap_write(struct frame *f)
        e = list_next(e))
   {
     curr_exec = list_entry(e, struct shared_exec, elem);
+    //printf("checking swap: %p\n", curr_exec);
     if (curr_exec->kaddr == f->kaddr)
     {
       found = true;
@@ -116,7 +117,8 @@ void swap_write(struct frame *f)
       }
       free(current);
     }
-    list_remove(curr_exec);
+    //printf("deleted in swap: %p\n", curr_exec);
+    list_remove(&curr_exec->elem);
     free(curr_exec);
   }
   else

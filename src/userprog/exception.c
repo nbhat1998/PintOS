@@ -331,6 +331,7 @@ page_fault(struct intr_frame *f)
         new_exec->start_read = start_read;
         lock_init(&new_exec->lock);
         list_push_back(&shared_execs, &new_exec->elem);
+        //printf("created: %p\n", new_exec);
       }
     }
     else
@@ -345,6 +346,7 @@ page_fault(struct intr_frame *f)
         create_frame(kaddr);
       }
     }
+
     bool success = link_page(fault_addr, kaddr, rw);
     set_frame(kaddr, fault_addr);
 
