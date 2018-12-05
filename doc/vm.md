@@ -233,3 +233,7 @@ stored in physical memory by this process.
 > Mappings created with "mmap" have similar semantics to those of
 > data demand-paged from executables. How does your codebase take
 > advantage of this?
+
+During lazy loading, a page fault occurs at the address where a page is not found, which then enters the exception page_fault and loads the page into the desired user virtual address. 
+
+When an mmap mapping is created, pages from the file aren't actually loaded into the user virtual space specified by the mapping. When a process expects a page to exist at the user virtual address, it doesn't find the required page in the location which triggers a page fault at the current location. Our codebase takes advantage of this by using the same page fault function used in lazy loading, albeit falling through into an entirely different if block with different conditions. This reduces a small amount of code duplication, as the data used within the function (such as fault address, not_present, bool write and bool user
