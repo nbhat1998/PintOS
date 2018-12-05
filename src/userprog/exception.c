@@ -164,7 +164,12 @@ page_fault(struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, false);
-  //printf("fault_addr: %p, pte: %p\n", fault_addr, *pte);
+
+  if (pte != NULL && is_user_vaddr(fault_addr)) {
+    pagedir_set_accessed(thread_current()->pagedir, fault_addr, true);
+  }
+  
+  /* For a memory mapped file */
   if (not_present && is_user_vaddr(fault_addr) && pte != NULL &&
       ((*pte) & 0x500) == 0x500)
   {
@@ -185,7 +190,7 @@ page_fault(struct intr_frame *f)
       sys_exit_failure();
       NOT_REACHED();
     }
-    pagedir_set_dirty(thread_current()->pagedir, fault_addr, write);
+    pagedir_set_dirty(thread_current()->pagedir, pg_round_down(fault_addr), write);
     // TODO: maybe set accessed bit
     for (struct list_elem *e = list_begin(
              &thread_current()->process->mmap_containers);
@@ -194,7 +199,7 @@ page_fault(struct intr_frame *f)
     {
       struct mmap_container *this_container =
           list_entry(e, struct mmap_container, elem);
-      if (this_container->uaddr == fault_addr)
+      if (this_container->uaddr == pg_round_down(fault_addr))
       {
         // TODO : lock and unlock here with filesys_lock? not sure if this part will be called within a syscall, in which case there will be a deadlock
 
@@ -206,16 +211,21 @@ page_fault(struct intr_frame *f)
         return;
       }
     }
+    // printf("s-o futut 210\n");
     sys_exit_failure();
     NOT_REACHED();
   }
 
   /* If the kernel gets a fault_addr in user space, and the fault_addr
      is in stack bounds, allocate a new page for stack */
-  if (not_present && is_user_vaddr(fault_addr) && fault_addr > STACK_LIMIT &&
-      fault_addr >= f->esp - 32 && (((*pte) & PF_S) == 0))
+  void *esp = f->esp;
+  if (!is_user_vaddr(esp))
   {
-
+    esp = thread_current()->process->esp;
+  }
+  if ((not_present && is_user_vaddr(fault_addr) && fault_addr > STACK_LIMIT &&
+       (fault_addr >= esp - 32) && (((*pte) & PF_S) == 0)))
+  {
     void *kvaddr = palloc_get_page(PAL_USER);
     if (kvaddr == NULL)
     {
@@ -226,10 +236,11 @@ page_fault(struct intr_frame *f)
       create_frame(kvaddr);
     }
 
-    set_frame(kvaddr, fault_addr);
     bool success = link_page(fault_addr, kvaddr, true);
+    set_frame(kvaddr, fault_addr);
     if (!success)
     {
+      // printf("s-o futut 235\n");
       sys_exit_failure();
     }
     return;
@@ -278,7 +289,8 @@ page_fault(struct intr_frame *f)
     {
       create_frame(kpage);
     }
-
+    bool rw = (*pte & PTE_W) != 0;
+    bool success = link_page(fault_addr, kpage, rw);
     set_frame(kpage, fault_addr);
 
     int actually_read = 0;
@@ -297,14 +309,12 @@ page_fault(struct intr_frame *f)
 
     if (actually_read != read_bytes)
     {
+      //printf("s-o futut 304\n");
       sys_exit_failure();
     }
-
-    bool rw = (*pte & PTE_W) != 0;
-
-    bool success = link_page(fault_addr, kpage, rw);
     if (!success)
     {
+      //printf("s-o futut 309\n");
       sys_exit_failure();
     }
     return;
@@ -327,6 +337,7 @@ page_fault(struct intr_frame *f)
 
   if (user)
   {
+    // printf("s-o futut 333\n");
     sys_exit_failure();
   }
 

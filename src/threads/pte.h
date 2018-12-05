@@ -81,6 +81,7 @@ static inline uint32_t pde_create(uint32_t *pt)
    PDE, which must "present", points to. */
 static inline uint32_t *pde_get_pt(uint32_t pde)
 {
+  //printf("pde %p cond %p\n", pde, pde & PTE_P);
   ASSERT(pde & PTE_P);
   return ptov(pde & PTE_ADDR);
 }
