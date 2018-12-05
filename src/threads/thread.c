@@ -648,7 +648,7 @@ init_thread(struct thread *t, const char *name, int priority)
     sema_init(&p->setup_sema, 0);
     lock_init(&p->lock);
     list_init(&p->file_containers);
-    list_init(&p->mmap_containers); 
+    list_init(&p->mmap_containers);
     p->status = -1;
     p->first_done = false;
 

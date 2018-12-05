@@ -3,6 +3,7 @@
 
 #include <list.h>
 #include <stdint.h>
+#include "threads/synch.h"
 
 #define MAX_FRAMES 1 << 16
 
@@ -13,6 +14,7 @@ struct frame
   struct list user_ptes;
   struct list_elem elem;
   bool pin;
+  struct lock lock;
 };
 
 struct user_pte_ptr
@@ -21,6 +23,8 @@ struct user_pte_ptr
   uint32_t *uaddr;
   struct list_elem elem;
 };
+
+struct list_elem* evict_ptr;
 
 struct list frame_table;
 

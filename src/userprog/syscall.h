@@ -28,7 +28,7 @@ struct mmap_container
   void *uaddr;
   uint32_t offset_within_file;
   uint32_t size_used_within_page;
-  struct list_elem elem
+  struct list_elem elem;
 };
 
 struct lock filesys_lock;
