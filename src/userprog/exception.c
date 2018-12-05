@@ -165,10 +165,11 @@ page_fault(struct intr_frame *f)
 
   uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, false);
 
-  if (pte != NULL && is_user_vaddr(fault_addr)) {
+  if (pte != NULL && is_user_vaddr(fault_addr))
+  {
     pagedir_set_accessed(thread_current()->pagedir, fault_addr, true);
   }
-  
+
   /* For a memory mapped file */
   if (not_present && is_user_vaddr(fault_addr) && pte != NULL &&
       ((*pte) & 0x500) == 0x500)
@@ -240,7 +241,6 @@ page_fault(struct intr_frame *f)
     set_frame(kvaddr, fault_addr);
     if (!success)
     {
-      // printf("s-o futut 235\n");
       sys_exit_failure();
     }
     return;
@@ -309,12 +309,10 @@ page_fault(struct intr_frame *f)
 
     if (actually_read != read_bytes)
     {
-      //printf("s-o futut 304\n");
       sys_exit_failure();
     }
     if (!success)
     {
-      //printf("s-o futut 309\n");
       sys_exit_failure();
     }
     return;
@@ -337,7 +335,6 @@ page_fault(struct intr_frame *f)
 
   if (user)
   {
-    // printf("s-o futut 333\n");
     sys_exit_failure();
   }
 
