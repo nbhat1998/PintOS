@@ -84,6 +84,6 @@ void *evict()
 
   swap_write(frame_to_evict);
 
-  printf("evicting vaddr %p\n", frame_to_evict->vaddr);
+  //printf("evicting vaddr %p\n", frame_to_evict->vaddr);
   return frame_to_evict->vaddr;
 }
