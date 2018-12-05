@@ -212,7 +212,6 @@ page_fault(struct intr_frame *f)
         return;
       }
     }
-    // printf("s-o futut 210\n");
     sys_exit_failure();
     NOT_REACHED();
   }
