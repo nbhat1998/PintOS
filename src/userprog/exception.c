@@ -187,8 +187,8 @@ page_fault(struct intr_frame *f)
     {
       create_frame(kpage);
     }
-    set_frame(kpage, fault_addr);
     bool success = link_page(fault_addr, kpage, true);
+    set_frame(kpage, fault_addr);
     if (!success)
     {
       sys_exit_failure();
@@ -215,7 +215,6 @@ page_fault(struct intr_frame *f)
         return;
       }
     }
-    // printf("s-o futut 210\n");
     sys_exit_failure();
     NOT_REACHED();
   }
@@ -242,9 +241,9 @@ page_fault(struct intr_frame *f)
 
     bool success = link_page(fault_addr, kvaddr, true);
     set_frame(kvaddr, fault_addr);
+
     if (!success)
     {
-      // printf("s-o futut 235\n");
       sys_exit_failure();
     }
     return;
@@ -391,7 +390,6 @@ page_fault(struct intr_frame *f)
 
   if (user)
   {
-    // printf("s-o futut 333\n");
     sys_exit_failure();
   }
 
