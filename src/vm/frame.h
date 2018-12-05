@@ -9,7 +9,7 @@
 
 struct frame
 {
-  uint32_t *vaddr;
+  uint32_t *kaddr;
   // TODO: maybe have a flag if it's a file and what file it is
   struct list user_ptes;
   struct list_elem elem;

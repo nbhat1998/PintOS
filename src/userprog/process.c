@@ -274,7 +274,7 @@ void process_exit(void)
       {
         struct list_elem *temp = list_next(frame_elem);
         list_remove(frame_elem);
-        palloc_free_page(frame->vaddr);
+        palloc_free_page(frame->kaddr);
         lock_release(&frame->lock);
         free(frame);
         frame_elem = temp;

@@ -41,6 +41,7 @@
 #ifdef VM
 #include "vm/swap.h"
 #include "vm/frame.h"
+#include "vm/share.h"
 #endif
 
 /* Page directory with kernel mappings only. */
@@ -134,6 +135,7 @@ int main(void)
 #endif
 #ifdef VM
   list_init(&frame_table);
+  list_init(&shared_execs);
   evict_cnt = 0;
 #endif
 
