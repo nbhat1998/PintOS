@@ -184,8 +184,8 @@ page_fault(struct intr_frame *f)
     {
       create_frame(kpage);
     }
-    set_frame(kpage, fault_addr);
     bool success = link_page(fault_addr, kpage, true);
+    set_frame(kpage, fault_addr);
     if (!success)
     {
       sys_exit_failure();
@@ -238,6 +238,7 @@ page_fault(struct intr_frame *f)
 
     bool success = link_page(fault_addr, kvaddr, true);
     set_frame(kvaddr, fault_addr);
+
     if (!success)
     {
       sys_exit_failure();
