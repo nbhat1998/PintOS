@@ -208,13 +208,13 @@ it is in swap table.
     };
 ```
 
-`[1]`  The map identifier.  
+`[1]`  A typedef for the map identifier.  
 `[2]`  A struct used for storing information about the container for a memory mapped page of a file. 
 `[3]`  A pointer to the file that is memory mapped.  
 `[4]`  The unique identifier of the container.   
 `[5]`  The address in user space that the page of the file is mapped to.   
 `[6]`  The offset within the file where this page starts.  
-`[7]`  How much of the page should be read (always less than or equal to PGSIZE).  
+`[7]`  Size used within the page in user virtual space (always less than or equal to PGSIZE)  
 `[8]`  Struct list_elem used to add the struct to the list of mmap_containers in struct process.  
 `[9]`  Boolean that acts as a flag and is true if that file is mapped to memory.  
 `[10]` List of mmap containers storing informaiton about the pages of the file 
