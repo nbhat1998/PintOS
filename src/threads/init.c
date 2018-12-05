@@ -134,7 +134,6 @@ int main(void)
 #endif
 #ifdef VM
   list_init(&frame_table);
-  evict_cnt = 0;
 #endif
 
   printf("Boot complete.\n");

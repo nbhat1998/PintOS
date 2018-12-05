@@ -14,7 +14,6 @@ struct frame
   struct list user_ptes;
   struct list_elem elem;
   bool pin;
-  bool second_chance;
   struct lock lock;
 };
 

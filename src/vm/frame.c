@@ -48,122 +48,42 @@ void set_frame(void *vaddr, void *uaddr)
   NOT_REACHED();
 }
 
-void remove_frames(uint32_t *vaddr)
-{
-  struct list_elem *e = list_begin(&frame_table);
-
-  while (e != list_end(&frame_table))
-  {
-    struct frame *curr = list_entry(e, struct frame, elem);
-
-    if (curr->vaddr == vaddr)
-    {
-      struct list_elem *f = list_begin(&curr->user_ptes);
-
-      while (f != list_end(&curr->user_ptes))
-      {
-        struct user_pte_ptr *current = list_entry(f, struct user_pte_ptr, elem);
-        uint32_t *pte = get_pte(current->pagedir, current->uaddr, false);
-        if (pte != NULL)
-        {
-          /* Set the present bit (bit 0) to 0 */
-          pte = (uint32_t)pte & ((1 << 32) - 2);
-        }
-
-        struct list_elem *temp = f;
-        f = list_next(f);
-        list_remove(temp);
-        free(current);
-      }
-
-      list_remove(e);
-      free(curr);
-      return;
-    }
-
-    e = list_next(e);
-  }
-}
-
-void remove_uaddr(uint32_t *uaddr)
-{
-  struct list_elem *e = list_begin(&frame_table);
-  // TODO: set pin to true
-  while (e != list_end(&frame_table))
-  {
-    struct frame *curr = list_entry(e, struct frame, elem);
-    struct list_elem *f = list_begin(&curr->user_ptes);
-
-    while (f != list_end(&curr->user_ptes))
-    {
-      struct user_pte_ptr *current = list_entry(f, struct user_pte_ptr, elem);
-
-      if (current->uaddr == uaddr)
-      {
-        struct list_elem *temp = f;
-        f = list_next(f);
-        list_remove(temp);
-        free(current);
-      }
-      else
-      {
-        f = list_next(f);
-      }
-    }
-
-    if (list_empty(&curr->user_ptes))
-    {
-      // TODO : free frame and page in memory if no thread's uaddr is pointing to it
-    }
-
-    e = list_next(e);
-  }
-}
-
 void *evict()
 {
-  struct frame *frame_to_evict = list_entry(evict_ptr, struct frame, elem);
+  if (evict_ptr == NULL) {
+    evict_ptr = list_begin(&frame_table);
+  }
+  struct frame *frame_to_evict;
+  bool has_second_chance;
   do
   {
-    while (frame_to_evict->second_chance)
+    frame_to_evict = list_entry(evict_ptr, struct frame, elem);
+    has_second_chance = false;
+    for (struct list_elem *e = list_begin(&frame_to_evict->user_ptes);
+         e != list_end(&frame_to_evict->user_ptes); e = list_next(e))
     {
-      frame_to_evict->second_chance = 0;
-      
-      /* Go to next */
-      if (evict_ptr->next == list_end(&frame_table))
-      {
-        evict_ptr = list_begin(&frame_table);
-      }
-      else
-      {
-        evict_ptr = list_next(evict_ptr);
+      struct user_pte_ptr *user_page = list_entry(e, struct user_pte_ptr, elem);
+      if (pagedir_is_accessed(user_page->pagedir, user_page->uaddr)) {
+        has_second_chance = true;
+        pagedir_set_accessed(user_page->pagedir, user_page->uaddr, false);
       }
     }
-    evict_ptr = list_next(evict_ptr);
-  } while (frame_to_evict->pin);
-
-  // do
-  // {
-  // int index_to_evict = evict_cnt % list_size(&frame_table);
-  // int index = 0;
-
-  // for (struct list_elem *e = list_begin(&frame_table);
-  //      e != list_end(&frame_table); e = list_next(e))
-  // {
-  //   frame_to_evict = list_entry(e, struct frame, elem);
-  //   if (index == index_to_evict)
-  //   {
-  //     break;
-  //   }
-  //   index++;
-  // }
-  //   // evict_cnt++;
-  // } while (frame_to_evict->pin);
+    
+    /* Go to the next frame */
+    if (evict_ptr->next == list_end(&frame_table))
+    {
+      evict_ptr = list_begin(&frame_table);
+    }
+    else
+    {
+      evict_ptr = list_next(evict_ptr);
+    }
+  } while (frame_to_evict->pin || has_second_chance);
 
   frame_to_evict->pin = true;
-  // TODO: check if dirty, and only write to swap if true. Also pinning.
 
   swap_write(frame_to_evict);
 
+  printf("evicting vaddr %p\n", frame_to_evict->vaddr);
   return frame_to_evict->vaddr;
 }
