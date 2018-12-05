@@ -131,7 +131,8 @@ interrupt context, used when f->esp is the kernel stack pointer and we need the 
 `[5]` Page fault error code bit that is 0 when it's not in swap table, and 1 when 
 it is in swap table.  
 `[6]` Page fault error code bit that is 0 when it's not a file, and 1 when it is a file.  
-`[7]` The list_elem corresponding to the entry in the frame table which we will next check when calling evict().  
+`[7]` The list_elem corresponding to the entry in the frame table which we will next check when 
+calling evict().  
 
 ### ALGORITHMS  
 
@@ -139,16 +140,36 @@ it is in swap table.
 > When a frame is required but none is free, some frame must be
 > evicted.  Describe your code for choosing a frame to evict.
 
+In our implementation of evict we used the "clock" algorithm. We consider all frames for
+eviction in a round robin way (cyclically) and if a page in the frame's user_ptes list was accessed since 
+the last consideration then its frame is not replaced. 
+We use the accessed bit of page directories to store whether it was accessed and in evict() we iterate through the frame's user_ptes
+If the frame selected has its pin set to true (meaning it's currently being swapped) we need to choose another one
+
+
 > B3: (2 marks)
 > When a process P obtains a frame that was previously used by a
 > process Q, how do you adjust the page directory (and any other 
 > data structures) to reflect the frame Q no longer has?
+
+The page table entry in the page directory is zeroed out and therefore does not point to the kernel 
+virtual address that is used to identify the previous frame.
+
 
 ### SYNCHRONIZATION  
 
 > B4: (2 marks)
 > Explain how your synchronization design prevents deadlock.  
 > (You may want to refer to the necessary conditions for deadlock.)
+
+Mutual exclusion (DEF: each resource is either available or assigned to exactly one process)
+
+Hold and wait (DEF: process can request resources while it holds other resources earlier)
+
+No preemption (resources given to a process cannot be forcibly revoked)
+
+Circular wait (two or more processes in a circular chain, each waiting for a resource held by the next process)
+
 
 > B5: (2 marks)
 > A page fault in process P can cause another process Q's frame
