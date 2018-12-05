@@ -122,24 +122,43 @@ void remove_uaddr(uint32_t *uaddr)
 
 void *evict()
 {
-  struct frame *frame_to_evict;
+  struct frame *frame_to_evict = list_entry(evict_ptr, struct frame, elem);
   do
   {
-    int index_to_evict = evict_cnt % list_size(&frame_table);
-    int index = 0;
-
-    for (struct list_elem *e = list_begin(&frame_table);
-         e != list_end(&frame_table); e = list_next(e))
+    while (frame_to_evict->second_chance)
     {
-      frame_to_evict = list_entry(e, struct frame, elem);
-      if (index == index_to_evict)
+      frame_to_evict->second_chance = 0;
+      
+      /* Go to next */
+      if (evict_ptr->next == list_end(&frame_table))
       {
-        break;
+        evict_ptr = list_begin(&frame_table);
       }
-      index++;
+      else
+      {
+        evict_ptr = list_next(evict_ptr);
+      }
     }
-    evict_cnt++;
+    evict_ptr = list_next(evict_ptr);
   } while (frame_to_evict->pin);
+
+  // do
+  // {
+  // int index_to_evict = evict_cnt % list_size(&frame_table);
+  // int index = 0;
+
+  // for (struct list_elem *e = list_begin(&frame_table);
+  //      e != list_end(&frame_table); e = list_next(e))
+  // {
+  //   frame_to_evict = list_entry(e, struct frame, elem);
+  //   if (index == index_to_evict)
+  //   {
+  //     break;
+  //   }
+  //   index++;
+  // }
+  //   // evict_cnt++;
+  // } while (frame_to_evict->pin);
 
   frame_to_evict->pin = true;
   // TODO: check if dirty, and only write to swap if true. Also pinning.
