@@ -58,6 +58,7 @@ void *evict()
   do
   {
     frame_to_evict = list_entry(evict_ptr, struct frame, elem);
+    lock_acquire(&frame_to_evict->lock);
     has_second_chance = false;
     for (struct list_elem *e = list_begin(&frame_to_evict->user_ptes);
          e != list_end(&frame_to_evict->user_ptes); e = list_next(e))
@@ -78,7 +79,8 @@ void *evict()
     {
       evict_ptr = list_next(evict_ptr);
     }
-  } while (frame_to_evict->pin || has_second_chance);
+    lock_release(&frame_to_evict->lock);
+  } while (frame_to_evict->pin && has_second_chance);
 
   frame_to_evict->pin = true;
 
