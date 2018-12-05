@@ -23,38 +23,37 @@ DESIGN DOCUMENT
 
 ```
 <<<<<< frame.h >>>>>>
-   
-[1]  #define MAX_FRAMES 1 << 16
-    
-[2]  struct frame
+
+[1]  struct frame
      {
-[3]    uint32_t *vaddr;
-[4]    struct list user_ptes;
-[5]    struct list_elem elem;
-[6]    bool pin;
+[2]    uint32_t *vaddr;
+[3]    struct list user_ptes;
+[4]    struct list_elem elem;
+[5]    bool pin;
+[6]    struct lock lock;
      };
      
 [7]  struct user_pte_ptr
      {
 [8]    uint32_t *pagedir;
-[9]    uint32_t *uaddr;
+[9]   uint32_t *uaddr;
 [10]   struct list_elem elem;
      };
     
 [11] struct list frame_table;
 ```
 
-`[1]`  Defining a constant to represent the maximum number of frames.  
-`[2]`  A struct used for storing information about individual frames.  
-`[3]`  The kernel virtual address the frame manages.  
-`[4]`  List that stores the page table entries pointing to the kernel virtual address pointed to by this frame.  
-`[5]`  Struct list_elem used to add the struct to the list of frames in frame_table.  
-`[6]`  Boolean used for pinning while the frame is swapped.  
+`[1]`  A struct used for storing information about individual frames.  
+`[2]`  The kernel virtual address the frame manages.  
+`[3]`  List that stores the page table entries pointing to the kernel virtual address pointed to by this frame.  
+`[4]`  Struct list_elem used to add the struct to the list of frames in frame_table.  
+`[5]`  Boolean used for pinning while the frame is swapped.   
+`[6]`  A lock used to synchronize operations on struct frame.  
 `[7]`  A struct that acts as a pointer to a user page table entry.  
 `[8]`  The pagedir of the user; used to find the page table entry.   
 `[9]`  Index in the page directory/ page table; used to find the PTE  
 `[10]` Struct list_elem used to add the struct to the list of user_ptes in struct frame  
-`[11]` List that holds the frames, our frame table.  
+`[11]` List that holds the frames (our frame table).  
 
 ### ALGORITHMS  
 
@@ -98,32 +97,41 @@ DESIGN DOCUMENT
     struct process 
     {
       ...
-[1]   struct file *executable;
+[1]   void *esp;
+[2]   struct file *executable;
     };
     
     
 <<<<<< swap.h >>>>>>
     
-[2] struct bitmap *swap_table;
+[3] struct bitmap *swap_table;
     
     
 <<<<<< pte.h >>>>>>
     
-[3] #define PTE_S 0x100 
+[4] #define PTE_S 0x100 
     
     
 <<<<<< exception.h >>>>>>
     
-[4] #define PF_S 0x100 
-[5] #define PF_F 0x200 
+[5] #define PF_S 0x100 
+[6] #define PF_F 0x200 
+
+
+<<<<<< frame.h >>>>>>
+
+[7] struct list_elem* evict_ptr;
 ```
 
-`[1]` Pointer to the executable file used for lazy loading.  
-`[2]` A bitmap that records which sectors are currently storing swapped data.   
-`[3]` Bit that is set to 1 when the page table entry is swapped, and 0 when it's not in swap.  
-`[4]` Page fault error code bit that is 0 when it's not in swap table, and 1 when 
+`[1]` User stack pointer to the current end of the stack that can be accessed from an
+interrupt context, used when f->esp is the kernel stack pointer and we need the user one. 
+`[2]` Pointer to the executable file used for lazy loading.  
+`[3]` A bitmap that records which sectors are currently storing swapped data.   
+`[4]` Bit that is set to 1 when the page table entry is swapped, and 0 when it's not in swap.  
+`[5]` Page fault error code bit that is 0 when it's not in swap table, and 1 when 
 it is in swap table.  
-`[5]` Page fault error code bit that is 0 when it's not a file, and 1 when it is a file.  
+`[6]` Page fault error code bit that is 0 when it's not a file, and 1 when it is a file.  
+`[7]` The list_elem corresponding to the entry in the frame table which we will next check when calling evict().  
 
 ### ALGORITHMS  
 
