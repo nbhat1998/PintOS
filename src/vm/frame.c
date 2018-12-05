@@ -15,7 +15,7 @@
 void create_frame(void *vaddr)
 {
   struct frame *new_frame = malloc(sizeof(struct frame));
-  new_frame->vaddr = vaddr;
+  new_frame->kaddr = vaddr;
   list_init(&new_frame->user_ptes);
   // TODO: set pint to true
   new_frame->pin = false;
@@ -23,7 +23,7 @@ void create_frame(void *vaddr)
   list_push_back(&frame_table, &new_frame->elem);
 }
 
-void set_frame(void *vaddr, void *uaddr)
+void set_frame(void *kaddr, void *uaddr)
 {
   struct user_pte_ptr *new_pte_ptr = malloc(sizeof(struct user_pte_ptr));
   new_pte_ptr->pagedir = thread_current()->pagedir;
@@ -35,7 +35,7 @@ void set_frame(void *vaddr, void *uaddr)
   {
     struct frame *curr = list_entry(e, struct frame, elem);
     lock_acquire(&curr->lock);
-    if (curr->vaddr == vaddr)
+    if (curr->kaddr == kaddr)
     {
       list_push_back(&curr->user_ptes, &new_pte_ptr->elem);
       curr->pin = false;
@@ -88,6 +88,5 @@ void *evict()
 
   swap_write(frame_to_evict);
 
-  //printf("evicting vaddr %p\n", frame_to_evict->vaddr);
-  return frame_to_evict->vaddr;
+  return frame_to_evict->kaddr;
 }

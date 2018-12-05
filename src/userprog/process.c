@@ -24,6 +24,7 @@
 #include "threads/malloc.h"
 #include "threads/pte.h"
 #include "vm/frame.h"
+#include "vm/share.h"
 #include <list.h>
 
 static thread_func start_process NO_RETURN;
@@ -272,9 +273,21 @@ void process_exit(void)
       lock_acquire(&frame->lock);
       if (list_empty(&frame->user_ptes))
       {
+        struct list_elem *shared_elem = list_begin(&shared_execs);
+        while (shared_elem != list_end(&shared_execs))
+        {
+          struct shared_exec *shared = list_entry(shared_elem, struct shared_exec, elem);
+          if (shared->kaddr == frame->kaddr)
+          {
+            list_remove(shared_elem);
+            free(shared);
+            break;
+          }
+          shared_elem = list_next(shared_elem);
+        }
         struct list_elem *temp = list_next(frame_elem);
         list_remove(frame_elem);
-        palloc_free_page(frame->vaddr);
+        palloc_free_page(frame->kaddr);
         lock_release(&frame->lock);
         free(frame);
         frame_elem = temp;
