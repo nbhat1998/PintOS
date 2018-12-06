@@ -51,6 +51,12 @@ void set_frame(void *kvaddr, void *uaddr)
   NOT_REACHED();
 }
 
+
+/* Uses the "clock" algorithm. Considers frames for eviction in a round robin 
+   way (cyclically) and if a page in the frame's user_ptes list was accessed 
+   since the last consideration then its frame is not replaced. Uses the accessed
+   bit of pds to store whether it was accessed and checks the frame's user_ptes.
+   If the frame selected has its pin set to true we need to choose a different one */
 void *evict()
 {
   if (evict_ptr == NULL)
