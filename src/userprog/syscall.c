@@ -312,7 +312,7 @@ sys_read(uint32_t *args)
   }
 
   int actually_read = 0;
-  if (param_fd == 0)
+  if (param_fd == STDIN_FILENO)
   {
     while (param_size-- > 0)
     {
@@ -392,7 +392,7 @@ sys_write(uint32_t *args)
     kernel_buffer[i] = (char)c;
   }
 
-  if (param_fd == 1)
+  if (param_fd == STDOUT_FILENO)
   {
     if (param_size < ARBITRARY_LENGTH_LIMIT)
     {
