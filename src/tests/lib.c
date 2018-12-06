@@ -32,7 +32,6 @@ void msg(const char *format, ...)
   {
     return;
   }
-  // printf("hello\n");
 
   va_start(args, format);
 
