@@ -142,37 +142,22 @@ calling evict().
 > When a frame is required but none is free, some frame must be
 > evicted.  Describe your code for choosing a frame to evict.
 
-In our implementation of evict we used the "clock" algorithm. We consider all frames for
-eviction in a round robin way (cyclically) and if a page in the frame's user_ptes list was accessed since 
-the last consideration then its frame is not replaced. 
-We use the accessed bit of page directories to store whether it was accessed and in evict() we iterate through the frame's user_ptes
-If the frame selected has its pin set to true (meaning it's currently being swapped) we need to choose another one
-
 Our eviction algorithm uses the Clock Replacement Policy, also known as the Second Chance Replacement Policy. 
 A brief explanation of the Cock Replacement Policy: 
-    The candidate pages for removal are considered in a round robin order. Pages that have been accessed between consecutive calls
-        to the eviction policy have no chance of being replaced, and will not be considered. 
-    When considered in a round robin order, the page that will be replaced is one of the pages that has not been accessed since 
-        the last call to the eviction policy. 
+    The candidate pages for removal are considered in a round robin order. Pages that have been accessed between consecutive calls to the eviction policy have no chance of being replaced, and will not be considered. 
+    When considered in a round robin order, the page that will be replaced is one of the pages that has not been accessed since the last call to the eviction policy. 
     Each memory frame has a "second chance" bit, which is set to 1 everytime it is referenced. 
     Each new page being read into a memory frame has its second chance set to 0. 
     When a page needs to removed (evicted), the memory frames are traversed in a round robin order, and the following actions are carried out: 
-        1. If the second chance bit of the memory frame being considered is 1, the second chance bit is reset to 0, and the next frame is considered. 
-            A frame which has the second chance bit set to 1 will not be evicted. 
+        1. If the second chance bit of the memory frame being considered is 1, the second chance bit is reset to 0, and the next frame is considered. A frame which has the second chance bit set to 1 will not be evicted. 
         2. If the second chance bit of the memory frame being considered is 0, the page in that memory frame is selected for eviction. 
 
 
-
-
-
-
-
-
-
-
-
-
-
+In our particular use case, for evicting frame table entries from the frame table, we modified and used the second chance replacement policy in the following manner: 
+    1. A list_elem *evict_ptr is used to keep cyclically iterate over the frame table in a round robin order. 
+    2. Each frame table entry's second choice is decided by iterating over the frame's list of user_ptes, which is the list of all user page table entries (which in turn are pointed to by a user virtual address) that point to the kernel virtual address pointed to by the frame table entry, and checking their accessed bit to see if they have been accessed since the last function call to evict. 
+    3. When a user virtual address is accessed anywhere throughout the program, we make sure to set the accessed bit for that corresponding page table entry by using the pagedir_set_accessed function
+    4. A data member bool pin is added to each frame table entry and is used to synchronize eviction in case that two threads are trying to evict the same frame table entry. 
 
 
 
