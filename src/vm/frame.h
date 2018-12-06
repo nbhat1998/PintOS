@@ -7,7 +7,7 @@
 
 struct frame             /* Struct keeping track of a frame and the */
 {                        /* Ptes pointing to in */
-  uint32_t *kvaddr;      /* Pointer to page in kernel virtual memory that has a 
+  void *kvaddr;          /* Pointer to page in kernel virtual memory that has a 
                             1:1 link to physical memory */
   struct list user_ptes; /* List that stores user_pte_ptr structs. used to keep 
                             track of pts pointing to the frame */
@@ -18,8 +18,8 @@ struct frame             /* Struct keeping track of a frame and the */
 
 struct user_pte_ptr /* Struct used to get a pte */
 {
-  uint32_t *pagedir;     /* Page directory the pte is in */
-  uint32_t *uaddr;       /* User virtual address used to index in the pagedir */
+  void *pagedir;         /* Page directory the pte is in */
+  void *uaddr;           /* User virtual address used to index in the pagedir */
   struct list_elem elem; /* Elem used to add in frame user_ptes list */
 };
 
@@ -27,7 +27,7 @@ struct list frame_table; /* List of frames used as a frame table */
 
 void create_frame(void *vaddr);
 void set_frame(void *kvaddr, void *uaddr);
-void remove_frames(uint32_t *kvaddr);
+void remove_frames(void *kvaddr);
 
 struct list_elem *evict_ptr; /* Used in eviction algorithm for second chance */
 
