@@ -458,7 +458,7 @@ sys_mmap(uint32_t *args)
   args++;
 
   // If block to check if the file descriptor of the file to me mmap'd in stands for either STDIN (fd = 0) or STDOUT (fd = 1) 
-  if (param_fd == 1 || param_fd == 0)
+  if (param_fd == STDOUT_FILENO || param_fd == STDIN_FILENO)
   {
     return -1;
   }
