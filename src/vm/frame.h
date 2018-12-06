@@ -23,13 +23,13 @@ struct user_pte_ptr /* Struct used to get a pte */
   struct list_elem elem; /* Elem used to add in frame user_ptes list */
 };
 
-struct list frame_table; /* List of frames */
+struct list frame_table; /* List of frames used as a frame table */
 
 void create_frame(void *vaddr);
 void set_frame(void *kvaddr, void *uaddr);
 void remove_frames(uint32_t *kvaddr);
 
-struct list_elem *evict_ptr;
+struct list_elem *evict_ptr; /* Used in eviction algorithm for second chance */
 
 void *evict();
 #endif /* vm/frame.h */

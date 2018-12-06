@@ -268,8 +268,7 @@ page_fault(struct intr_frame *f)
 
   /* -------------------------- Executable Page -------------------------- */
   /* If there was a page fault where an executable page should be, we get the 
-  information about where in the file to read from, and how much to 
-  read. */
+  information about where in the file to read from, and how much to read. */
   if (executable)
   {
     uint32_t int_pte = (uint32_t)(*((uint32_t *)pte));
@@ -277,28 +276,35 @@ page_fault(struct intr_frame *f)
     const int FULL_PAGE_FLAG = 0x100;
     uint32_t start_read,
         read_bytes;
+
     if ((int_pte & PAGE_MID_FLAG) != 0)
-    { // Middle of a page
+    {
+      /* Middle of a page*/
       start_read = int_pte >> PGBITS;
       read_bytes = PGSIZE - (start_read % PGSIZE);
     }
     else
-    { // Start of page
+    {
+      /* Start of page */
       start_read = int_pte >> PGBITS;
       if (((int_pte >> PGBITS) % PGSIZE) == 0)
-      { // increment of page size
+      {
+        /* increment of page size */
         if ((int_pte & FULL_PAGE_FLAG) != 0)
-        { // Read all of it
+        {
+          /* Read all of it */
           read_bytes = PGSIZE;
           start_read -= PGSIZE;
         }
         else
-        { // read none of it
+        {
+          /* read none of it */
           read_bytes = 0;
         }
       }
       else
-      { // read amount is mod PGSIZE
+      {
+        /* read amount is mod PGSIZE */
         read_bytes = (int_pte >> PGBITS) % PGSIZE;
         start_read -= read_bytes;
       }
@@ -308,6 +314,8 @@ page_fault(struct intr_frame *f)
     int file_size = file_length(file);
     bool rw = (int_pte & PTE_W) != 0;
     void *kvaddr;
+    /* If the file is read only, we look to see if it is already in the
+    shared_execs list. */
     if (!rw)
     {
       bool found = false;
@@ -326,6 +334,8 @@ page_fault(struct intr_frame *f)
       }
       if (found)
       {
+        /* If it is, we link the fault_address (user address) to the address where
+        the executable page already exists in memory (kernel address). */
         bool success = link_page(fault_addr, curr_exec->kvaddr, rw);
         set_frame(curr_exec->kvaddr, fault_addr);
         if (!success)
@@ -336,6 +346,8 @@ page_fault(struct intr_frame *f)
       }
       else
       {
+        /* If it isn't, then we get a new page, and we link fault_address to it.
+        Then, we create a new struct shared_exec for it. */
         kvaddr = palloc_get_page(PAL_USER);
         if (kvaddr == NULL)
         {
@@ -356,6 +368,7 @@ page_fault(struct intr_frame *f)
     }
     else
     {
+      /* If it's not read-only, read the executable into a new frame.*/
       kvaddr = palloc_get_page(PAL_USER);
       if (kvaddr == NULL)
       {
@@ -395,14 +408,12 @@ page_fault(struct intr_frame *f)
     return;
   }
 
-  /* Swapped page */
+  /* -------------------------- Swapped Page -------------------------- */
+  /* If the page was swapped, then call swap_read to get it from memory. */
   if (swapped)
   {
     swap_read(fault_addr);
-    if (pte != NULL)
-    {
-      return;
-    }
+    return;
   }
 
   /* Other errors */
