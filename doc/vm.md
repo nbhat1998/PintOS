@@ -154,6 +154,12 @@ A brief explanation of the Cock Replacement Policy:
         to the eviction policy have no chance of being replaced, and will not be considered. 
     When considered in a round robin order, the page that will be replaced is one of the pages that has not been accessed since 
         the last call to the eviction policy. 
+    Each memory frame has a "second chance" bit, which is set to 1 everytime it is referenced. 
+    Each new page being read into a memory frame has its second chance set to 0. 
+    When a page needs to removed (evicted), the memory frames are traversed in a round robin order, and the following actions are carried out: 
+        1. If the second chance bit of the memory frame being considered is 1, the second chance bit is reset to 0, and the next frame is considered. 
+            A frame which has the second chance bit set to 1 will not be evicted. 
+        2. If the second chance bit of the memory frame being considered is 0, the page in that memory frame is selected for eviction. 
 
 
 
