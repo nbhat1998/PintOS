@@ -43,18 +43,6 @@ DESIGN DOCUMENT
 [11] struct list frame_table;
 
 
-<<<<<< share.h >>>>>>
-
-[12] struct shared_exec
-     {
-[13]   void *kvaddr;
-[14]   char *name;
-[15]   uint32_t start_read;
-[16]   uint32_t read_bytes;
-[17]   struct list_elem elem;
-     };
-
-[18] struct list shared_execs;
 ```
 
 `[1]` A struct used for storing information about individual frames.  
@@ -68,15 +56,7 @@ by this frame.
 `[8]` The pagedir of the user; used to find the page table entry.  
 `[9]` Index in the page directory/ page table; used to find the PTE  
 `[10]` Struct list_elem used to add the struct to the list of user_ptes in struct frame  
-`[11]` List that holds the frames (our frame table).  
-`[12]` A struct used for storing information required for sharing pages of read only executables
-between multiple processes.  
-`[13]` The address in kernel virtual memory where frame holding page exists.  
-`[14]` The pointer to the thread name, which is also the executable's name.  
-`[15]` The offset in file where it needs to start reading.  
-`[16]` The number of characters that must be read from that page in the file.  
-`[17]` Struct list_elem used to add the struct to the list of shared execs.  
-`[18]` List of struct shared_exec that keeps track of the shared executables.
+`[11]` List that holds the frames (our frame table).
 
 ### ALGORITHMS
 
@@ -84,8 +64,16 @@ between multiple processes.
 > Describe your code for finding the frame (if any) or other location that
 > contains the data of a given page.
 
+The page table entry is used to keep track of the frame as the Address part of it points to a frame directly. The frame table has a list of frames that can be uniquely identified using the address stored in the pte, and also contain a list of struct user_pte_ptrs that can be used to refer back to the page table entry itself.  
+In the case that the frame is swapped out, the page table entry holds the index in swap where the page can be found and a bit to show that it is swapped. This is used to restore the frame.
+
 > A3: (2 marks)
 > How have you implemented sharing of read only pages?
+
+During page faults, in the case that we are handling a read_only page which is being lazy loaded, we look through the list of shared execs.  
+If we find a shared_exec struct (shown in section C) that corresponds to the file we want to load at the correct offset, we just link the new uaddr to that frame and return.
+Otherwise, a new shared_exec struct is created and stores information about where to read from in the file. Then it is actually read into memory and the frame where is is loaded, is stored in the struct.
+The information stored is needed in the case of evicting, because if a lazy loaded executable is to be evicted, it is just cleared and information about how to load it back is stored in all the page table entries that require it.
 
 ### SYNCHRONIZATION
 
@@ -94,11 +82,26 @@ between multiple processes.
 > how are races avoided? You should consider both when there are
 > and are not free frames available in memory.
 
+If there are free frames in memory there is no problem as palloc_get_page with return a new address of a free frame every time.
+In the case that the memory is full, two evictions must take place. Since we lock around choosing a frame to evict, the choice will happen sequentially but after we select a frame to evict, we 'pin' that frame using the pin bool, so that we do not allow another process to evict it too.
+
 ### RATIONALE
 
 > A5: (2 marks)
 > Why did you choose the data structure(s) that you did for
 > representing the supplemental page table and frame table?
+
+**Supplemental page table:**  
+We chose not to use a supplemental page table as we found that the existing page table was sufficient enough to implement the required functionalities. We only used the remaining free bits of the flags in ptes to distinguish between lazy loaded files, swapped frames, mmaped files and stack growth pages.
+This means that we had to limit the total amount of swapped pages to 2^20, which we believe is sufficient for the use case.
+The address part of the pts is used in many different ways if the pte is not present:
+
+- For lazy loading, it stores a combination of file offset and size to read.
+- For swapping, it stores the index in swap where the page can be found
+- For mmaped files and stack growth it stores nothing
+
+**Frame table:**  
+The frame table is a list of currently allocated frames. We decided to use this implementation as it is easy to use. The frame table has a list of page table entries that point to the frame. It is also easy to check if this list is empty when a process dies, and if so, free the frame.
 
 ## PAGING TO AND FROM DISK
 
@@ -135,7 +138,7 @@ between multiple processes.
 
 [5] #define PF_S 0x100
 [6] #define PF_F 0x200
-[7] #define PF_M 0x500 /* 0: not a mmap file, 1: mmap file */
+[7] #define PF_M 0x500
 
 
 <<<<<< frame.h >>>>>>
@@ -164,27 +167,26 @@ Our eviction algorithm uses the Clock Replacement Policy, also known as the Seco
 
 The candidate pages for removal are considered in a round robin order. Pages that have been accessed between consecutive calls to the eviction policy have no chance of being replaced, and will not be considered.
 When considered in a round robin order, the page that will be replaced is one of the pages that has not been accessed since the last call to the eviction policy.
-Each memory frame has a "second chance" bit, which is set to 1 everytime it is referenced.  
- Each new page being read into a memory frame has its second chance set to 0.
-When a page needs to removed (evicted), the memory frames are traversed in a round robin order, and the following actions are carried out:
+Each memory frame has a "second chance" bit, which is set to 1 every time it is referenced.  
+Each new page being read into a memory frame has its second chance set to 0.
+When a page needs to removed (evicted), the memory frames are traversed in a round robin order, and the following actions are carried out:s
 
 1. If the second chance bit of the memory frame being considered is the second chance bit is reset to 0, and the next frame is considered. A frame which has the second chance bit set to 1 will not be evicted.
 2. If the second chance bit of the memory frame being considered is 0, the page in that memory frame is selected for eviction.
 
-In our particular use case, for evicting frame table entries from the frame table, we modified and used the second chance replacement policy in the following manner:
+In our particular use case, for evicting frame table entries from the frame table, we used the second chance replacement policy in the following manner:
 
-1. A list_elem \*evict_ptr is used to keep cyclically iterate over the frame table in a round robin order.
-2. Each frame table entry's second choice is decided by iterating over the frame's list of user_ptes, which is the list of all user page table entries (which in turn are pointed to by a user virtual address) that point to the kernel virtual address pointed to by the frame table entry, and checking their accessed bit to see if they have been accessed since the last function call to evict.
+1. `list_elem *evict_ptr` is used to keep cyclically iterate over the frame table in a round robin order.
+2. Each frame's second choice is checked by iterating over the frame's list of user_ptes and checking the accessed bit of the page directories to see if they have been accessed since the last eviction. If so, they are set to 0 and the frame is not selected for eviction.
 3. When a user virtual address is accessed anywhere throughout the program, we make sure to set the accessed bit for that corresponding page table entry by using the pagedir_set_accessed function.
-4. A data member bool pin is added to each frame table entry and is used to synchronize eviction in case that two threads are trying to evict the same frame table entry.
+4. A data member bool pin is added to each frame and is used to synchronize eviction in case that another process is already trying to evict that frame.
 
 > B3: (2 marks)
 > When a process P obtains a frame that was previously used by a
 > process Q, how do you adjust the page directory (and any other
 > data structures) to reflect the frame Q no longer has?
 
-The page table entry in the page directory is zeroed out and therefore does not point to the kernel
-virtual address that is used to identify the previous frame.
+The page table entry in the page directory is zeroed out and therefore does not point to the kernel virtual address that is used to identify the previous frame. The frame in the frame table also removes its entry of the pointer to the uaddr of Q and repaces it with the uaddr of P.
 
 ### SYNCHRONIZATION
 
@@ -205,10 +207,14 @@ Circular wait (two or more processes in a circular chain, each waiting for a res
 > to be evicted. How do you ensure that Q cannot access or modify
 > the page during the eviction process?
 
+Once a frame is chosen for eviction, we first set all the ptes to no longer point to the frame, and then zero out the page so Q cannot modify the new page as it has no pointer to it.
+
 > B6: (2 marks)
 > A page fault in process P can cause another process Q's frame
 > to be evicted. How do you avoid a race between P evicting Q's
 > frame and Q faulting the page back in?
+
+Since we pin pages during eviction, when Q tries to fault the page back in, it will not choose the same frame as before.
 
 > B7: (2 marks)
 > Explain how you handle access to paged-out user pages that
@@ -260,6 +266,20 @@ Circular wait (two or more processes in a circular chain, each waiting for a res
       ...
 [10]  struct list mmap_containers;
     };
+
+
+<<<<<< share.h >>>>>>
+
+[11] struct shared_exec
+     {
+[12]   void *kvaddr;
+[13]   char *name;
+[14]   uint32_t start_read;
+[15]   uint32_t read_bytes;
+[16]   struct list_elem elem;
+     };
+
+[17] struct list shared_execs;
 ```
 
 `[1]` A typedef for the map identifier.  
@@ -270,9 +290,16 @@ Circular wait (two or more processes in a circular chain, each waiting for a res
 `[6]` The offset within the file where this page starts.  
 `[7]` Size used within the page in user virtual space (always less than or equal to PGSIZE)  
 `[8]` Struct list_elem used to add the struct to the list of mmap_containers in struct process.  
-`[9]` Boolean that acts as a flag and is true if that file is mapped to memory.  
-`[10]` List of mmap containers storing informaiton about the pages of the file
+`[9]` Boolean that acts as a flag and is true if that file is mapped to memory. If true, when syscall file_close is called, we don't actually close the file.  
+`[10]` List of mmap containers storing information about the pages of the file
 stored in physical memory by this process.
+`[11]` A struct used for storing information required for sharing pages of read only executables between multiple processes.  
+`[12]` The address in kernel virtual memory where frame holding page exists.  
+`[13]` The pointer to the thread name, which is also the executable's name.  
+`[14]` The offset in file where it needs to start reading.  
+`[15]` The number of characters that must be read from that page in the file.  
+`[16]` Struct list_elem used to add the struct to the list of shared execs.  
+`[17]` List of struct shared_exec that keeps track of the shared executables.
 
 ### ALGORITHMS
 
