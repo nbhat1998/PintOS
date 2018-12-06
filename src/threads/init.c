@@ -42,6 +42,7 @@
 #include "vm/swap.h"
 #include "vm/frame.h"
 #include "vm/share.h"
+#include "threads/vaddr.h"
 #endif
 
 /* Page directory with kernel mappings only. */
@@ -407,7 +408,7 @@ locate_block_devices(void)
   locate_block_device(BLOCK_SCRATCH, scratch_bdev_name);
 #ifdef VM
   locate_block_device(BLOCK_SWAP, swap_bdev_name);
-  swap_table = bitmap_create(block_size(block_get_role(BLOCK_SWAP)) / 8); // TODO: Check if size should be divided by pgsize here. logically it should be as we as many entries in the bitmap as there are sectors/ pages in the block
+  swap_table = bitmap_create(block_size(block_get_role(BLOCK_SWAP)) / (PGSIZE / BLOCK_SECTOR_SIZE));
 #endif
 }
 

@@ -10,6 +10,9 @@
 #define ARBITRARY_LENGTH_LIMIT 500
 #define FIRST_UNALLOCATED_FD 2
 
+#define STDIN_FILENO 0
+#define STDOUT_FILENO 1
+
 typedef int mapid_t;
 void syscall_init(void);
 
