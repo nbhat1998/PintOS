@@ -539,7 +539,6 @@ bool load(const char *argv, void (**eip)(void), void **esp)
 done:
   /* We arrive here whether the load is successful or not. */
   free(argv_cpy);
-  // printf("done: %d\n", success);
 
   return success;
 }
@@ -635,7 +634,6 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 
   uint32_t start_read = ofs;
 
-  //printf("ofs %d\n", ofs / PGSIZE);
   while (read_bytes > 0 || zero_bytes > 0)
   {
 
@@ -646,7 +644,6 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
     size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
     uint32_t *pte = get_pte(thread_current()->pagedir, upage, true);
-    // printf("uaddr: %p, bool %d\n", upage, writable);
     if (writable)
     {
       *pte = PTE_W;
@@ -656,7 +653,6 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
       *pte = 0;
     }
 
-    // TODO: make this nice
     if (page_read_bytes == 0)
     {
       /* If you don't need to read anything */
@@ -673,14 +669,12 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
          also set 0x100 */
       *pte += ((start_read + page_read_bytes) << 12) + 0x300;
     }
-    //printf("upage %p\n", upage);
     /* Advance. */
     read_bytes -= page_read_bytes;
     zero_bytes -= page_zero_bytes;
     upage += PGSIZE;
     start_read += page_read_bytes;
   }
-  // printf("%s: load_segment\n", thread_current()->name);
 
   return true;
 }

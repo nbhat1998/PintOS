@@ -564,7 +564,6 @@ uint32_t sys_munmap(uint32_t *args)
       e = list_next(e);
       list_remove(temp);
       free(this_container);
-      // TODO : look into removing frame from frame table to free up kvm
     }
     else
     {

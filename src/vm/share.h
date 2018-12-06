@@ -11,7 +11,6 @@ struct shared_exec
   char *name;
   uint32_t start_read;
   uint32_t read_bytes;
-  struct lock lock;
   struct list_elem elem;
 };
 

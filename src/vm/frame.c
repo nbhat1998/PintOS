@@ -10,14 +10,11 @@
 #include "threads/vaddr.h"
 #include "threads/pte.h"
 
-// TODO: set pin to false in install_page
-
 void create_frame(void *vaddr)
 {
   struct frame *new_frame = malloc(sizeof(struct frame));
   new_frame->kaddr = vaddr;
   list_init(&new_frame->user_ptes);
-  // TODO: set pint to true
   new_frame->pin = false;
   lock_init(&new_frame->lock);
   list_push_back(&frame_table, &new_frame->elem);
@@ -29,7 +26,6 @@ void set_frame(void *kaddr, void *uaddr)
   new_pte_ptr->pagedir = thread_current()->pagedir;
   new_pte_ptr->uaddr = uaddr;
 
-  //printf("pd %p uaddr %p pte: %p\n", thread_current()->pagedir, uaddr, get_pte(thread_current()->pagedir, uaddr, false));
   for (struct list_elem *e = list_begin(&frame_table);
        e != list_end(&frame_table); e = list_next(e))
   {

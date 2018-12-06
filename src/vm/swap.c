@@ -21,7 +21,6 @@ void swap_read(void *fault_addr)
 
   size_t swap_index = (*pte & PTE_ADDR) >> 12;
   bool writable = (*pte & PTE_W) != 0;
-  // TODO: check if always init
   /* Either gets freed if frame table is full, or when 
        the whole frame is freed */
   void *kvaddr = palloc_get_page(PAL_USER);
@@ -51,8 +50,6 @@ void swap_read(void *fault_addr)
     lock_release(&frame->lock);
   }
 
-  //printf("read : (thread: %d ) UADDR %p, pte %p\n", thread_current()->tid, fault_addr, *pte);
-
   lock_acquire(&frame->lock);
   swap_page_read(swap_index, kvaddr);
   lock_release(&frame->lock);
@@ -60,11 +57,10 @@ void swap_read(void *fault_addr)
   *pte &= (~PTE_S);
 }
 
-/* TODO: 
-decide where in block swap to put the stuff ( using bitmap )
+/* Decide where in block swap to put the stuff ( using bitmap )
 
-f->physicalmemorykey needs to be move to swap block at index decided above 
-    use f->physicalmemoryley as void* buffer ( the third param ) 
+f->kaddr needs to be move to swap block at index decided above 
+    use f->kaddr as void* buffer (the third parameter) 
     use PGSIZE as block_sector
     
 f->user_ptes : all of the ptes need to go into the pagedir->pagetable->pte 
@@ -82,7 +78,6 @@ void swap_write(struct frame *f)
        e = list_next(e))
   {
     curr_exec = list_entry(e, struct shared_exec, elem);
-    //printf("checking swap: %p\n", curr_exec);
     if (curr_exec->kaddr == f->kaddr)
     {
       found = true;
@@ -117,7 +112,6 @@ void swap_write(struct frame *f)
       }
       free(current);
     }
-    //printf("deleted in swap: %p\n", curr_exec);
     list_remove(&curr_exec->elem);
     free(curr_exec);
   }
@@ -172,7 +166,6 @@ void swap_page_write(size_t index, struct frame *f)
   struct block *swap = block_get_role(BLOCK_SWAP);
   for (int i = 0; i < 8; i++)
   {
-    //strlcpy(buffer, (char *)(kaddr + size), BLOCK_SECTOR_SIZE);
     char *temp = buffer;
     for (int j = 0; j < BLOCK_SECTOR_SIZE; j++)
     {

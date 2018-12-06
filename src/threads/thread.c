@@ -412,7 +412,7 @@ void update_priority(struct thread *cur, struct thread *caller, int new_priority
   /* Update recipient if it exists */
   if (cur->recipient)
   {
-    // update_priority(cur->recipient, cur, new_priority);
+    //update_priority(cur->recipient, cur, new_priority);
   }
 
   /* Update list of donations and their locks */

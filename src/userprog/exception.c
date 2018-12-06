@@ -19,7 +19,6 @@
 #include "filesys/file.h"
 #include "threads/synch.h"
 #include "userprog/syscall.h"
-
 #define STACK_LIMIT 0xbfe00000
 
 /* Number of page faults processed. */
@@ -173,12 +172,11 @@ page_fault(struct intr_frame *f)
     pagedir_set_accessed(thread_current()->pagedir, fault_addr, true);
   }
 
-  /* For a memory mapped file */
+  /* For a mmapped file */
   if (not_present && is_user_vaddr(fault_addr) && pte != NULL &&
       ((*pte) & 0x500) == 0x500)
   {
     void *kpage = palloc_get_page(PAL_USER);
-
     if (kpage == NULL)
     {
       kpage = evict();
@@ -195,7 +193,6 @@ page_fault(struct intr_frame *f)
       NOT_REACHED();
     }
     pagedir_set_dirty(thread_current()->pagedir, pg_round_down(fault_addr), write);
-    // TODO: maybe set accessed bit
     for (struct list_elem *e = list_begin(
              &thread_current()->process->mmap_containers);
          e != list_end(&thread_current()->process->mmap_containers);
@@ -205,8 +202,6 @@ page_fault(struct intr_frame *f)
           list_entry(e, struct mmap_container, elem);
       if (this_container->uaddr == pg_round_down(fault_addr))
       {
-        // TODO : lock and unlock here with filesys_lock? not sure if this part will be called within a syscall, in which case there will be a deadlock
-
         memset(kpage, 0, PGSIZE);
         file_read_at(this_container->f, kpage,
                      this_container->size_used_within_page,
@@ -302,9 +297,7 @@ page_fault(struct intr_frame *f)
       }
       if (found)
       {
-        //printf("hi\n");
         bool success = link_page(fault_addr, curr_exec->kaddr, rw);
-        //printf("curr_exec->kaddr: %p ", curr_exec->kaddr);
         set_frame(curr_exec->kaddr, fault_addr);
         if (!success)
         {
@@ -329,9 +322,7 @@ page_fault(struct intr_frame *f)
         new_exec->kaddr = kaddr;
         new_exec->read_bytes = read_bytes;
         new_exec->start_read = start_read;
-        lock_init(&new_exec->lock);
         list_push_back(&shared_execs, &new_exec->elem);
-        //printf("created: %p\n", new_exec);
       }
     }
     else
