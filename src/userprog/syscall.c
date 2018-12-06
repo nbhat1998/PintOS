@@ -451,7 +451,8 @@ sys_close(uint32_t *args)
   return;
 }
 
-uint32_t sys_mmap(uint32_t *args)
+uint32_t
+sys_mmap(uint32_t *args)
 {
   int param_fd = (int)get_word(args);
   args++;
@@ -460,16 +461,14 @@ uint32_t sys_mmap(uint32_t *args)
     return -1;
   }
 
-  uint32_t uaddr = get_word(args);
+  void *uaddr = get_word(args);
 
-  if (uaddr == 0 || uaddr % PGSIZE != 0)
+  if (uaddr == 0 || ((uint32_t)uaddr) % PGSIZE != 0)
   {
     return -1;
   }
 
   uint32_t file_size = 0;
-
-  uint32_t *pte = get_pte(thread_current()->pagedir, uaddr, true);
 
   struct file_container *this_container = NULL;
   for (struct list_elem *e = list_begin(&thread_current()->process->file_containers);
@@ -501,8 +500,8 @@ uint32_t sys_mmap(uint32_t *args)
 
   for (int i = 0; i < file_size; i++)
   {
-    uint32_t *current_pte = get_pte(thread_current()->pagedir, uaddr + (i * PGSIZE), false);
-    if (current_pte != NULL && (*current_pte) != 0)
+    void *current_pte = get_pte(thread_current()->pagedir, uaddr + (i * PGSIZE), false);
+    if (current_pte != NULL && (*(uint32_t *)current_pte) != 0)
     {
       return -1;
     }
@@ -511,8 +510,8 @@ uint32_t sys_mmap(uint32_t *args)
   int new_mapId = allocate_fd();
   for (int i = 0; i < number_of_pages; i++)
   {
-    uint32_t *current_pte = get_pte(thread_current()->pagedir, uaddr + (i * PGSIZE), true);
-    (*current_pte) = 0x500;
+    void *current_pte = get_pte(thread_current()->pagedir, uaddr + (i * PGSIZE), true);
+    (*(uint32_t *)current_pte) = 0x500;
     struct mmap_container *mmap_container = malloc(sizeof(struct mmap_container));
     mmap_container->f = this_container->f;
     mmap_container->mapid = new_mapId;

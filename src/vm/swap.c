@@ -10,6 +10,7 @@
 #include "threads/thread.h"
 #include "threads/pte.h"
 #include "threads/malloc.h"
+#include "threads/vaddr.h"
 
 /* Helpers */
 void swap_page_read(size_t index, void *kvaddr);
@@ -19,7 +20,7 @@ void swap_read(void *fault_addr)
 {
   uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, false);
 
-  size_t swap_index = (*pte & PTE_ADDR) >> 12;
+  size_t swap_index = (*pte & PTE_ADDR) >> PGBITS;
   bool writable = (*pte & PTE_W) != 0;
   /* Either gets freed if frame table is full, or when 
        the whole frame is freed */
@@ -42,7 +43,7 @@ void swap_read(void *fault_addr)
   {
     frame = list_entry(curr, struct frame, elem);
     lock_acquire(&frame->lock);
-    if (frame->kaddr == kvaddr)
+    if (frame->kvaddr == kvaddr)
     {
       lock_release(&frame->lock);
       break;
@@ -59,8 +60,8 @@ void swap_read(void *fault_addr)
 
 /* Decide where in block swap to put the stuff ( using bitmap )
 
-f->kaddr needs to be move to swap block at index decided above 
-    use f->kaddr as void* buffer (the third parameter) 
+f->kvaddr needs to be move to swap block at index decided above 
+    use f->kvaddr as void* buffer (the third parameter) 
     use PGSIZE as block_sector
     
 f->user_ptes : all of the ptes need to go into the pagedir->pagetable->pte 
@@ -78,7 +79,7 @@ void swap_write(struct frame *f)
        e = list_next(e))
   {
     curr_exec = list_entry(e, struct shared_exec, elem);
-    if (curr_exec->kaddr == f->kaddr)
+    if (curr_exec->kvaddr == f->kvaddr)
     {
       found = true;
       break;
@@ -102,13 +103,13 @@ void swap_write(struct frame *f)
       else if (curr_exec->start_read % PGSIZE != 0)
       {
         /* If you need to start reading from inside a page, also set 0x400 */
-        *pte += (curr_exec->start_read << 12) + 0x600;
+        *pte += (curr_exec->start_read << PGBITS) + 0x600;
       }
       else
       {
         /* If you need to start reading something from the start of a page,
          also set 0x100 */
-        *pte += ((curr_exec->start_read + curr_exec->read_bytes) << 12) + 0x300;
+        *pte += ((curr_exec->start_read + curr_exec->read_bytes) << PGBITS) + 0x300;
       }
       free(current);
     }
@@ -126,25 +127,25 @@ void swap_write(struct frame *f)
       struct user_pte_ptr *current = list_entry(curr, struct user_pte_ptr, elem);
 
       uint32_t *pte = get_pte(current->pagedir, current->uaddr, false);
-      *pte = (((index_in_swap << 12) | PTE_S) & (~PTE_P) | (*pte & PTE_W));
+      *pte = (((index_in_swap << PGBITS) | PTE_S) & (~PTE_P) | (*pte & PTE_W));
       free(current);
     }
   }
-  memset(f->kaddr, 0, PGSIZE);
+  memset(f->kvaddr, 0, PGSIZE);
   f->pin = false;
   lock_release(&f->lock);
 }
 
 static int get_user(const uint8_t *uaddr);
 
-void swap_page_read(size_t index, void *kaddr)
+void swap_page_read(size_t index, void *kvaddr)
 {
   int size = 0;
   size_t start_sector = index * 8;
   struct block *swap = block_get_role(BLOCK_SWAP);
   for (int i = 0; i < 8; i++)
   {
-    block_read(swap, start_sector++, kaddr + size);
+    block_read(swap, start_sector++, kvaddr + size);
     size += BLOCK_SECTOR_SIZE;
   }
   bitmap_flip(swap_table, index);
@@ -154,7 +155,7 @@ static bool put_user(uint8_t *udst, uint8_t byte);
 
 void swap_page_write(size_t index, struct frame *f)
 {
-  void *kaddr = f->kaddr;
+  void *kvaddr = f->kvaddr;
   size_t start_sector = index * 8;
   char *buffer = malloc(BLOCK_SECTOR_SIZE);
   if (buffer == NULL)
@@ -169,7 +170,7 @@ void swap_page_write(size_t index, struct frame *f)
     char *temp = buffer;
     for (int j = 0; j < BLOCK_SECTOR_SIZE; j++)
     {
-      if (!put_user(buffer++, ((char *)kaddr + size)[j]))
+      if (!put_user(buffer++, ((char *)kvaddr + size)[j]))
       {
         free(buffer);
         lock_release(&f->lock);

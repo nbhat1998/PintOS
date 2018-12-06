@@ -7,7 +7,7 @@
 
 struct shared_exec
 {
-  void *kaddr;
+  void *kvaddr;
   char *name;
   uint32_t start_read;
   uint32_t read_bytes;

@@ -7,7 +7,7 @@
 
 struct frame
 {
-  uint32_t *kaddr;
+  uint32_t *kvaddr;
   struct list user_ptes;
   struct list_elem elem;
   bool pin;

@@ -23,6 +23,7 @@
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 #include "threads/pte.h"
+#include "userprog/exception.h"
 #include "vm/frame.h"
 #include "vm/share.h"
 #include <list.h>
@@ -277,7 +278,7 @@ void process_exit(void)
         while (shared_elem != list_end(&shared_execs))
         {
           struct shared_exec *shared = list_entry(shared_elem, struct shared_exec, elem);
-          if (shared->kaddr == frame->kaddr)
+          if (shared->kvaddr == frame->kvaddr)
           {
             list_remove(shared_elem);
             free(shared);
@@ -287,7 +288,7 @@ void process_exit(void)
         }
         struct list_elem *temp = list_next(frame_elem);
         list_remove(frame_elem);
-        palloc_free_page(frame->kaddr);
+        palloc_free_page(frame->kvaddr);
         lock_release(&frame->lock);
         free(frame);
         frame_elem = temp;
@@ -636,7 +637,8 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 
   while (read_bytes > 0 || zero_bytes > 0)
   {
-
+    const int PAGE_MID_FLAG = 0x400;
+    const int FULL_PAGE_FLAG = 0x100;
     /* Calculate how to fill this page.
          We will read PAGE_READ_BYTES bytes from FILE
          and zero the final PAGE_ZERO_BYTES bytes. */
@@ -656,18 +658,18 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
     if (page_read_bytes == 0)
     {
       /* If you don't need to read anything */
-      *pte += 0x200;
+      *pte += PF_F;
     }
     else if (start_read % PGSIZE != 0)
     {
       /* If you need to start reading from inside a page, also set 0x400 */
-      *pte += (start_read << 12) + 0x600;
+      *pte += (start_read << PGBITS) + PF_F + PAGE_MID_FLAG;
     }
     else
     {
       /* If you need to start reading something from the start of a page,
          also set 0x100 */
-      *pte += ((start_read + page_read_bytes) << 12) + 0x300;
+      *pte += ((start_read + page_read_bytes) << PGBITS) + PF_F + FULL_PAGE_FLAG;
     }
     /* Advance. */
     read_bytes -= page_read_bytes;
@@ -724,10 +726,10 @@ setup_stack(void **esp, const char *argv)
 
   /* Word align */
   int8_t *argv_ptr = sp;
-  sp -= (uint8_t)sp % 4;
+  sp -= (uint8_t)sp % WORD_LENGTH;
 
   /* Add null pointer (end of argv) */
-  sp -= 4;
+  sp -= WORD_LENGTH;
   *sp = NULL;
 
   /* Adding argv addresses,address of ar0gv array, argc,

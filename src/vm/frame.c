@@ -13,14 +13,14 @@
 void create_frame(void *vaddr)
 {
   struct frame *new_frame = malloc(sizeof(struct frame));
-  new_frame->kaddr = vaddr;
+  new_frame->kvaddr = vaddr;
   list_init(&new_frame->user_ptes);
   new_frame->pin = false;
   lock_init(&new_frame->lock);
   list_push_back(&frame_table, &new_frame->elem);
 }
 
-void set_frame(void *kaddr, void *uaddr)
+void set_frame(void *kvaddr, void *uaddr)
 {
   struct user_pte_ptr *new_pte_ptr = malloc(sizeof(struct user_pte_ptr));
   new_pte_ptr->pagedir = thread_current()->pagedir;
@@ -31,7 +31,7 @@ void set_frame(void *kaddr, void *uaddr)
   {
     struct frame *curr = list_entry(e, struct frame, elem);
     lock_acquire(&curr->lock);
-    if (curr->kaddr == kaddr)
+    if (curr->kvaddr == kvaddr)
     {
       list_push_back(&curr->user_ptes, &new_pte_ptr->elem);
       curr->pin = false;
@@ -84,5 +84,5 @@ void *evict()
 
   swap_write(frame_to_evict);
 
-  return frame_to_evict->kaddr;
+  return frame_to_evict->kvaddr;
 }
