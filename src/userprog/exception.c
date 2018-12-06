@@ -200,6 +200,11 @@ page_fault(struct intr_frame *f)
   }
 
   /* -------------------------- MMaped Page -------------------------- */
+  /* If there is a page fault at an address that is known to be an mmap'd address, 
+  then lazily load the pages from the file into the frame table. The contents of each
+  kvaddr returned by PALLOC_GET_PAGE(PAL_USER) is set to 0 before being read into, so as to enable 
+  padding when the page isn't entirely used. If kvaddr is found to be null, a page is evicted from 
+  the frame table and the same process is carried out. */ 
   if (mmap)
   {
     void *kvaddr = palloc_get_page(PAL_USER);
