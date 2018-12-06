@@ -15,6 +15,7 @@
 #include "filesys/filesys.h"
 #include "lib/string.h"
 #include "userprog/pagedir.h"
+#include "userprog/exception.h"
 
 static int get_user(const uint8_t *);
 static int32_t get_word(uint8_t *);
@@ -465,7 +466,7 @@ sys_mmap(uint32_t *args)
 
   void *uaddr = get_word(args);
 
-  // Ensuring that uaddr is page aligned
+  /* Ensuring that uaddr is page aligned */
   if (uaddr == 0 || ((uint32_t)uaddr) % PGSIZE != 0)
   {
     return -1;
@@ -503,7 +504,7 @@ sys_mmap(uint32_t *args)
     number_of_pages++;
   }
 
-  // Iterate over 
+  /* Iterate over number_of_pages starting from uaddr to ensure that no overlapping occurs */
   for (int i = 0; i < number_of_pages; i++)
   {
     void *current_pte = get_pte(thread_current()->pagedir, uaddr + (i * PGSIZE), false);
@@ -517,7 +518,7 @@ sys_mmap(uint32_t *args)
   for (int i = 0; i < number_of_pages; i++)
   {
     void *current_pte = get_pte(thread_current()->pagedir, uaddr + (i * PGSIZE), true);
-    (*(uint32_t *)current_pte) = 0x500; // 
+    (*(uint32_t *)current_pte) = PF_M; 
     struct mmap_container *mmap_container = malloc(sizeof(struct mmap_container));
     mmap_container->f = this_container->f;
     mmap_container->mapid = new_mapId;
