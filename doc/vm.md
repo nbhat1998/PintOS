@@ -26,7 +26,7 @@ DESIGN DOCUMENT
 
 [1]  struct frame
      {
-[2]    uint32_t *vaddr;
+[2]    uint32_t *kvaddr;
 [3]    struct list user_ptes;
 [4]    struct list_elem elem;
 [5]    bool pin;
@@ -41,11 +41,26 @@ DESIGN DOCUMENT
      };
     
 [11] struct list frame_table;
+
+
+<<<<<< share.h >>>>>>
+
+[12] struct shared_exec
+     {
+[13]   void *kvaddr;
+[14]   char *name;
+[15]   uint32_t start_read;
+[16]   uint32_t read_bytes;
+[17]   struct list_elem elem;
+     };
+
+[18] struct list shared_execs;
 ```
 
 `[1]`  A struct used for storing information about individual frames.  
 `[2]`  The kernel virtual address the frame manages.  
-`[3]`  List that stores the page table entries pointing to the kernel virtual address pointed to by this frame.  
+`[3]`  List that stores the page table entries pointing to the kernel virtual address pointed to
+by this frame.  
 `[4]`  Struct list_elem used to add the struct to the list of frames in frame_table.  
 `[5]`  Boolean used for pinning while the frame is swapped.   
 `[6]`  A lock used to synchronize operations on struct frame.  
@@ -54,6 +69,14 @@ DESIGN DOCUMENT
 `[9]`  Index in the page directory/ page table; used to find the PTE  
 `[10]` Struct list_elem used to add the struct to the list of user_ptes in struct frame  
 `[11]` List that holds the frames (our frame table).  
+`[12]` A struct used for storing information required for sharing pages of read only executables
+between multiple processes.   
+`[13]` The address in kernel virtual memory where frame holding page exists.   
+`[14]` The pointer to the thread name, which is also the executable's name.  
+`[15]` The offset in file where it needs to start reading.  
+`[16]` The number of characters that must be read from that page in the file.  
+`[17]` Struct list_elem used to add the struct to the list of shared execs.   
+`[18]` List of struct shared_exec that keeps track of the shared executables.    
 
 ### ALGORITHMS  
 
@@ -118,6 +141,7 @@ DESIGN DOCUMENT
     
 [5] #define PF_S 0x100 
 [6] #define PF_F 0x200 
+[7] #define PF_M 0x500 /* 0: not a mmap file, 1: mmap file */
 
 
 <<<<<< frame.h >>>>>>
@@ -130,10 +154,10 @@ interrupt context, used when f->esp is the kernel stack pointer and we need the 
 `[2]` Pointer to the executable file used for lazy loading.  
 `[3]` A bitmap that records which sectors are currently storing swapped data.   
 `[4]` Bit that is set to 1 when the page table entry is swapped, and 0 when it's not in swap.  
-`[5]` Page fault error code bit that is 0 when it's not in swap table, and 1 when 
-it is in swap table.  
-`[6]` Page fault error code bit that is 0 when it's not a file, and 1 when it is a file.  
-`[7]` The list_elem corresponding to the entry in the frame table which we will next check when 
+`[5]` Page fault error code bit that is 0 when it's not in swap table, and 1 when it is.   
+`[6]` Page fault error code bit that is 0 when it's not an executable, and 1 when it is.  
+`[7]` Page fault error code bit that is 0 when it's not a memory mapped file, and 1 when it is.  
+`[8]` The list_elem corresponding to the entry in the frame table which we will next check when 
 calling evict().  
 
 ### ALGORITHMS  
@@ -143,21 +167,21 @@ calling evict().
 > evicted.  Describe your code for choosing a frame to evict.
 
 Our eviction algorithm uses the Clock Replacement Policy, also known as the Second Chance Replacement Policy. 
-A brief explanation of the Cock Replacement Policy: 
+A brief explanation of the Cock Replacement Policy:  
     The candidate pages for removal are considered in a round robin order. Pages that have been accessed between consecutive calls to the eviction policy have no chance of being replaced, and will not be considered. 
     When considered in a round robin order, the page that will be replaced is one of the pages that has not been accessed since the last call to the eviction policy. 
     Each memory frame has a "second chance" bit, which is set to 1 everytime it is referenced. 
     Each new page being read into a memory frame has its second chance set to 0. 
-    When a page needs to removed (evicted), the memory frames are traversed in a round robin order, and the following actions are carried out: 
-        1. If the second chance bit of the memory frame being considered is 1, the second chance bit is reset to 0, and the next frame is considered. A frame which has the second chance bit set to 1 will not be evicted. 
-        2. If the second chance bit of the memory frame being considered is 0, the page in that memory frame is selected for eviction. 
+    When a page needs to removed (evicted), the memory frames are traversed in a round robin order, and the following actions are carried out:  
+        1. If the second chance bit of the memory frame being considered is 1, the second chance bit is reset to 0, and the next frame is considered. A frame which has the second chance bit set to 1 will not be evicted.  
+        2. If the second chance bit of the memory frame being considered is 0, the page in that memory frame is selected for eviction.  
 
 
-In our particular use case, for evicting frame table entries from the frame table, we modified and used the second chance replacement policy in the following manner: 
-    1. A list_elem *evict_ptr is used to keep cyclically iterate over the frame table in a round robin order. 
-    2. Each frame table entry's second choice is decided by iterating over the frame's list of user_ptes, which is the list of all user page table entries (which in turn are pointed to by a user virtual address) that    point to the kernel virtual address pointed to by the frame table entry, and checking their accessed bit to see if they have been accessed since the last function call to evict. 
-    3. When a user virtual address is accessed anywhere throughout the program, we make sure to set the accessed bit for that corresponding page table entry by using the pagedir_set_accessed function
-    4. A data member bool pin is added to each frame table entry and is used to synchronize eviction in case that two threads are trying to evict the same frame table entry. 
+In our particular use case, for evicting frame table entries from the frame table, we modified and used the second chance replacement policy in the following manner:   
+    1. A list_elem *evict_ptr is used to keep cyclically iterate over the frame table in a round robin order.   
+    2. Each frame table entry's second choice is decided by iterating over the frame's list of user_ptes, which is the list of all user page table entries (which in turn are pointed to by a user virtual address) that    point to the kernel virtual address pointed to by the frame table entry, and checking their accessed bit to see if they have been accessed since the last function call to evict.   
+    3. When a user virtual address is accessed anywhere throughout the program, we make sure to set the accessed bit for that corresponding page table entry by using the pagedir_set_accessed function.  
+    4. A data member bool pin is added to each frame table entry and is used to synchronize eviction in case that two threads are trying to evict the same frame table entry.   
 
 
 
@@ -176,9 +200,9 @@ virtual address that is used to identify the previous frame.
 > Explain how your synchronization design prevents deadlock.  
 > (You may want to refer to the necessary conditions for deadlock.)
 
-Mutual exclusion (DEF: each resource is either available or assigned to exactly one process)
+Mutual exclusion (each resource is either available or assigned to exactly one process)
 
-Hold and wait (DEF: process can request resources while it holds other resources earlier)
+Hold and wait (process can request resources while it holds other resources earlier)
 
 No preemption (resources given to a process cannot be forcibly revoked)
 
@@ -252,7 +276,7 @@ Circular wait (two or more processes in a circular chain, each waiting for a res
 ```
 
 `[1]`  A typedef for the map identifier.  
-`[2]`  A struct used for storing information about the container for a memory mapped page of a file. 
+`[2]`  A struct used for storing information about the container for a memory mapped page of a file.  
 `[3]`  A pointer to the file that is memory mapped.  
 `[4]`  The unique identifier of the container.   
 `[5]`  The address in user space that the page of the file is mapped to.   
