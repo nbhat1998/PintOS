@@ -12,9 +12,9 @@ struct shared_exec       /* Struct that stores information required for sharing 
   char *name;            /* pointer to the thread name (that is also the executable name) */
   uint32_t start_read;   /* Offset in file to start reading */
   uint32_t read_bytes;   /* How much to read in file */
-  struct list_elem elem; /*  */
+  struct list_elem elem; /* Used to add in shared execs list */
 };
 
-struct list shared_execs;
+struct list shared_execs; /* shared executables list */
 
 #endif
