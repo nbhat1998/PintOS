@@ -10,16 +10,20 @@
 #include "threads/vaddr.h"
 #include "threads/pte.h"
 
-void create_frame(void *vaddr)
+/* Creates a new empty struct frame for vaddr,
+ and ads it to the frame_table list */
+void create_frame(void *kvaddr)
 {
   struct frame *new_frame = malloc(sizeof(struct frame));
-  new_frame->kvaddr = vaddr;
+  new_frame->kvaddr = kvaddr;
   list_init(&new_frame->user_ptes);
   new_frame->pin = false;
   lock_init(&new_frame->lock);
   list_push_back(&frame_table, &new_frame->elem);
 }
 
+/* Finds the struct frame for kvaddr in the frame_table list,
+ and sets the other fields according to uaddr and current page directory */
 void set_frame(void *kvaddr, void *uaddr)
 {
   struct user_pte_ptr *new_pte_ptr = malloc(sizeof(struct user_pte_ptr));
@@ -40,6 +44,9 @@ void set_frame(void *kvaddr, void *uaddr)
     }
     lock_release(&curr->lock);
   }
+  /* We always call set_frame after create_frame, so kvaddr should always 
+  be present in the frame table. This means that the function should return
+  somewhere in the for loop, and this line should never be reached */
   free(new_pte_ptr);
   NOT_REACHED();
 }

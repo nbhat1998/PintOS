@@ -142,7 +142,7 @@ page_fault(struct intr_frame *f)
   bool file;        /* True: is file, false: is not file */
   bool mmap;        /* True: is mmap file, false: is not mmap file */
   bool stack;       /* True: is stack page, false: is not stack page */
-  bool exec;        /* True: is executable, false: is not executable */
+  bool executable;  /* True: is executable, false: is not executable */
   bool swapped;     /* True: is swapped, false: is not swapped */
   void *fault_addr; /* Fault address. */
 
@@ -170,34 +170,36 @@ page_fault(struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
+  /* Getting the correct esp to use when checking for stack pages */
   void *esp = f->esp;
   if (!is_user_vaddr(esp))
   {
     esp = thread_current()->process->esp;
   }
 
+  /* Further determination of page fault cause */
   if (pte != NULL && is_user_vaddr(fault_addr) && not_present)
   {
     uint32_t int_pte = (uint32_t)(*((uint32_t *)pte));
     mmap = (int_pte & PF_M) == PF_M;
     stack = fault_addr > STACK_LIMIT && (fault_addr >= esp - (WORD_LENGTH * BYTE)) && ((int_pte & PF_S) == 0);
-    exec = (int_pte & PF_F) != 0;
-    swapped = !exec && (int_pte & PF_S) != 0;
-   
+    executable = (int_pte & PF_F) != 0;
+    swapped = !executable && (int_pte & PF_S) != 0;
   }
   else
   {
     mmap = false;
     stack = false;
-    exec = false;
+    executable = false;
     swapped = false;
   }
 
-  if(pte != NULL && is_user_vaddr(fault_addr)) {
-     pagedir_set_accessed(thread_current()->pagedir, fault_addr, true);
+  if (pte != NULL && is_user_vaddr(fault_addr))
+  {
+    pagedir_set_accessed(thread_current()->pagedir, fault_addr, true);
   }
 
-  /* For a mmapped file */
+  /* -------------------------- MMaped Page -------------------------- */
   if (mmap)
   {
     void *kvaddr = palloc_get_page(PAL_USER);
@@ -238,8 +240,10 @@ page_fault(struct intr_frame *f)
     NOT_REACHED();
   }
 
-  /* If the kernel gets a fault_addr in user space, and the fault_addr
-     is in stack bounds, allocate a new page for stack */
+  /* -------------------------- Stack Page -------------------------- */
+  /* If there was a fault where a stack page was supposed to be, we get a 
+  new frame, either by creating a new one or evicting an existing one, 
+  and link it to the fault_address. */
   if (stack)
   {
     void *kvaddr = palloc_get_page(PAL_USER);
@@ -262,8 +266,11 @@ page_fault(struct intr_frame *f)
     return;
   }
 
-  /* Lazy loading */
-  if (exec)
+  /* -------------------------- Executable Page -------------------------- */
+  /* If there was a page fault where an executable page should be, we get the 
+  information about where in the file to read from, and how much to 
+  read. */
+  if (executable)
   {
     uint32_t int_pte = (uint32_t)(*((uint32_t *)pte));
     const int PAGE_MID_FLAG = 0x400;
@@ -390,7 +397,7 @@ page_fault(struct intr_frame *f)
 
   /* Swapped page */
   if (swapped)
-  { // In SWAP
+  {
     swap_read(fault_addr);
     if (pte != NULL)
     {

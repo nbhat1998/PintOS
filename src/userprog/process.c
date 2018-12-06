@@ -246,7 +246,7 @@ void process_exit(void)
   pd = cur->pagedir;
   if (pd != NULL)
   {
-
+    /* Removes curr threads curr_pte_ptr(s) from all frames*/
     for (struct list_elem *curr = list_begin(&frame_table);
          curr != list_end(&frame_table); curr = list_next(curr))
     {
@@ -267,6 +267,7 @@ void process_exit(void)
       lock_release(&frame->lock);
     }
 
+    /* Frees frames that no longer have ptes pointing to them*/
     struct list_elem *frame_elem = list_begin(&frame_table);
     while (frame_elem != list_end(&frame_table))
     {
