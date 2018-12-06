@@ -457,7 +457,7 @@ sys_mmap(uint32_t *args)
   int param_fd = (int)get_word(args);
   args++;
 
-  // If block to check if the file descriptor of the file to be mmap'd in stands for either STDIN (fd = 0) or STDOUT (fd = 1) 
+  /* If block to check if the file descriptor of the file to be mmap'd in stands for either STDIN (fd = 0) or STDOUT (fd = 1) */ 
   if (param_fd == STDOUT_FILENO || param_fd == STDIN_FILENO)
   {
     return -1;
@@ -474,7 +474,7 @@ sys_mmap(uint32_t *args)
   uint32_t file_size = 0;
 
 
-  // To find the file container with the required file descriptor and retrieve the size of the file pointed to by it
+  /* To find the file container with the required file descriptor and retrieve the size of the file pointed to by it */
   struct file_container *this_container = NULL;
   for (struct list_elem *e = list_begin(&thread_current()->process->file_containers);
        e != list_end(&thread_current()->process->file_containers);
@@ -504,7 +504,7 @@ sys_mmap(uint32_t *args)
   }
 
   // Iterate over 
-  for (int i = 0; i < file_size; i++)
+  for (int i = 0; i < number_of_pages; i++)
   {
     void *current_pte = get_pte(thread_current()->pagedir, uaddr + (i * PGSIZE), false);
     if (current_pte != NULL && (*(uint32_t *)current_pte) != 0)
