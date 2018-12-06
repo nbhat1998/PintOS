@@ -456,7 +456,9 @@ sys_mmap(uint32_t *args)
 {
   int param_fd = (int)get_word(args);
   args++;
-  if (param_fd < 2)
+
+  // If block to check if the file descriptor of the file to me mmap'd in stands for either STDIN (fd = 0) or STDOUT (fd = 1) 
+  if (param_fd == 1 || param_fd == 0)
   {
     return -1;
   }
@@ -511,7 +513,7 @@ sys_mmap(uint32_t *args)
   for (int i = 0; i < number_of_pages; i++)
   {
     void *current_pte = get_pte(thread_current()->pagedir, uaddr + (i * PGSIZE), true);
-    (*(uint32_t *)current_pte) = 0x500;
+    (*(uint32_t *)current_pte) = 0x500; // 
     struct mmap_container *mmap_container = malloc(sizeof(struct mmap_container));
     mmap_container->f = this_container->f;
     mmap_container->mapid = new_mapId;
