@@ -155,11 +155,9 @@ A brief explanation of the Cock Replacement Policy:
 
 In our particular use case, for evicting frame table entries from the frame table, we modified and used the second chance replacement policy in the following manner: 
     1. A list_elem *evict_ptr is used to keep cyclically iterate over the frame table in a round robin order. 
-    2. Each frame table entry's second choice is decided by iterating over the frame's list of user_ptes, which is the list of all user page table entries (which in turn are pointed to by a user virtual address) that point to the kernel virtual address pointed to by the frame table entry, and checking their accessed bit to see if they have been accessed since the last function call to evict. 
+    2. Each frame table entry's second choice is decided by iterating over the frame's list of user_ptes, which is the list of all user page table entries (which in turn are pointed to by a user virtual address) that    point to the kernel virtual address pointed to by the frame table entry, and checking their accessed bit to see if they have been accessed since the last function call to evict. 
     3. When a user virtual address is accessed anywhere throughout the program, we make sure to set the accessed bit for that corresponding page table entry by using the pagedir_set_accessed function
     4. A data member bool pin is added to each frame table entry and is used to synchronize eviction in case that two threads are trying to evict the same frame table entry. 
-
-
 
 
 
