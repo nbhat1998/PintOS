@@ -142,6 +142,33 @@ calling evict().
 > When a frame is required but none is free, some frame must be
 > evicted.  Describe your code for choosing a frame to evict.
 
+In our implementation of evict we used the "clock" algorithm. We consider all frames for
+eviction in a round robin way (cyclically) and if a page in the frame's user_ptes list was accessed since 
+the last consideration then its frame is not replaced. 
+We use the accessed bit of page directories to store whether it was accessed and in evict() we iterate through the frame's user_ptes
+If the frame selected has its pin set to true (meaning it's currently being swapped) we need to choose another one
+
+Our eviction algorithm uses the Clock Replacement Policy, also known as the Second Chance Replacement Policy. 
+A brief explanation of the Cock Replacement Policy: 
+    The candidate pages for removal are considered in a round robin order. Pages that have been accessed between consecutive calls
+        to the eviction policy have no chance of being replaced, and will not be considered. 
+    When considered in a round robin order, the page that will be replaced is one of the pages that has not been accessed since 
+        the last call to the eviction policy. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
