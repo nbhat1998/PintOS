@@ -80,6 +80,8 @@ DESIGN DOCUMENT
 
 
 
+
+
 ##  PAGING TO AND FROM DISK
 
 ### DATA STRUCTURES  
@@ -140,11 +142,7 @@ calling evict().
 > When a frame is required but none is free, some frame must be
 > evicted.  Describe your code for choosing a frame to evict.
 
-In our implementation of evict we used the "clock" algorithm. We consider all frames for
-eviction in a round robin way (cyclically) and if a page in the frame's user_ptes list was accessed since 
-the last consideration then its frame is not replaced. 
-We use the accessed bit of page directories to store whether it was accessed and in evict() we iterate through the frame's user_ptes
-If the frame selected has its pin set to true (meaning it's currently being swapped) we need to choose another one
+
 
 
 > B3: (2 marks)
@@ -271,4 +269,4 @@ When a new file mapping is being created, the size of the file (let this be x) t
 
 During lazy loading, a page fault occurs at the address where a page is not found, which then enters the exception page_fault and loads the page into the desired user virtual address. 
 
-When an mmap mapping is created, pages from the file aren't actually loaded into the user virtual space specified by the mapping. When a process expects a page to exist at the user virtual address, it doesn't find the required page in the location which triggers a page fault at the current location. Our codebase takes advantage of this by using the same page fault function used in lazy loading, albeit falling through into an entirely different if block with different conditions. This reduces a small amount of code duplication, as the data used within the function (such as fault address, not_present, bool write and bool user
+When an mmap mapping is created, pages from the file aren't actually loaded into the user virtual space specified by the mapping. When a process expects a page to exist at the user virtual address, it doesn't find the required page in the location which triggers a page fault at the current location. Our codebase takes advantage of this by using the same page fault function used in lazy loading, albeit falling through into an entirely different if block with different conditions. This reduces a small amount of code duplication, as the data used within the function (such as fault address, not_present, bool write and bool user) are the same regardless of which if block within the page_fault function our code cascades through.
