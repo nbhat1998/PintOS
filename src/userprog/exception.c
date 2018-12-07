@@ -19,7 +19,6 @@
 #include "filesys/file.h"
 #include "threads/synch.h"
 #include "userprog/syscall.h"
-
 #define STACK_LIMIT 0xbfe00000
 
 /* Number of page faults processed. */
@@ -140,8 +139,11 @@ page_fault(struct intr_frame *f)
   bool not_present; /* True: not-present page, false: writing r/o page. */
   bool write;       /* True: access was write, false: access was read. */
   bool user;        /* True: access by user, false: access by kernel. */
-  bool swapped;     /* True: is in swap, false: is not in swap */
   bool file;        /* True: is file, false: is not file */
+  bool mmap;        /* True: is mmap file, false: is not mmap file */
+  bool stack;       /* True: is stack page, false: is not stack page */
+  bool executable;  /* True: is executable, false: is not executable */
+  bool swapped;     /* True: is swapped, false: is not swapped */
   void *fault_addr; /* Fault address. */
 
   /* Obtain faulting address, the virtual address that was
@@ -161,41 +163,68 @@ page_fault(struct intr_frame *f)
   /* Count page faults. */
   page_fault_cnt++;
 
+  void *pte = get_pte(thread_current()->pagedir, fault_addr, false);
+
   /* Determine cause. */
   not_present = (f->error_code & PF_P) == 0;
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  uint32_t *pte = get_pte(thread_current()->pagedir, fault_addr, false);
+  /* Getting the correct esp to use when checking for stack pages */
+  void *esp = f->esp;
+  if (!is_user_vaddr(esp))
+  {
+    esp = thread_current()->process->esp;
+  }
+
+  /* Further determination of page fault cause */
+  if (pte != NULL && is_user_vaddr(fault_addr) && not_present)
+  {
+    uint32_t int_pte = (uint32_t)(*((uint32_t *)pte));
+    mmap = (int_pte & PF_M) == PF_M;
+    stack = fault_addr > STACK_LIMIT && (fault_addr >= esp - (WORD_LENGTH * BYTE)) && ((int_pte & PF_S) == 0);
+    executable = (int_pte & PF_F) != 0;
+    swapped = !executable && (int_pte & PF_S) != 0;
+  }
+  else
+  {
+    mmap = false;
+    stack = false;
+    executable = false;
+    swapped = false;
+  }
 
   if (pte != NULL && is_user_vaddr(fault_addr))
   {
     pagedir_set_accessed(thread_current()->pagedir, fault_addr, true);
   }
 
-  /* For a memory mapped file */
-  if (not_present && is_user_vaddr(fault_addr) && pte != NULL &&
-      ((*pte) & 0x500) == 0x500)
+  /* -------------------------- MMaped Page -------------------------- */
+  /* If there is a page fault at an address that is known to be an mmap'd 
+  address, then lazily load the pages from the file into the frame table. 
+  The contents of each kvaddr returned by PALLOC_GET_PAGE(PAL_USER) is set 
+  to 0 before being read into, so as to enable padding when the page isn't 
+  entirely used. If kvaddr is found to be null, a page is evicted from the
+  frame table and the same process is carried out. */
+  if (mmap)
   {
-    void *kpage = palloc_get_page(PAL_USER);
-
-    if (kpage == NULL)
+    void *kvaddr = palloc_get_page(PAL_USER);
+    if (kvaddr == NULL)
     {
-      kpage = evict();
+      kvaddr = evict();
     }
     else
     {
-      create_frame(kpage);
+      create_frame(kvaddr);
     }
-    bool success = link_page(fault_addr, kpage, true);
-    set_frame(kpage, fault_addr);
+    bool success = link_page(fault_addr, kvaddr, true);
+    set_frame(kvaddr, fault_addr);
     if (!success)
     {
       sys_exit_failure();
       NOT_REACHED();
     }
     pagedir_set_dirty(thread_current()->pagedir, pg_round_down(fault_addr), write);
-    // TODO: maybe set accessed bit
     for (struct list_elem *e = list_begin(
              &thread_current()->process->mmap_containers);
          e != list_end(&thread_current()->process->mmap_containers);
@@ -205,10 +234,8 @@ page_fault(struct intr_frame *f)
           list_entry(e, struct mmap_container, elem);
       if (this_container->uaddr == pg_round_down(fault_addr))
       {
-        // TODO : lock and unlock here with filesys_lock? not sure if this part will be called within a syscall, in which case there will be a deadlock
-
-        memset(kpage, 0, PGSIZE);
-        file_read_at(this_container->f, kpage,
+        memset(kvaddr, 0, PGSIZE);
+        file_read_at(this_container->f, kvaddr,
                      this_container->size_used_within_page,
                      this_container->offset_within_file);
 
@@ -219,15 +246,11 @@ page_fault(struct intr_frame *f)
     NOT_REACHED();
   }
 
-  /* If the kernel gets a fault_addr in user space, and the fault_addr
-     is in stack bounds, allocate a new page for stack */
-  void *esp = f->esp;
-  if (!is_user_vaddr(esp))
-  {
-    esp = thread_current()->process->esp;
-  }
-  if ((not_present && is_user_vaddr(fault_addr) && fault_addr > STACK_LIMIT &&
-       (fault_addr >= esp - 32) && (((*pte) & PF_S) == 0)))
+  /* -------------------------- Stack Page -------------------------- */
+  /* If there was a fault where a stack page was supposed to be, we get a 
+  new frame, either by creating a new one or evicting an existing one, 
+  and link it to the fault_address. */
+  if (stack)
   {
     void *kvaddr = palloc_get_page(PAL_USER);
     if (kvaddr == NULL)
@@ -249,41 +272,56 @@ page_fault(struct intr_frame *f)
     return;
   }
 
-  /* Lazy loading */
-  if (not_present && is_user_vaddr(fault_addr) && pte != NULL && ((*pte) & PF_F) != 0)
+  /* -------------------------- Executable Page -------------------------- */
+  /* If there was a page fault where an executable page should be, we get the 
+  information about where in the file to read from, and how much to read. */
+  if (executable)
   {
-    uint32_t start_read, read_bytes;
-    if ((*pte & 0x400) != 0)
-    { // Middle of a page
-      start_read = (*pte) >> 12;
+    uint32_t int_pte = (uint32_t)(*((uint32_t *)pte));
+    const int PAGE_MID_FLAG = 0x400;
+    const int FULL_PAGE_FLAG = 0x100;
+    uint32_t start_read,
+        read_bytes;
+
+    if ((int_pte & PAGE_MID_FLAG) != 0)
+    {
+      /* Middle of a page*/
+      start_read = int_pte >> PGBITS;
       read_bytes = PGSIZE - (start_read % PGSIZE);
     }
     else
-    { // Start of page
-      start_read = (*pte) >> 12;
-      if (((*pte) >> 12) % PGSIZE == 0)
-      { // increment of page size
-        if ((*pte & 0x100) != 0)
-        { // Read all of it
+    {
+      /* Start of page */
+      start_read = int_pte >> PGBITS;
+      if (((int_pte >> PGBITS) % PGSIZE) == 0)
+      {
+        /* increment of page size */
+        if ((int_pte & FULL_PAGE_FLAG) != 0)
+        {
+          /* Read all of it */
           read_bytes = PGSIZE;
           start_read -= PGSIZE;
         }
         else
-        { // read none of it
+        {
+          /* read none of it */
           read_bytes = 0;
         }
       }
       else
-      { // read amount is mod PGSIZE
-        read_bytes = ((*pte) >> 12) % PGSIZE;
+      {
+        /* read amount is mod PGSIZE */
+        read_bytes = (int_pte >> PGBITS) % PGSIZE;
         start_read -= read_bytes;
       }
     }
 
     struct file *file = thread_current()->process->executable;
     int file_size = file_length(file);
-    bool rw = (*pte & PTE_W) != 0;
-    void *kaddr;
+    bool rw = (int_pte & PTE_W) != 0;
+    void *kvaddr;
+    /* If the file is read only, we look to see if it is already in the
+    shared_execs list. */
     if (!rw)
     {
       bool found = false;
@@ -302,10 +340,10 @@ page_fault(struct intr_frame *f)
       }
       if (found)
       {
-        //printf("hi\n");
-        bool success = link_page(fault_addr, curr_exec->kaddr, rw);
-        //printf("curr_exec->kaddr: %p ", curr_exec->kaddr);
-        set_frame(curr_exec->kaddr, fault_addr);
+        /* If it is, we link the fault_address (user address) to the address where
+        the executable page already exists in memory (kernel address). */
+        bool success = link_page(fault_addr, curr_exec->kvaddr, rw);
+        set_frame(curr_exec->kvaddr, fault_addr);
         if (!success)
         {
           sys_exit_failure();
@@ -314,53 +352,54 @@ page_fault(struct intr_frame *f)
       }
       else
       {
-        kaddr = palloc_get_page(PAL_USER);
-        if (kaddr == NULL)
+        /* If it isn't, then we get a new page, and we link fault_address to it.
+        Then, we create a new struct shared_exec for it. */
+        kvaddr = palloc_get_page(PAL_USER);
+        if (kvaddr == NULL)
         {
-          kaddr = evict();
+          kvaddr = evict();
         }
         else
         {
-          create_frame(kaddr);
+          create_frame(kvaddr);
         }
 
         struct shared_exec *new_exec = malloc(sizeof(struct shared_exec));
         new_exec->name = &thread_current()->name;
-        new_exec->kaddr = kaddr;
+        new_exec->kvaddr = kvaddr;
         new_exec->read_bytes = read_bytes;
         new_exec->start_read = start_read;
-        lock_init(&new_exec->lock);
         list_push_back(&shared_execs, &new_exec->elem);
-        //printf("created: %p\n", new_exec);
       }
     }
     else
     {
-      kaddr = palloc_get_page(PAL_USER);
-      if (kaddr == NULL)
+      /* If it's not read-only, read the executable into a new frame.*/
+      kvaddr = palloc_get_page(PAL_USER);
+      if (kvaddr == NULL)
       {
-        kaddr = evict();
+        kvaddr = evict();
       }
       else
       {
-        create_frame(kaddr);
+        create_frame(kvaddr);
       }
     }
 
-    bool success = link_page(fault_addr, kaddr, rw);
-    set_frame(kaddr, fault_addr);
+    bool success = link_page(fault_addr, kvaddr, rw);
+    set_frame(kvaddr, fault_addr);
 
     int actually_read = 0;
-    memset(kaddr, 0, PGSIZE);
+    memset(kvaddr, 0, PGSIZE);
     if (read_bytes != 0)
     {
-      if ((*pte & 0x400) != 0)
+      if ((int_pte & PAGE_MID_FLAG) != 0)
       {
-        actually_read = file_read_at(file, kaddr + (start_read % PGSIZE), read_bytes, start_read);
+        actually_read = file_read_at(file, kvaddr + (start_read % PGSIZE), read_bytes, start_read);
       }
       else
       {
-        actually_read = file_read_at(file, kaddr, read_bytes, start_read);
+        actually_read = file_read_at(file, kvaddr, read_bytes, start_read);
       }
     }
 
@@ -375,22 +414,16 @@ page_fault(struct intr_frame *f)
     return;
   }
 
-  /* Swapped page */
-  if (not_present && is_user_vaddr(fault_addr) && pte != NULL && ((*pte) & PF_S) != 0)
-  { // In SWAP
-    swap_read(fault_addr);
-    if (pte != NULL)
-    {
-      return;
-    }
-  }
-
-  if ((fault_addr < PHYS_BASE && !not_present && write))
+  /* -------------------------- Swapped Page -------------------------- */
+  /* If the page was swapped, then call swap_read to get it from memory. */
+  if (swapped)
   {
-    sys_exit_failure();
+    swap_read(fault_addr);
+    return;
   }
 
-  if (user)
+  /* Other errors */
+  if ((fault_addr < PHYS_BASE && !not_present && write) || user)
   {
     sys_exit_failure();
   }

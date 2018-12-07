@@ -15,6 +15,7 @@
 #include "filesys/filesys.h"
 #include "lib/string.h"
 #include "userprog/pagedir.h"
+#include "userprog/exception.h"
 
 static int get_user(const uint8_t *);
 static int32_t get_word(uint8_t *);
@@ -312,7 +313,7 @@ sys_read(uint32_t *args)
   }
 
   int actually_read = 0;
-  if (param_fd == 0)
+  if (param_fd == STDIN_FILENO)
   {
     while (param_size-- > 0)
     {
@@ -392,7 +393,7 @@ sys_write(uint32_t *args)
     kernel_buffer[i] = (char)c;
   }
 
-  if (param_fd == 1)
+  if (param_fd == STDOUT_FILENO)
   {
     if (param_size < ARBITRARY_LENGTH_LIMIT)
     {
@@ -451,26 +452,30 @@ sys_close(uint32_t *args)
   return;
 }
 
-uint32_t sys_mmap(uint32_t *args)
+uint32_t
+sys_mmap(uint32_t *args)
 {
   int param_fd = (int)get_word(args);
   args++;
-  if (param_fd < 2)
+
+  /* If block to check if the file descriptor of the file to be mmap'd in stands for either STDIN (fd = 0) or STDOUT (fd = 1) */ 
+  if (param_fd == STDOUT_FILENO || param_fd == STDIN_FILENO)
   {
     return -1;
   }
 
-  uint32_t uaddr = get_word(args);
+  void *uaddr = get_word(args);
 
-  if (uaddr == 0 || uaddr % PGSIZE != 0)
+  /* Ensuring that uaddr is page aligned */
+  if (uaddr == 0 || ((uint32_t)uaddr) % PGSIZE != 0)
   {
     return -1;
   }
 
   uint32_t file_size = 0;
 
-  uint32_t *pte = get_pte(thread_current()->pagedir, uaddr, true);
 
+  /* To find the file container with the required file descriptor and retrieve the size of the file pointed to by it */
   struct file_container *this_container = NULL;
   for (struct list_elem *e = list_begin(&thread_current()->process->file_containers);
        e != list_end(&thread_current()->process->file_containers);
@@ -499,20 +504,22 @@ uint32_t sys_mmap(uint32_t *args)
     number_of_pages++;
   }
 
-  for (int i = 0; i < file_size; i++)
+  /* Iterate over number_of_pages starting from uaddr to ensure that no overlapping occurs */
+  for (int i = 0; i < number_of_pages; i++)
   {
-    uint32_t *current_pte = get_pte(thread_current()->pagedir, uaddr + (i * PGSIZE), false);
-    if (current_pte != NULL && (*current_pte) != 0)
+    void *current_pte = get_pte(thread_current()->pagedir, uaddr + (i * PGSIZE), false);
+    if (current_pte != NULL && (*(uint32_t *)current_pte) != 0)
     {
       return -1;
     }
   }
 
+  /* Creating a new mmap mapping for each page table entry that should contain a page from the file*/
   int new_mapId = allocate_fd();
   for (int i = 0; i < number_of_pages; i++)
   {
-    uint32_t *current_pte = get_pte(thread_current()->pagedir, uaddr + (i * PGSIZE), true);
-    (*current_pte) = 0x500;
+    void *current_pte = get_pte(thread_current()->pagedir, uaddr + (i * PGSIZE), true);
+    (*(uint32_t *)current_pte) = PF_M; 
     struct mmap_container *mmap_container = malloc(sizeof(struct mmap_container));
     mmap_container->f = this_container->f;
     mmap_container->mapid = new_mapId;
@@ -552,7 +559,12 @@ uint32_t sys_munmap(uint32_t *args)
         return -1;
       }
 
-      if (pagedir_is_dirty(thread_current()->pagedir, this_container->uaddr) && ((*pte) & 0x500) != 0x500)
+      /* If page is dirty, it means that it has been changed since the last time it was read from 
+      the file, which means that it must written back to the file at the correct offset before 
+      unmapping */ 
+          
+      if (pagedir_is_dirty(thread_current()->pagedir, this_container->uaddr) 
+        && ((*pte) & 0x500) != 0x500)
       {
         lock_acquire(&filesys_lock);
         file_write_at(this_container->f, ptov((*pte) & PTE_ADDR),
@@ -564,7 +576,6 @@ uint32_t sys_munmap(uint32_t *args)
       e = list_next(e);
       list_remove(temp);
       free(this_container);
-      // TODO : look into removing frame from frame table to free up kvm
     }
     else
     {

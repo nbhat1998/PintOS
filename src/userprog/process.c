@@ -23,6 +23,7 @@
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 #include "threads/pte.h"
+#include "userprog/exception.h"
 #include "vm/frame.h"
 #include "vm/share.h"
 #include <list.h>
@@ -245,7 +246,7 @@ void process_exit(void)
   pd = cur->pagedir;
   if (pd != NULL)
   {
-
+    /* Removes curr threads curr_pte_ptr(s) from all frames*/
     for (struct list_elem *curr = list_begin(&frame_table);
          curr != list_end(&frame_table); curr = list_next(curr))
     {
@@ -266,6 +267,7 @@ void process_exit(void)
       lock_release(&frame->lock);
     }
 
+    /* Frees frames that no longer have ptes pointing to them*/
     struct list_elem *frame_elem = list_begin(&frame_table);
     while (frame_elem != list_end(&frame_table))
     {
@@ -277,7 +279,7 @@ void process_exit(void)
         while (shared_elem != list_end(&shared_execs))
         {
           struct shared_exec *shared = list_entry(shared_elem, struct shared_exec, elem);
-          if (shared->kaddr == frame->kaddr)
+          if (shared->kvaddr == frame->kvaddr)
           {
             list_remove(shared_elem);
             free(shared);
@@ -287,7 +289,7 @@ void process_exit(void)
         }
         struct list_elem *temp = list_next(frame_elem);
         list_remove(frame_elem);
-        palloc_free_page(frame->kaddr);
+        palloc_free_page(frame->kvaddr);
         lock_release(&frame->lock);
         free(frame);
         frame_elem = temp;
@@ -539,7 +541,6 @@ bool load(const char *argv, void (**eip)(void), void **esp)
 done:
   /* We arrive here whether the load is successful or not. */
   free(argv_cpy);
-  // printf("done: %d\n", success);
 
   return success;
 }
@@ -635,10 +636,10 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 
   uint32_t start_read = ofs;
 
-  //printf("ofs %d\n", ofs / PGSIZE);
   while (read_bytes > 0 || zero_bytes > 0)
   {
-
+    const int PAGE_MID_FLAG = 0x400;
+    const int FULL_PAGE_FLAG = 0x100;
     /* Calculate how to fill this page.
          We will read PAGE_READ_BYTES bytes from FILE
          and zero the final PAGE_ZERO_BYTES bytes. */
@@ -646,7 +647,6 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
     size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
     uint32_t *pte = get_pte(thread_current()->pagedir, upage, true);
-    // printf("uaddr: %p, bool %d\n", upage, writable);
     if (writable)
     {
       *pte = PTE_W;
@@ -656,31 +656,28 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
       *pte = 0;
     }
 
-    // TODO: make this nice
     if (page_read_bytes == 0)
     {
       /* If you don't need to read anything */
-      *pte += 0x200;
+      *pte += PF_F;
     }
     else if (start_read % PGSIZE != 0)
     {
       /* If you need to start reading from inside a page, also set 0x400 */
-      *pte += (start_read << 12) + 0x600;
+      *pte += (start_read << PGBITS) + PF_F + PAGE_MID_FLAG;
     }
     else
     {
       /* If you need to start reading something from the start of a page,
          also set 0x100 */
-      *pte += ((start_read + page_read_bytes) << 12) + 0x300;
+      *pte += ((start_read + page_read_bytes) << PGBITS) + PF_F + FULL_PAGE_FLAG;
     }
-    //printf("upage %p\n", upage);
     /* Advance. */
     read_bytes -= page_read_bytes;
     zero_bytes -= page_zero_bytes;
     upage += PGSIZE;
     start_read += page_read_bytes;
   }
-  // printf("%s: load_segment\n", thread_current()->name);
 
   return true;
 }
@@ -730,10 +727,10 @@ setup_stack(void **esp, const char *argv)
 
   /* Word align */
   int8_t *argv_ptr = sp;
-  sp -= (uint8_t)sp % 4;
+  sp -= (uint8_t)sp % WORD_LENGTH;
 
   /* Add null pointer (end of argv) */
-  sp -= 4;
+  sp -= WORD_LENGTH;
   *sp = NULL;
 
   /* Adding argv addresses,address of ar0gv array, argc,

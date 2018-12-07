@@ -10,32 +10,32 @@
 #include "threads/vaddr.h"
 #include "threads/pte.h"
 
-// TODO: set pin to false in install_page
-
-void create_frame(void *vaddr)
+/* Creates a new empty struct frame for vaddr,
+ and ads it to the frame_table list */
+void create_frame(void *kvaddr)
 {
   struct frame *new_frame = malloc(sizeof(struct frame));
-  new_frame->kaddr = vaddr;
+  new_frame->kvaddr = kvaddr;
   list_init(&new_frame->user_ptes);
-  // TODO: set pint to true
   new_frame->pin = false;
   lock_init(&new_frame->lock);
   list_push_back(&frame_table, &new_frame->elem);
 }
 
-void set_frame(void *kaddr, void *uaddr)
+/* Finds the struct frame for kvaddr in the frame_table list,
+ and sets the other fields according to uaddr and current page directory */
+void set_frame(void *kvaddr, void *uaddr)
 {
   struct user_pte_ptr *new_pte_ptr = malloc(sizeof(struct user_pte_ptr));
   new_pte_ptr->pagedir = thread_current()->pagedir;
   new_pte_ptr->uaddr = uaddr;
 
-  //printf("pd %p uaddr %p pte: %p\n", thread_current()->pagedir, uaddr, get_pte(thread_current()->pagedir, uaddr, false));
   for (struct list_elem *e = list_begin(&frame_table);
        e != list_end(&frame_table); e = list_next(e))
   {
     struct frame *curr = list_entry(e, struct frame, elem);
     lock_acquire(&curr->lock);
-    if (curr->kaddr == kaddr)
+    if (curr->kvaddr == kvaddr)
     {
       list_push_back(&curr->user_ptes, &new_pte_ptr->elem);
       curr->pin = false;
@@ -44,10 +44,19 @@ void set_frame(void *kaddr, void *uaddr)
     }
     lock_release(&curr->lock);
   }
+  /* We always call set_frame after create_frame, so kvaddr should always 
+  be present in the frame table. This means that the function should return
+  somewhere in the for loop, and this line should never be reached */
   free(new_pte_ptr);
   NOT_REACHED();
 }
 
+
+/* Uses the "clock" algorithm. Considers frames for eviction in a round robin 
+   way (cyclically) and if a page in the frame's user_ptes list was accessed 
+   since the last consideration then its frame is not replaced. Uses the accessed
+   bit of pds to store whether it was accessed and checks the frame's user_ptes.
+   If the frame selected has its pin set to true we need to choose a different one */
 void *evict()
 {
   if (evict_ptr == NULL)
@@ -88,5 +97,5 @@ void *evict()
 
   swap_write(frame_to_evict);
 
-  return frame_to_evict->kaddr;
+  return frame_to_evict->kvaddr;
 }
