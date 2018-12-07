@@ -38,8 +38,6 @@ DESIGN DOCUMENT
      };
 
 [11] struct list frame_table;
-
-
 ```
 
 `[1]` A struct used for storing information about individual frames.  
@@ -50,8 +48,8 @@ by this frame.
 `[5]` Boolean used for pinning while the frame is swapped.  
 `[6]` A lock used to synchronize operations on struct frame.  
 `[7]` A struct that acts as a pointer to a user page table entry.  
-`[8]` The pagedir of the user; used to find the page table entry.  
-`[9]` Index in the page directory/ page table; used to find the PTE  
+`[8]` The page directory of the process. used to find the page table entry.  
+`[9]` Index in the page directory and page table. used to find the PTE  
 `[10]` Struct list_elem used to add the struct to the list of user_ptes in struct frame  
 `[11]` List that holds the frames (our frame table).
 
@@ -85,7 +83,7 @@ In the case that the memory is full, two evictions must take place. Since we loc
 > Why did you choose the data structure(s) that you did for representing the supplemental page table and frame table?
 
 **Supplemental page table:**  
-We chose not to use a supplemental page table as we found that the existing page table was sufficient enough to implement the required functionalities. We only used the remaining free bits of the flags in ptes to distinguish between lazy loaded files, swapped frames, mmaped files and stack growth pages.
+We chose not to use a supplemental page table as we found that the existing page table was sufficient enough to implement the required functionalities. We only used the remaining free bits of the flags in `pte`s to distinguish between lazy loaded files, swapped frames, mmaped files and stack growth pages.
 This means that we had to limit the total amount of swapped pages to 2^20, which we believe is sufficient for the use case.
 The address part of the pts is used in many different ways if the pte is not present:
 
@@ -151,7 +149,7 @@ calling evict().
 > B2: (2 marks)
 > When a frame is required but none is free, some frame must be evicted. Describe your code for choosing a frame to evict.
 
-Our eviction algorithm uses the Clock Replacement Policy, also known as the Second Chance Replacement Policy. A brief explanation of the Cock Replacement Policy:
+Our eviction algorithm uses the Clock Replacement Policy, also known as the Second Chance Replacement Policy. A brief explanation of the Clock Replacement Policy:
 
 The candidate pages for removal are considered in a round robin order. Pages that have been accessed between consecutive calls to the eviction policy have no chance of being replaced, and will not be considered.
 When considered in a round robin order, the page that will be replaced is one of the pages that has not been accessed since the last call to the eviction policy.
@@ -165,14 +163,14 @@ When a page needs to removed (evicted), the memory frames are traversed in a rou
 In our particular use case, for evicting frame table entries from the frame table, we used the second chance replacement policy in the following manner:
 
 1. `list_elem *evict_ptr` is used to keep cyclically iterate over the frame table in a round robin order.
-2. Each frame's second choice is checked by iterating over the frame's list of user_ptes and checking the accessed bit of the page directories to see if they have been accessed since the last eviction. If so, they are set to 0 and the frame is not selected for eviction.
-3. When a user virtual address is accessed anywhere throughout the program, we make sure to set the accessed bit for that corresponding page table entry by using the pagedir_set_accessed function.
+2. Each frame's second choice is checked by iterating over the frame's list of `user_pte`s and checking the accessed bit of the page directories to see if they have been accessed since the last eviction. If so, they are set to 0 and the frame is not selected for eviction.
+3. When a user virtual address is accessed anywhere throughout the program, we make sure to set the accessed bit for that corresponding page table entry by using the `pagedir_set_accessed` function.
 4. A data member bool pin is added to each frame and is used to synchronize eviction in case that another process is already trying to evict that frame.
 
 > B3: (2 marks)
 > When a process P obtains a frame that was previously used by a process Q, how do you adjust the page directory (and any other data structures) to reflect the frame Q no longer has?
 
-The page table entry in the page directory is zeroed out and therefore does not point to the kernel virtual address that is used to identify the previous frame. The frame in the frame table also removes its entry of the pointer to the uaddr of Q and repaces it with the uaddr of P.
+The page table entry in the page directory is zeroed out and therefore does not point to the kernel virtual address that is used to identify the previous frame. The frame in the frame table also removes its entry of the pointer to the `uaddr` of Q and replaces it with the `uaddr` of P.
 
 ### SYNCHRONIZATION
 
